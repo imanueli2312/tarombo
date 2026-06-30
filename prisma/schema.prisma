@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+// User table - separate from tree data, used for authentication and RBAC
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  password      String
+  role          Role     @default(VIEWER)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Person table - data displayed on the tarombo tree (Hariandja clan)
+model Person {
+  id            String        @id @default(cuid())
+  fullName      String
+  nickname      String?
+  birthPlace    String?
+  birthDate     DateTime?
+  deathPlace    String?
+  deathDate     DateTime?
+  birthOrder    Int?
+  gender        Gender
+  address       String?
+  religion      String?
+  phone         String?
+  photoPath     String?
+  maritalStatus MaritalStatus @default(SINGLE)
+  isDeceased    Boolean       @default(false)
+
+  // Parent references
+  fatherId      String?
+  father        Person?       @relation("FatherChild", fields: [fatherId], references: [id], onDelete: SetNull)
+  motherId      String?
+  mother        Person?       @relation("MotherChild", fields: [motherId], references: [id], onDelete: SetNull)
+
+  // Children derived from other persons' fatherId/motherId
+  childrenAsFather Person[] @relation("FatherChild")
+  childrenAsMother Person[] @relation("MotherChild")
+
+  // Marriages
+  marriagesAsHusband Marriage[] @relation("HusbandMarriage")
+  marriagesAsWife   Marriage[] @relation("WifeMarriage")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([fatherId])
+  @@index([motherId])
+  @@index([gender])
+}
+
+// Marriage/Partnership table
+model Marriage {
+  id            String    @id @default(cuid())
+  husbandId     String
+  husband       Person    @relation("HusbandMarriage", fields: [husbandId], references: [id], onDelete: Cascade)
+  wifeId        String
+  wife          Person    @relation("WifeMarriage", fields: [wifeId], references: [id], onDelete: Cascade)
+  marriageDate  DateTime?
+  divorceDate   DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([husbandId, wifeId])
+  @@index([husbandId])
+  @@index([wifeId])
+  @@index([isActive])
+}
