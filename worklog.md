@@ -135,4 +135,22 @@ Stage Summary:
 - Full audit trail for all RBAC-sensitive mutations (8 action types)
 - Backward-compatible pagination on persons and marriages list endpoints
 - Admin backup export/import with transactional safety and ID remapping
-- Admin audit log viewer API with filtering
+- Admin audit log viewer API with filtering---
+Task ID: 6
+Agent: Main
+Task: Integration, bug fixes, and push all strengthening changes to GitHub
+
+Work Log:
+- Fixed AuditLogViewer: changed `log.detail` to `log.details` to match API response field name
+- Fixed PersonList: replaced useEffect-based page reset with inline `setPage(1)` in onChange/onValueChange handlers (avoids ESLint react-hooks/set-state-in-effect error)
+- Fixed BackupRestore: removed unused `backup-info` query (GET /api/backup returns export data, not backup metadata), removed unused imports (Clock, Database), removed dead "Last Backup" card section
+- Added db/*.db, db/*.db-journal, and public/uploads/ to .gitignore
+- Removed db/custom.db from git tracking (local database should not be committed)
+- Ran ESLint: 0 errors
+- Committed all changes with detailed commit message
+- Pushed to GitHub: https://github.com/imanueli2312/tarombo.git (branch: main)
+
+Stage Summary:
+- 3 frontend bugs fixed (field name mismatch, lint violation, unnecessary API call)
+- .gitignore hardened for local database and uploads
+- All 7 strengthening improvements + 3 bug fixes pushed to GitHub successfully
