@@ -75,3 +75,64 @@ Stage Summary:
 - Server resilience: buildTree cycle protection prevents infinite recursion
 - Security: login rate limiting against brute force
 - Business logic: reliable auto-divorce, re-marriage support
+
+---
+Task ID: 5
+Agent: Frontend Strengthening Agent
+Task: Implement frontend strengthening (pagination, error boundary, backup/restore, audit log viewer)
+
+Work Log:
+- Updated `src/store/app-store.ts`: Added "backup" and "audit-logs" to the `activeView` union type
+- Updated `src/components/tarombo/PersonList.tsx`: Added page/limit state, updated query to handle paginated response format (`{data, total, page, limit, totalPages}`), added pagination controls (Sebelumnya/Berikutnya buttons with disabled states, "Menampilkan X-Y dari Z data" text)
+- Updated `src/components/tarombo/MarriageList.tsx`: Same pagination pattern as PersonList — added page/limit state, updated query, added pagination controls
+- Created `src/components/ErrorBoundary.tsx`: React class component error boundary with amber-themed UI (AlertTriangle icon, "Terjadi Kesalahan" heading, "Coba Lagi" reset button), supports custom fallback prop
+- Created `src/components/tarombo/BackupRestore.tsx`: Admin-only backup/restore UI with export (downloads `tarombo-backup-YYYY-MM-DD.json`), import with file picker, AlertDialog confirmation before import with warning about data replacement, last backup timestamp display, sonner toast feedback
+- Created `src/components/tarombo/AuditLogViewer.tsx`: Admin-only audit log table with columns (Waktu, Pengguna, Aksi, Resource, Detail), Indonesian action labels (CREATE_PERSON→"Tambah Anggota", etc.), color-coded action badges, pagination with same pattern
+- Updated `src/app/page.tsx`: Imported ErrorBoundary and wrapped `<AppContent />` with it, imported BackupRestore and AuditLogViewer, added "backup" and "audit-logs" view routes
+- Updated `src/components/layout/AppSidebar.tsx`: Added FileText icon import, extended NavItem id type, added "Pencadangan Data" (Database icon, minRole 3) and "Log Audit" (FileText icon, minRole 3) navigation items
+- Fixed JSX comment syntax errors in PersonList and MarriageList pagination sections
+- All files pass ESLint (0 errors)
+
+Stage Summary:
+- 3 files modified: app-store.ts, PersonList.tsx, MarriageList.tsx, page.tsx, AppSidebar.tsx
+- 3 new files created: ErrorBoundary.tsx, BackupRestore.tsx, AuditLogViewer.tsx
+- Pagination: PersonList and MarriageList now support paginated API responses with navigation controls
+- Error handling: ErrorBoundary wraps the entire AppContent for crash recovery
+- Admin features: Backup/Restore UI and Audit Log Viewer with ADMIN-only visibility
+- Navigation: Two new sidebar items for admin-only backup and audit log views
+
+---
+Task ID: 4
+Agent: Backend Strengthening Agent
+Task: Implement backend strengthening (tree API, upload sanitization, audit logging, pagination, backup/restore, audit log API)
+
+Work Log:
+- **Tree API spouse fix** (`src/app/api/tree/route.ts`): Removed `where: { isActive: true }` filter from `marriagesAsHusband` and `marriagesAsWife` queries, added `orderBy: { createdAt: "desc" }` to both. Updated `buildTree()` spouse selection logic: first tries to find an active marriage, then falls back to the most recent (first) inactive marriage. Added `marriageStatus` field ("AKTIF" or "DUDA/JANDA") to the `TreeNode.spouse` interface and object.
+- **Upload sanitization** (`src/app/api/upload/route.ts`): Replaced `file.name.split(".").pop() || "jpg"` with a whitelist-based extension sanitizer. Only `jpg`, `jpeg`, `png`, `webp`, `gif` are accepted; any other extension defaults to `"jpg"`.
+- **AuditLog model** (`prisma/schema.prisma`): Added `AuditLog` model with fields: `id` (cuid), `userId`, `userName`, `action`, `resource`, `resourceId`, `details` (String for JSON), `ipAddress`, `createdAt`. Added indexes on `userId`, `action`, and `createdAt`. Ran `bun run db:push` successfully.
+- **Audit-log helper** (`src/lib/audit-log.ts`): Created `logAudit()` function (fire-and-forget with try/catch so audit failures never break main operations) and `getSessionUserInfo()` helper that extracts `userId` and `userName` from a NextAuth session.
+- **Audit logging integration**: Added `logAudit` calls to 8 API endpoints:
+  - `POST /api/persons` → CREATE_PERSON
+  - `PUT /api/persons/[id]` → UPDATE_PERSON
+  - `DELETE /api/persons/[id]` → DELETE_PERSON
+  - `POST /api/marriages` → CREATE_MARRIAGE (covers both new and reactivated marriages)
+  - `PUT /api/marriages/[id]` → UPDATE_MARRIAGE
+  - `DELETE /api/marriages/[id]` → DELETE_MARRIAGE
+  - `PUT /api/users/[id]` → UPDATE_USER
+  - `DELETE /api/users/[id]` → DELETE_USER
+- **Pagination** (`src/app/api/persons/route.ts` GET, `src/app/api/marriages/route.ts` GET): Added optional `page` (default 1) and `limit` (default 20, max 100) query parameters. When either param is present, returns `{ data, total, page, limit, totalPages }`. When absent, returns the original array format for backward compatibility. Search and gender filters continue to work in both modes.
+- **Backup/restore API** (`src/app/api/backup/route.ts`): Created new file with two endpoints:
+  - `GET /api/backup` (ADMIN only): Exports all persons and marriages as JSON with `{ exportedAt, version: "1.0", persons, marriages }`. Users excluded (no password exposure). Includes audit log.
+  - `POST /api/backup` (ADMIN only): Imports data from JSON. Validates structure (persons array with fullName/gender, marriages array with husbandId/wifeId). Uses `db.$transaction()` to delete marriages→persons, create all persons, map old IDs to new IDs for parent references, create marriages with mapped IDs, and re-seed admin user if no users remain. Includes audit log.
+- **Audit log viewing API** (`src/app/api/audit-logs/route.ts`): Created `GET /api/audit-logs` (ADMIN only) with pagination (`page`, `limit`), optional `action` filter, ordered by `createdAt desc`. Returns `{ data, total, page, limit, totalPages }`.
+- Ran `bun run lint` — 0 errors
+
+Stage Summary:
+- 6 files modified: tree/route.ts, upload/route.ts, schema.prisma, persons/route.ts, marriages/route.ts, persons/[id]/route.ts, marriages/[id]/route.ts, users/[id]/route.ts
+- 4 new files created: audit-log.ts, backup/route.ts, audit-logs/route.ts
+- Tree API now shows widowed/deceased spouses with marriageStatus field
+- Upload route hardened against malicious extensions
+- Full audit trail for all RBAC-sensitive mutations (8 action types)
+- Backward-compatible pagination on persons and marriages list endpoints
+- Admin backup export/import with transactional safety and ID remapping
+- Admin audit log viewer API with filtering

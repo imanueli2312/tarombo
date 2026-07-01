@@ -31,6 +31,8 @@ import {
   Loader2,
   AlertCircle,
   Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -69,6 +71,8 @@ function formatDate(dateStr: string | null): string {
 export function PersonList() {
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedPersonId = useAppStore((s) => s.setSelectedPersonId);
   const setEditingPersonId = useAppStore((s) => s.setEditingPersonId);
@@ -77,15 +81,29 @@ export function PersonList() {
   const canDelete = useAppStore((s) => s.canDelete);
   const queryClient = useQueryClient();
 
-  const { data: persons = [], isLoading, error } = useQuery<Person[]>({
-    queryKey: ["persons", search, genderFilter],
+  const { data: response, isLoading, error } = useQuery<{
+    data: Person[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>({
+    queryKey: ["persons", search, genderFilter, page, limit],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (genderFilter !== "all") params.set("gender", genderFilter);
+      params.set("page", String(page));
+      params.set("limit", String(limit));
       return fetch(`/api/persons?${params.toString()}`).then((r) => r.json());
     },
   });
+
+  const persons = response?.data ?? [];
+  const total = response?.total ?? 0;
+  const totalPages = response?.totalPages ?? 1;
+  const startIndex = (page - 1) * limit + 1;
+  const endIndex = Math.min(page * limit, total);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -134,11 +152,11 @@ export function PersonList() {
           <Input
             placeholder="Cari nama atau nama panggilan..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 border-amber-200"
           />
         </div>
-        <Select value={genderFilter} onValueChange={setGenderFilter}>
+        <Select value={genderFilter} onValueChange={(v) => { setGenderFilter(v); setPage(1); }}>
           <SelectTrigger className="w-full sm:w-40 border-amber-200">
             <SelectValue />
           </SelectTrigger>
@@ -321,6 +339,37 @@ export function PersonList() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Menampilkan {startIndex}-{endIndex} dari {total} data
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-200"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Sebelumnya
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-200"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Berikutnya
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

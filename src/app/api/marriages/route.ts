@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { canCreate, canUpdate, canDelete } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
+import { logAudit, getSessionUserInfo } from "@/lib/audit-log";
 
 const marriageSchema = z.object({
   husbandId: z.string().min(1, "Suami wajib diisi"),
@@ -17,14 +18,51 @@ function getUserRole(session: unknown): Role | undefined {
   return (session.user as Record<string, unknown>)?.role as Role | undefined;
 }
 
-// GET /api/marriages - Get all marriages
-export async function GET() {
+// GET /api/marriages - Get all marriages with optional pagination
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+
+    // If pagination params are present, use paginated response
+    const usePagination = pageParam !== null || limitParam !== null;
+
+    if (usePagination) {
+      const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+      const limit = Math.max(1, Math.min(100, parseInt(limitParam || "20", 10) || 20));
+      const skip = (page - 1) * limit;
+
+      const [marriages, total] = await Promise.all([
+        db.marriage.findMany({
+          include: {
+            husband: { select: { id: true, fullName: true, nickname: true, gender: true } },
+            wife: { select: { id: true, fullName: true, nickname: true, gender: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+        }),
+        db.marriage.count(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return NextResponse.json({
+        data: marriages,
+        total,
+        page,
+        limit,
+        totalPages,
+      });
+    }
+
+    // Legacy: return array for backward compatibility
     const marriages = await db.marriage.findMany({
       include: {
         husband: { select: { id: true, fullName: true, nickname: true, gender: true } },
@@ -170,6 +208,17 @@ export async function POST(request: NextRequest) {
         data: { maritalStatus: "MARRIED" },
       });
 
+      // Audit log
+      const reactivatedUserInfo = getSessionUserInfo(session);
+      await logAudit({
+        userId: reactivatedUserInfo?.userId,
+        userName: reactivatedUserInfo?.userName,
+        action: "CREATE_MARRIAGE",
+        resource: "marriage",
+        resourceId: reactivated.id,
+        details: { husbandId: validated.husbandId, wifeId: validated.wifeId, reactivated: true },
+      });
+
       return NextResponse.json(reactivated, { status: 200 });
     }
 
@@ -192,6 +241,17 @@ export async function POST(request: NextRequest) {
     await db.person.update({
       where: { id: validated.wifeId },
       data: { maritalStatus: "MARRIED" },
+    });
+
+    // Audit log
+    const createMarriageUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: createMarriageUserInfo?.userId,
+      userName: createMarriageUserInfo?.userName,
+      action: "CREATE_MARRIAGE",
+      resource: "marriage",
+      resourceId: marriage.id,
+      details: { husbandId: validated.husbandId, wifeId: validated.wifeId },
     });
 
     return NextResponse.json(marriage, { status: 201 });

@@ -24,6 +24,7 @@ interface TreeNode {
     isDeceased: boolean;
     photoPath: string | null;
     maritalStatus: string;
+    marriageStatus: "AKTIF" | "DUDA/JANDA";
   } | null;
   children: TreeNode[];
   birthOrder: number | null;
@@ -37,13 +38,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch all persons with their relations
+    // Fetch all persons with ALL marriages (active and inactive) ordered by most recent
     const persons = await db.person.findMany({
       include: {
         father: { select: { id: true } },
         mother: { select: { id: true } },
         marriagesAsHusband: {
-          where: { isActive: true },
           include: {
             wife: {
               select: {
@@ -59,9 +59,9 @@ export async function GET() {
               },
             },
           },
+          orderBy: { createdAt: "desc" },
         },
         marriagesAsWife: {
-          where: { isActive: true },
           include: {
             husband: {
               select: {
@@ -77,6 +77,7 @@ export async function GET() {
               },
             },
           },
+          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -185,10 +186,13 @@ function buildTree(
     };
   }
 
-  // Get active spouse
+  // Get spouse: first try active marriage, then fall back to most recent (first) marriage
   let spouse: TreeNode["spouse"] = null;
-  if (person.marriagesAsHusband.length > 0 && person.marriagesAsHusband[0].isActive) {
-    const w = person.marriagesAsHusband[0].wife;
+  const activeHusbandMarriage = person.marriagesAsHusband.find((m) => m.isActive);
+  const activeWifeMarriage = person.marriagesAsWife.find((m) => m.isActive);
+
+  if (activeHusbandMarriage) {
+    const w = activeHusbandMarriage.wife;
     spouse = {
       id: w.id,
       fullName: w.fullName,
@@ -199,9 +203,10 @@ function buildTree(
       isDeceased: w.isDeceased,
       photoPath: w.photoPath,
       maritalStatus: w.maritalStatus,
+      marriageStatus: "AKTIF",
     };
-  } else if (person.marriagesAsWife.length > 0 && person.marriagesAsWife[0].isActive) {
-    const h = person.marriagesAsWife[0].husband;
+  } else if (activeWifeMarriage) {
+    const h = activeWifeMarriage.husband;
     spouse = {
       id: h.id,
       fullName: h.fullName,
@@ -212,6 +217,39 @@ function buildTree(
       isDeceased: h.isDeceased,
       photoPath: h.photoPath,
       maritalStatus: h.maritalStatus,
+      marriageStatus: "AKTIF",
+    };
+  } else if (person.marriagesAsHusband.length > 0) {
+    // Fall back to most recent marriage (widowed scenario)
+    const m = person.marriagesAsHusband[0];
+    const w = m.wife;
+    spouse = {
+      id: w.id,
+      fullName: w.fullName,
+      nickname: w.nickname,
+      gender: w.gender,
+      birthDate: w.birthDate?.toISOString() ?? null,
+      deathDate: w.deathDate?.toISOString() ?? null,
+      isDeceased: w.isDeceased,
+      photoPath: w.photoPath,
+      maritalStatus: w.maritalStatus,
+      marriageStatus: "DUDA/JANDA",
+    };
+  } else if (person.marriagesAsWife.length > 0) {
+    // Fall back to most recent marriage (widowed scenario)
+    const m = person.marriagesAsWife[0];
+    const h = m.husband;
+    spouse = {
+      id: h.id,
+      fullName: h.fullName,
+      nickname: h.nickname,
+      gender: h.gender,
+      birthDate: h.birthDate?.toISOString() ?? null,
+      deathDate: h.deathDate?.toISOString() ?? null,
+      isDeceased: h.isDeceased,
+      photoPath: h.photoPath,
+      maritalStatus: h.maritalStatus,
+      marriageStatus: "DUDA/JANDA",
     };
   }
 

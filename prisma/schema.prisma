@@ -95,3 +95,19 @@ model Marriage {
   @@index([wifeId])
   @@index([isActive])
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  action    String
+  resource  String
+  resourceId String?
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}

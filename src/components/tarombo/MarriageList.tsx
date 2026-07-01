@@ -45,6 +45,8 @@ import {
   Trash2,
   Ban,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,15 +82,34 @@ export function MarriageList() {
   const [wifeId, setWifeId] = useState("");
   const [marriageDate, setMarriageDate] = useState("");
   const [formError, setFormError] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
   const canCreate = useAppStore((s) => s.canCreate);
   const canUpdate = useAppStore((s) => s.canUpdate);
   const canDelete = useAppStore((s) => s.canDelete);
   const queryClient = useQueryClient();
 
-  const { data: marriages = [], isLoading } = useQuery<Marriage[]>({
-    queryKey: ["marriages"],
-    queryFn: () => fetch("/api/marriages").then((r) => r.json()),
+  const { data: response, isLoading } = useQuery<{
+    data: Marriage[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>({
+    queryKey: ["marriages", page, limit],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(limit));
+      return fetch(`/api/marriages?${params.toString()}`).then((r) => r.json());
+    },
   });
+
+  const marriages = response?.data ?? [];
+  const total = response?.total ?? 0;
+  const totalPages = response?.totalPages ?? 1;
+  const startIndex = (page - 1) * limit + 1;
+  const endIndex = Math.min(page * limit, total);
 
   const { data: persons = [] } = useQuery<Person[]>({
     queryKey: ["persons-list-marriage"],
@@ -371,6 +392,37 @@ export function MarriageList() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Menampilkan {startIndex}-{endIndex} dari {total} data
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-200"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Sebelumnya
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-200"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Berikutnya
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

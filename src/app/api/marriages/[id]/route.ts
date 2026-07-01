@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { canUpdate, canDelete } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
+import { logAudit, getSessionUserInfo } from "@/lib/audit-log";
 
 const marriageUpdateSchema = z.object({
   marriageDate: z.string().nullable().optional(),
@@ -114,6 +115,17 @@ export async function PUT(
       });
     }
 
+    // Audit log
+    const updateMarriageUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: updateMarriageUserInfo?.userId,
+      userName: updateMarriageUserInfo?.userName,
+      action: "UPDATE_MARRIAGE",
+      resource: "marriage",
+      resourceId: id,
+      details: { changes: validated },
+    });
+
     return NextResponse.json(marriage);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -159,6 +171,17 @@ export async function DELETE(
     }
 
     await db.marriage.delete({ where: { id } });
+
+    // Audit log
+    const deleteMarriageUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: deleteMarriageUserInfo?.userId,
+      userName: deleteMarriageUserInfo?.userName,
+      action: "DELETE_MARRIAGE",
+      resource: "marriage",
+      resourceId: id,
+      details: { husbandId: marriage.husbandId, wifeId: marriage.wifeId },
+    });
 
     return NextResponse.json({ message: "Data pernikahan berhasil dihapus" });
   } catch (error) {

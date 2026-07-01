@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { canManageUsers } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
+import { logAudit, getSessionUserInfo } from "@/lib/audit-log";
 
 function getUserRole(session: unknown): Role | undefined {
   if (!session || typeof session !== "object" || !("user" in session)) return undefined;
@@ -64,6 +65,17 @@ export async function PUT(
       },
     });
 
+    // Audit log
+    const updateUserUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: updateUserUserInfo?.userId,
+      userName: updateUserUserInfo?.userName,
+      action: "UPDATE_USER",
+      resource: "user",
+      resourceId: id,
+      details: { changes: updateData },
+    });
+
     return NextResponse.json(user);
   } catch (error) {
     console.error("Update user error:", error);
@@ -110,6 +122,16 @@ export async function DELETE(
     }
 
     await db.user.delete({ where: { id } });
+
+    // Audit log
+    const deleteUserUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: deleteUserUserInfo?.userId,
+      userName: deleteUserUserInfo?.userName,
+      action: "DELETE_USER",
+      resource: "user",
+      resourceId: id,
+    });
 
     return NextResponse.json({ message: "Pengguna berhasil dihapus" });
   } catch (error) {

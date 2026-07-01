@@ -13,7 +13,9 @@ interface AppState {
     | "person-detail"
     | "person-form"
     | "marriages"
-    | "users";
+    | "users"
+    | "backup"
+    | "audit-logs";
   selectedPersonId: string | null;
   editingPersonId: string | null;
   userRole: Role | null;

@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
-    const ext = file.name.split(".").pop() || "jpg";
+    // Generate unique filename with sanitized extension
+    const SAFE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
+    const rawExt = (file.name.split(".").pop() || "").toLowerCase();
+    const ext = SAFE_EXTENSIONS.includes(rawExt) ? rawExt : "jpg";
     const filename = `${crypto.randomBytes(16).toString("hex")}.${ext}`;
     const filePath = path.join(UPLOAD_DIR, filename);
 

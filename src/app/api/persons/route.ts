@@ -9,6 +9,7 @@ import { existsSync, mkdirSync } from "fs";
 import path from "path";
 import { handleDeathAutoDivorce } from "@/lib/death-utils";
 import { checkCircularReference } from "@/lib/ancestor-utils";
+import { logAudit, getSessionUserInfo } from "@/lib/audit-log";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "persons");
 
@@ -40,7 +41,7 @@ function getUserRole(session: unknown): Role | undefined {
   return (session.user as Record<string, unknown>)?.role as Role | undefined;
 }
 
-// GET /api/persons - Get all persons (tree data)
+// GET /api/persons - Get all persons (tree data) with optional pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -52,6 +53,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const gender = searchParams.get("gender");
     const includeRelations = searchParams.get("includeRelations") === "true";
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+
+    // If pagination params are present, use paginated response
+    const usePagination = pageParam !== null || limitParam !== null;
 
     const where: Record<string, unknown> = {};
     if (search) {
@@ -64,6 +70,60 @@ export async function GET(request: NextRequest) {
       where.gender = gender;
     }
 
+    if (usePagination) {
+      const page = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+      const limit = Math.max(1, Math.min(100, parseInt(limitParam || "20", 10) || 20));
+      const skip = (page - 1) * limit;
+
+      const [persons, total] = await Promise.all([
+        db.person.findMany({
+          where,
+          include: {
+            father: includeRelations
+              ? { select: { id: true, fullName: true, nickname: true, gender: true } }
+              : false,
+            mother: includeRelations
+              ? { select: { id: true, fullName: true, nickname: true, gender: true } }
+              : false,
+            marriagesAsHusband: includeRelations
+              ? {
+                  include: {
+                    wife: { select: { id: true, fullName: true, nickname: true, gender: true } },
+                  },
+                  where: { isActive: true },
+                }
+              : false,
+            marriagesAsWife: includeRelations
+              ? {
+                  include: {
+                    husband: { select: { id: true, fullName: true, nickname: true, gender: true } },
+                  },
+                  where: { isActive: true },
+                }
+              : false,
+          },
+          orderBy: [
+            { birthOrder: "asc" },
+            { fullName: "asc" },
+          ],
+          skip,
+          take: limit,
+        }),
+        db.person.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return NextResponse.json({
+        data: persons,
+        total,
+        page,
+        limit,
+        totalPages,
+      });
+    }
+
+    // Legacy: return array for backward compatibility
     const persons = await db.person.findMany({
       where,
       include: {
@@ -196,6 +256,17 @@ export async function POST(request: NextRequest) {
         console.error("Auto-divorce error:", err);
       }
     }
+
+    // Audit log
+    const userInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: userInfo?.userId,
+      userName: userInfo?.userName,
+      action: "CREATE_PERSON",
+      resource: "person",
+      resourceId: person.id,
+      details: { fullName: person.fullName, gender: person.gender },
+    });
 
     return NextResponse.json(person, { status: 201 });
   } catch (error) {

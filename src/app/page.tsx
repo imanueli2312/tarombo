@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useAppStore, useSessionSync } from "@/store/app-store";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -11,6 +12,8 @@ import { PersonDetail } from "@/components/tarombo/PersonDetail";
 import { PersonForm } from "@/components/tarombo/PersonForm";
 import { MarriageList } from "@/components/tarombo/MarriageList";
 import { UserManagement } from "@/components/tarombo/UserManagement";
+import { BackupRestore } from "@/components/tarombo/BackupRestore";
+import { AuditLogViewer } from "@/components/tarombo/AuditLogViewer";
 
 function AppContent() {
   const activeView = useAppStore((s) => s.activeView);
@@ -23,6 +26,8 @@ function AppContent() {
   if (activeView === "person-form") return <MainLayout><PersonForm /></MainLayout>;
   if (activeView === "marriages") return <MainLayout><MarriageList /></MainLayout>;
   if (activeView === "users") return <MainLayout><UserManagement /></MainLayout>;
+  if (activeView === "backup") return <MainLayout><BackupRestore /></MainLayout>;
+  if (activeView === "audit-logs") return <MainLayout><AuditLogViewer /></MainLayout>;
 
   return <LoginForm />;
 }
@@ -73,5 +78,5 @@ export default function HomePage() {
     );
   }
 
-  return <AppContent />;
+  return <ErrorBoundary><AppContent /></ErrorBoundary>;
 }

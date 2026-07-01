@@ -7,6 +7,7 @@ import { canUpdate, canDelete } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
 import { handleDeathAutoDivorce } from "@/lib/death-utils";
 import { checkCircularReference } from "@/lib/ancestor-utils";
+import { logAudit, getSessionUserInfo } from "@/lib/audit-log";
 import { existsSync, unlinkSync } from "fs";
 import path from "path";
 
@@ -215,6 +216,17 @@ export async function PUT(
       await handleDeathAutoDivorce(person.id, person.gender);
     }
 
+    // Audit log
+    const userInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: userInfo?.userId,
+      userName: userInfo?.userName,
+      action: "UPDATE_PERSON",
+      resource: "person",
+      resourceId: person.id,
+      details: { changes: validated },
+    });
+
     return NextResponse.json(person);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -290,6 +302,17 @@ export async function DELETE(
     }
 
     await db.person.delete({ where: { id } });
+
+    // Audit log
+    const deleteUserInfo = getSessionUserInfo(session);
+    await logAudit({
+      userId: deleteUserInfo?.userId,
+      userName: deleteUserInfo?.userName,
+      action: "DELETE_PERSON",
+      resource: "person",
+      resourceId: id,
+      details: { fullName: person.fullName },
+    });
 
     return NextResponse.json({ message: "Data berhasil dihapus" });
   } catch (error) {

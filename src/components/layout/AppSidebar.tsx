@@ -15,12 +15,13 @@ import {
   Menu,
   X,
   Database,
+  FileText,
 } from "lucide-react";
 import { getRoleLabel } from "@/lib/rbac";
 import { useState } from "react";
 
 interface NavItem {
-  id: "tree" | "persons" | "marriages" | "users";
+  id: "tree" | "persons" | "marriages" | "users" | "backup" | "audit-logs";
   label: string;
   icon: React.ReactNode;
   minRole: number;
@@ -31,6 +32,8 @@ const navItems: NavItem[] = [
   { id: "persons", label: "Data Anggota", icon: <Users className="w-5 h-5" />, minRole: 1 },
   { id: "marriages", label: "Data Pernikahan", icon: <Heart className="w-5 h-5" />, minRole: 1 },
   { id: "users", label: "Kelola Pengguna", icon: <UserCog className="w-5 h-5" />, minRole: 3 },
+  { id: "backup", label: "Pencadangan Data", icon: <Database className="w-5 h-5" />, minRole: 3 },
+  { id: "audit-logs", label: "Log Audit", icon: <FileText className="w-5 h-5" />, minRole: 3 },
 ];
 
 export function AppSidebar() {
