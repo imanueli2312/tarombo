@@ -403,3 +403,138 @@ curl http://localhost:3000
 ```
 
 If using a reverse proxy, ensure it is configured to forward to the correct port and that the application process has started successfully.
+
+---
+
+## 11. Windows 11 Setup
+
+All npm scripts have been made cross-platform compatible using `shx` and `cross-env`. The application runs natively on Windows 11 without WSL.
+
+### Prerequisites
+
+| Software | Version | Download |
+|---|---|---|
+| **Bun** (recommended) or Node.js 18+ | Latest | [bun.sh](https://bun.sh/) / [nodejs.org](https://nodejs.org/) |
+| **Git** | 2.x | [git-scm.com](https://git-scm.com/) |
+
+No external database, Redis, S3, or other services are required. SQLite and all dependencies are self-contained.
+
+### Step-by-step
+
+**1. Install Git and Bun**
+
+Download and install Git for Windows, then install Bun:
+
+```powershell
+# PowerShell (Run as Administrator)
+irm bun.sh/install.ps1 | iex
+```
+
+> If you prefer Node.js instead of Bun, all scripts work with `npm` / `npx` as well.
+
+**2. Clone the repository**
+
+Open **Command Prompt**, **PowerShell**, or **Git Bash**:
+
+```bash
+git clone https://github.com/imanueli2312/tarombo.git
+cd tarombo
+```
+
+**3. Install dependencies**
+
+```bash
+bun install
+```
+
+> `sharp` (photo processing library) will automatically download its Windows binary during installation. No additional build tools are needed.
+
+**4. Configure environment variables**
+
+```powershell
+# PowerShell
+copy .env.example .env
+notepad .env
+```
+
+```cmd
+REM Command Prompt
+copy .env.example .env
+notepad .env
+```
+
+Edit `.env`:
+
+```env
+DATABASE_URL="file:./db/tarombo.db"
+NEXTAUTH_SECRET="generate-a-random-secret-here"
+```
+
+To generate a secret in PowerShell:
+
+```powershell
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | % {[char]$_})
+```
+
+**5. Setup database**
+
+```bash
+bun run db:push
+```
+
+**6. Run the development server**
+
+```bash
+bun run dev
+```
+
+Open **http://localhost:3000** in your browser.
+
+**7. Seed sample data (optional)**
+
+Click **"Seed Data Awal"** in the sidebar, or visit **http://localhost:3000/api/seed** in your browser.
+
+Default admin credentials: `admin@hariandja.id` / `admin123`
+
+### Production Build on Windows
+
+```bash
+bun run build
+bun run start
+```
+
+The production server starts on **port 3000**.
+
+### Common Windows Issues
+
+| Issue | Solution |
+|---|---|
+| **Port 3000 already in use** | `netstat -ano \| findstr :3000` then `taskkill /PID <pid> /F` |
+| **Firewall blocks port 3000** | Allow when prompted, or add rule: `netsh advfirewall firewall add rule name="Tarombo" dir=in action=allow protocol=TCP localport=3000` |
+| **`bun` command not found** | Restart terminal after installation, or add Bun to PATH manually |
+| **Sharp installation error** | Run `bun install` again, or `npm install sharp --force` |
+| **Photo upload fails** | Ensure `public/uploads/persons/` directory exists (auto-created by the app) |
+| **Clear build cache** | PowerShell: `Remove-Item -Recurse -Force .next`; CMD: `rmdir /s /q .next` |
+
+### Running as a Windows Service (Optional)
+
+Use [NSSM](https://nssm.cc/) (Non-Sucking Service Manager) to run Tarombo as a Windows background service:
+
+1. Download [nssm.exe](https://nssm.cc/download)
+2. Install the service:
+
+```cmd
+nssm install Tarombo
+```
+
+3. In the NSSM GUI:
+   - **Path**: `C:\Users\<you>\.bun\bin\bun.exe`
+   - **Arguments**: `run start`
+   - **Startup directory**: `C:\path\to\tarombo`
+   - **Environment** tab: add `NODE_ENV=production`, `DATABASE_URL=file:./db/tarombo.db`, `NEXTAUTH_SECRET=your-secret`
+
+4. Start the service:
+
+```cmd
+nssm start Tarombo
+```
