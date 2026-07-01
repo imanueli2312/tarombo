@@ -23,6 +23,7 @@ import {
   Heart,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,6 +130,10 @@ export function PersonDetail() {
       queryClient.invalidateQueries({ queryKey: ["tree"] });
       setSelectedPersonId(null);
       setActiveView("persons");
+      toast.success("Data anggota berhasil dihapus");
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
 

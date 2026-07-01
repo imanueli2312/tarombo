@@ -188,7 +188,7 @@ export async function GET() {
     });
 
     // Great grandchild
-    await db.person.create({
+    const greatgrandchild1 = await db.person.create({
       data: {
         fullName: "Hariandja IV",
         nickname: "Aman IV",
@@ -221,10 +221,16 @@ export async function GET() {
       },
     });
 
-    await db.person.update({
-      where: { id: "cld4x0000000000000000004" },
-      data: { maritalStatus: "MARRIED" },
-    }).catch(() => {});
+    // Marriage for great grandchild (now properly linked)
+    await db.marriage.create({
+      data: {
+        husbandId: greatgrandchild1.id,
+        wifeId: greatgrandchildWife.id,
+        marriageDate: new Date("1958-06-10"),
+        isActive: false,
+        divorceDate: new Date("2010-08-25"), // Auto-divorced on husband's death
+      },
+    });
 
     return NextResponse.json({
       message: "Database berhasil di-seed dengan data awal",

@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { canCreate } from "@/lib/rbac";
+import { canUpdate } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
-import { writeFile, mkdir } from "fs/promises";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import path from "path";
+import crypto from "crypto";
+
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "persons");
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
+// Ensure upload directory exists
+if (!existsSync(UPLOAD_DIR)) {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 function getUserRole(session: unknown): Role | undefined {
   if (!session || typeof session !== "object" || !("user" in session)) return undefined;
   return (session.user as Record<string, unknown>)?.role as Role | undefined;
 }
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "persons");
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
+// POST /api/upload - Upload a photo
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,9 +35,9 @@ export async function POST(request: NextRequest) {
     }
 
     const role = getUserRole(session);
-    if (!canCreate(role)) {
+    if (!canUpdate(role)) {
       return NextResponse.json(
-        { error: "Forbidden" },
+        { error: "Forbidden - Anda tidak memiliki izin untuk mengunggah" },
         { status: 403 }
       );
     }
@@ -41,9 +53,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "Tipe file tidak didukung. Gunakan JPEG, PNG, WebP, atau GIF." },
+        { error: "Format file tidak didukung. Gunakan JPEG, PNG, WebP, atau GIF." },
         { status: 400 }
       );
     }
@@ -56,18 +68,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure upload directory exists
-    await mkdir(UPLOAD_DIR, { recursive: true });
-
     // Generate unique filename
     const ext = file.name.split(".").pop() || "jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const filename = `${crypto.randomBytes(16).toString("hex")}.${ext}`;
     const filePath = path.join(UPLOAD_DIR, filename);
 
-    // Write file
+    // Write file to disk
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    writeFileSync(filePath, Buffer.from(bytes));
 
     const photoPath = `/uploads/persons/${filename}`;
 
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(
-      { error: "Terjadi kesalahan saat mengupload foto" },
+      { error: "Terjadi kesalahan saat mengunggah file" },
       { status: 500 }
     );
   }
