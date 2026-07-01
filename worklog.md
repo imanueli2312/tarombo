@@ -369,3 +369,25 @@ Stage Summary:
 - Decorative elements: AI-generated gorga pattern in sidebar, gorga gradient stripe on auth cards, gorga divider on footer
 - All amber references replaced with Batak palette (except semantic password strength indicator)
 - Browser-verified: Login, Tree View, Dashboard, Person List all render correctly with Batak theme
+---
+Task ID: 9
+Agent: Main
+Task: Create "Cari Keluarga" search page matching uploaded design with Batak Toba theme
+
+Work Log:
+- Analyzed uploaded design image (Tampilan Awal.jpg) with VLM
+- Created FamilySearch.tsx component with: title, search bar (Cari/Reset buttons), results count badge, responsive card grid
+- Each card shows: name + gender indicator, Panggilan (nickname), Ayah (father, clickable), Ibu (mother, clickable), Lihat Profil and Bagan Keluarga action buttons
+- Added "home" view to app store activeView union type
+- Set "home" as default view after login (replacing "tree")
+- Added "Cari Keluarga" nav item with Search icon at top of sidebar
+- Added routing in page.tsx for the new home view
+- Batak Toba theme applied: maroon buttons, gold accents, gorga divider, tan borders, cream background
+- Verified in browser: search for "Hariandja" returns 7 results with correct card layout
+- VLM confirmed all design elements match the reference image
+
+Stage Summary:
+- New component: src/components/tarombo/FamilySearch.tsx
+- Modified: src/app/page.tsx, src/store/app-store.ts, src/components/layout/AppSidebar.tsx
+- Default after-login view changed from "tree" to "home" (Cari Keluarga search page)
+- Design matches uploaded reference: search bar, result count, grid cards with Panggilan/Ayah/Ibu, action buttons
