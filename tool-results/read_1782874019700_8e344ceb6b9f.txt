@@ -1,0 +1,337 @@
+     1→---
+     2→Task ID: 1
+     3→Agent: Main
+     4→Task: Build fullstack Tarombo (family tree) application for Marga Hariandja
+     5→
+     6→Work Log:
+     7→- Designed and implemented Prisma schema with User, Person, and Marriage tables
+     8→- Set up NextAuth.js with credentials provider and JWT sessions
+     9→- Implemented full RBAC (ADMIN/EDITOR/VIEWER) with helper functions
+    10→- Built complete API routes: persons CRUD, marriages CRUD, user management, photo upload, tree data, seed
+    11→- Created frontend components: LoginForm, RegisterForm, AppSidebar, TreeVisualization (D3.js), PersonForm, PersonDetail, PersonList, MarriageList, UserManagement
+    12→- Implemented business logic: auto-divorce on death, max 1 active partner per person, gender validation
+    13→- Used D3.js tree layout for family tree visualization with zoom/pan, spouse display, deceased indicators
+    14→- Separated User data (authentication/RBAC) from Person data (tree display) as required
+    15→- Photo upload to local filesystem (public/uploads/persons/) - no cloud/S3
+    16→
+    17→Stage Summary:
+    18→- Complete fullstack Tarombo application built with Next.js 16, Prisma, D3.js
+    19→- Database seeded with 4-generation sample family tree
+    20→- Default admin: admin@hariandja.id / admin123
+    21→- All CRUD operations with RBAC protection
+    22→- D3.js tree visualization with interactive zoom/pan
+    23→- Local photo storage (no cloud dependencies)
+    24→
+    25→---
+    26→Task ID: 2
+    27→Agent: Main
+    28→Task: Integration audit and bug fixes for Tarombo application
+    29→
+    30→Work Log:
+    31→- Conducted full codebase review of all API routes, frontend components, lib utilities, and database schema
+    32→- Identified 3 bugs and fixed all of them:
+    33→  1. **Missing /api/upload route**: PersonForm referenced /api/upload for photo uploads but the endpoint didn't exist. Created new route with file type validation (JPEG/PNG/WebP/GIF), 5MB size limit, RBAC protection (EDITOR+), and local filesystem storage.
+    34→  2. **Seed data hardcoded ID bug**: The seed route had a hardcoded ID `cld4x0000000000000000004` for the `db.person.update` call that would never match the actual CUID-generated ID. Additionally, the marriage record for Hariandja IV + Boru Hutapea was missing entirely. Fixed by storing the create result in a variable and creating the marriage record with proper references and `isActive: false, divorceDate: 2010-08-25` (matching the husband's death date for the auto-divorce scenario).
+    35→  3. **PersonDetail delete missing toast**: The delete mutation in PersonDetail had no `onSuccess` toast or `onError` toast. Added `toast.success` and `toast.error` using sonner.
+    36→- Reset database, re-pushed Prisma schema, re-seeded with corrected data
+    37→- Ran ESLint — 0 errors
+    38→- Performed full browser-based end-to-end verification:
+    39→  - Login flow: admin@hariandja.id / admin123 → session established → redirected to tree view
+    40→  - Tree visualization: All 4 generations rendered correctly with D3.js (10 persons, spouse connections, deceased ✝ indicators, gender symbols, birth dates/places, zoom/pan toolbar, legend)
+    41→  - Person list: All 10 persons displayed with search/filter, RBAC action buttons
+    42→  - Person detail: Marriage info, children with birth order, parent links, edit/delete buttons
+    43→  - Marriage list: All 4 marriages displayed (3 active, 1 inactive with divorce date)
+    44→  - User management: Admin listed, self-protection active (edit/delete disabled for own account)
+    45→  - Zero browser console errors, all API calls returning 200
+    46→
+    47→Stage Summary:
+    48→- 3 integration bugs fixed (missing upload API, broken seed data, missing toast)
+    49→- All features verified end-to-end via browser automation
+    50→- Application is fully functional and integrated correctly
+    51→
+    52→---
+    53→Task ID: 3
+    54→Agent: Main
+    55→Task: Strengthen critical weak spots in Tarombo application
+    56→
+    57→Work Log:
+    58→- Created `ancestor-utils.ts` with `getAncestorIds()`, `getDescendantIds()`, and `checkCircularReference()` — recursive traversal with safety limits (max depth 50)
+    59→- Integrated full circular reference detection into PUT /api/persons/[id] — checks both descendant-of-target and ancestor-of-parent chains
+    60→- Created `GET /api/persons/[id]/eligible-parents` endpoint that returns parent candidates excluding self + all descendants
+    61→- Updated PersonForm to use eligible-parents API when editing (filters out descendants from parent dropdown)
+    62→- Rewrote `death-utils.ts` — replaced fragile `divorceDate.getTime() === now.getTime()` comparison with a reliable approach: query active marriages first to get spouse IDs, then bulk-update marriages, then bulk-update spouse statuses
+    63→- Added cycle protection to `buildTree()` in tree API — new `visited` Set and `depth` counter parameters, returns placeholder node if cycle detected or depth > 100
+    64→- Improved marriage creation: added same-person validation, re-activation of previously inactive marriages (re-marriage scenario) instead of duplicate error
+    65→- Created `rate-limit.ts` — in-memory rate limiter (5 attempts / 15 min window / 15 min block) with automatic cleanup
+    66→- Integrated rate limiting into NextAuth authorize() with custom error messaging
+    67→- Updated LoginForm to display rate limit error messages
+    68→- All changes pass ESLint (0 errors)
+    69→- Browser-verified: login, tree, person list, person edit form with eligible-parents API, zero console errors
+    70→
+    71→Stage Summary:
+    72→- 6 critical/medium weaknesses strengthened
+    73→- 3 new files: ancestor-utils.ts, rate-limit.ts, eligible-parents API route
+    74→- Data integrity: circular reference prevention at API level AND UI level
+    75→- Server resilience: buildTree cycle protection prevents infinite recursion
+    76→- Security: login rate limiting against brute force
+    77→- Business logic: reliable auto-divorce, re-marriage support
+    78→
+    79→---
+    80→Task ID: 5
+    81→Agent: Frontend Strengthening Agent
+    82→Task: Implement frontend strengthening (pagination, error boundary, backup/restore, audit log viewer)
+    83→
+    84→Work Log:
+    85→- Updated `src/store/app-store.ts`: Added "backup" and "audit-logs" to the `activeView` union type
+    86→- Updated `src/components/tarombo/PersonList.tsx`: Added page/limit state, updated query to handle paginated response format (`{data, total, page, limit, totalPages}`), added pagination controls (Sebelumnya/Berikutnya buttons with disabled states, "Menampilkan X-Y dari Z data" text)
+    87→- Updated `src/components/tarombo/MarriageList.tsx`: Same pagination pattern as PersonList — added page/limit state, updated query, added pagination controls
+    88→- Created `src/components/ErrorBoundary.tsx`: React class component error boundary with amber-themed UI (AlertTriangle icon, "Terjadi Kesalahan" heading, "Coba Lagi" reset button), supports custom fallback prop
+    89→- Created `src/components/tarombo/BackupRestore.tsx`: Admin-only backup/restore UI with export (downloads `tarombo-backup-YYYY-MM-DD.json`), import with file picker, AlertDialog confirmation before import with warning about data replacement, last backup timestamp display, sonner toast feedback
+    90→- Created `src/components/tarombo/AuditLogViewer.tsx`: Admin-only audit log table with columns (Waktu, Pengguna, Aksi, Resource, Detail), Indonesian action labels (CREATE_PERSON→"Tambah Anggota", etc.), color-coded action badges, pagination with same pattern
+    91→- Updated `src/app/page.tsx`: Imported ErrorBoundary and wrapped `<AppContent />` with it, imported BackupRestore and AuditLogViewer, added "backup" and "audit-logs" view routes
+    92→- Updated `src/components/layout/AppSidebar.tsx`: Added FileText icon import, extended NavItem id type, added "Pencadangan Data" (Database icon, minRole 3) and "Log Audit" (FileText icon, minRole 3) navigation items
+    93→- Fixed JSX comment syntax errors in PersonList and MarriageList pagination sections
+    94→- All files pass ESLint (0 errors)
+    95→
+    96→Stage Summary:
+    97→- 3 files modified: app-store.ts, PersonList.tsx, MarriageList.tsx, page.tsx, AppSidebar.tsx
+    98→- 3 new files created: ErrorBoundary.tsx, BackupRestore.tsx, AuditLogViewer.tsx
+    99→- Pagination: PersonList and MarriageList now support paginated API responses with navigation controls
+   100→- Error handling: ErrorBoundary wraps the entire AppContent for crash recovery
+   101→- Admin features: Backup/Restore UI and Audit Log Viewer with ADMIN-only visibility
+   102→- Navigation: Two new sidebar items for admin-only backup and audit log views
+   103→
+   104→---
+   105→Task ID: 4
+   106→Agent: Backend Strengthening Agent
+   107→Task: Implement backend strengthening (tree API, upload sanitization, audit logging, pagination, backup/restore, audit log API)
+   108→
+   109→Work Log:
+   110→- **Tree API spouse fix** (`src/app/api/tree/route.ts`): Removed `where: { isActive: true }` filter from `marriagesAsHusband` and `marriagesAsWife` queries, added `orderBy: { createdAt: "desc" }` to both. Updated `buildTree()` spouse selection logic: first tries to find an active marriage, then falls back to the most recent (first) inactive marriage. Added `marriageStatus` field ("AKTIF" or "DUDA/JANDA") to the `TreeNode.spouse` interface and object.
+   111→- **Upload sanitization** (`src/app/api/upload/route.ts`): Replaced `file.name.split(".").pop() || "jpg"` with a whitelist-based extension sanitizer. Only `jpg`, `jpeg`, `png`, `webp`, `gif` are accepted; any other extension defaults to `"jpg"`.
+   112→- **AuditLog model** (`prisma/schema.prisma`): Added `AuditLog` model with fields: `id` (cuid), `userId`, `userName`, `action`, `resource`, `resourceId`, `details` (String for JSON), `ipAddress`, `createdAt`. Added indexes on `userId`, `action`, and `createdAt`. Ran `bun run db:push` successfully.
+   113→- **Audit-log helper** (`src/lib/audit-log.ts`): Created `logAudit()` function (fire-and-forget with try/catch so audit failures never break main operations) and `getSessionUserInfo()` helper that extracts `userId` and `userName` from a NextAuth session.
+   114→- **Audit logging integration**: Added `logAudit` calls to 8 API endpoints:
+   115→  - `POST /api/persons` → CREATE_PERSON
+   116→  - `PUT /api/persons/[id]` → UPDATE_PERSON
+   117→  - `DELETE /api/persons/[id]` → DELETE_PERSON
+   118→  - `POST /api/marriages` → CREATE_MARRIAGE (covers both new and reactivated marriages)
+   119→  - `PUT /api/marriages/[id]` → UPDATE_MARRIAGE
+   120→  - `DELETE /api/marriages/[id]` → DELETE_MARRIAGE
+   121→  - `PUT /api/users/[id]` → UPDATE_USER
+   122→  - `DELETE /api/users/[id]` → DELETE_USER
+   123→- **Pagination** (`src/app/api/persons/route.ts` GET, `src/app/api/marriages/route.ts` GET): Added optional `page` (default 1) and `limit` (default 20, max 100) query parameters. When either param is present, returns `{ data, total, page, limit, totalPages }`. When absent, returns the original array format for backward compatibility. Search and gender filters continue to work in both modes.
+   124→- **Backup/restore API** (`src/app/api/backup/route.ts`): Created new file with two endpoints:
+   125→  - `GET /api/backup` (ADMIN only): Exports all persons and marriages as JSON with `{ exportedAt, version: "1.0", persons, marriages }`. Users excluded (no password exposure). Includes audit log.
+   126→  - `POST /api/backup` (ADMIN only): Imports data from JSON. Validates structure (persons array with fullName/gender, marriages array with husbandId/wifeId). Uses `db.$transaction()` to delete marriages→persons, create all persons, map old IDs to new IDs for parent references, create marriages with mapped IDs, and re-seed admin user if no users remain. Includes audit log.
+   127→- **Audit log viewing API** (`src/app/api/audit-logs/route.ts`): Created `GET /api/audit-logs` (ADMIN only) with pagination (`page`, `limit`), optional `action` filter, ordered by `createdAt desc`. Returns `{ data, total, page, limit, totalPages }`.
+   128→- Ran `bun run lint` — 0 errors
+   129→
+   130→Stage Summary:
+   131→- 6 files modified: tree/route.ts, upload/route.ts, schema.prisma, persons/route.ts, marriages/route.ts, persons/[id]/route.ts, marriages/[id]/route.ts, users/[id]/route.ts
+   132→- 4 new files created: audit-log.ts, backup/route.ts, audit-logs/route.ts
+   133→- Tree API now shows widowed/deceased spouses with marriageStatus field
+   134→- Upload route hardened against malicious extensions
+   135→- Full audit trail for all RBAC-sensitive mutations (8 action types)
+   136→- Backward-compatible pagination on persons and marriages list endpoints
+   137→- Admin backup export/import with transactional safety and ID remapping
+   138→- Admin audit log viewer API with filtering---
+   139→Task ID: 6
+   140→Agent: Main
+   141→Task: Integration, bug fixes, and push all strengthening changes to GitHub
+   142→
+   143→Work Log:
+   144→- Fixed AuditLogViewer: changed `log.detail` to `log.details` to match API response field name
+   145→- Fixed PersonList: replaced useEffect-based page reset with inline `setPage(1)` in onChange/onValueChange handlers (avoids ESLint react-hooks/set-state-in-effect error)
+   146→- Fixed BackupRestore: removed unused `backup-info` query (GET /api/backup returns export data, not backup metadata), removed unused imports (Clock, Database), removed dead "Last Backup" card section
+   147→- Added db/*.db, db/*.db-journal, and public/uploads/ to .gitignore
+   148→- Removed db/custom.db from git tracking (local database should not be committed)
+   149→- Ran ESLint: 0 errors
+   150→- Committed all changes with detailed commit message
+   151→- Pushed to GitHub: https://github.com/imanueli2312/tarombo.git (branch: main)
+   152→
+   153→Stage Summary:
+   154→- 3 frontend bugs fixed (field name mismatch, lint violation, unnecessary API call)
+   155→- .gitignore hardened for local database and uploads
+   156→- All 7 strengthening improvements + 3 bug fixes pushed to GitHub successfully
+   157→
+   158→---
+   159→Task ID: 7
+   160→Agent: Backend Agent
+   161→Task: Date validation, password API, image compression, session management, statistics API
+   162→
+   163→Work Log:
+   164→- **Date validation** (`src/app/api/persons/route.ts` POST): Added 3 logical date checks after Zod parse — death before birth, death in future, birth in future
+   165→- **Date validation** (`src/app/api/persons/[id]/route.ts` PUT): Added same 3 checks using effective dates (falls back to existing DB values when field not in update payload)
+   166→- **Date validation** (`src/app/api/marriages/route.ts` POST): Added marriage date not-in-future check
+   167→- **Date validation** (`src/app/api/marriages/[id]/route.ts` PUT): Added marriage date not-in-future check and divorce date after marriage date check
+   168→- **Password change API** (`src/app/api/auth/password/route.ts`): Created new PUT endpoint with current password verification, strength validation (min 8 chars, 1 uppercase, 1 digit), bcrypt hash with salt 12, and audit logging
+   169→- **Image compression** (`src/app/api/upload/route.ts`): Added sharp import, replaced SAFE_EXTENSIONS logic with fixed `.jpg` extension, added post-write compression (resize to 800px max dimension, JPEG quality 80, fit inside without enlargement) with graceful fallback on failure
+   170→- **Session management** (`src/lib/auth.ts`): Added `maxAge: 24 * 60 * 60` to both `session` and `jwt` config, added `token.iat` in JWT callback
+   171→- **Statistics API** (`src/app/api/stats/route.ts`): Created GET endpoint returning totalPersons, totalMales/Females, totalDeceased/Living, totalMarriages (active/inactive), maxGeneration depth, averageAge, maritalStatusBreakdown, and latestPerson. Uses parallel queries and generation depth calculation with cycle protection
+   172→- Ran `bun run lint` — 0 errors
+   173→
+   174→Stage Summary:
+   175→- 4 files modified: persons/route.ts, persons/[id]/route.ts, marriages/route.ts, marriages/[id]/route.ts, upload/route.ts, auth.ts
+   176→- 2 new files created: auth/password/route.ts, stats/route.ts
+   177→- Data integrity: all date fields validated for logical consistency across persons and marriages
+   178→- Security: password change API with strength requirements and audit trail
+   179→- Performance: uploaded images auto-compressed to 800px JPEG
+   180→- Session: 24-hour expiry on both session cookie and JWT token
+   181→- Analytics: comprehensive family statistics API with generation depth and age calculations
+   182→
+   183→---
+   184→Task ID: 9
+   185→Agent: Main
+   186→Task: Implement dark mode, i18n, and change notifications (Tasks 9, 10, 11)
+   187→
+   188→Work Log:
+   189→- **Dark Mode (Task 9)**:
+   190→  - Updated `src/components/providers.tsx`: Added ThemeProvider from next-themes with `enableSystem={false}`, moved Sonner Toaster inside providers, wrapped with I18nProvider
+   191→  - Created `src/components/ThemeToggle.tsx`: Sun/Moon icon toggle button using next-themes
+   192→  - Updated `src/app/layout.tsx`: Already had `suppressHydrationWarning` on html tag; removed redundant old Toaster import (now in providers)
+   193→  - Updated `src/components/layout/AppSidebar.tsx`: Added dark mode classes (`dark:bg-gray-900`, `dark:border-gray-700`, `dark:text-*`) to aside, nav items, user section, logo, badges, buttons
+   194→- **i18n (Task 10)**:
+   195→  - Created `src/lib/i18n/translations.ts`: Full translation dictionaries for 3 locales (id/Indonesian, en/English, bbc/Batak) with 80+ keys each covering nav, common, tree, person, dashboard, marriage, auth, backup, password, footer, audit
+   196→  - Created `src/lib/i18n/context.tsx`: I18nProvider with React context, `useI18n()` hook exposing `locale`, `setLocale`, `t()` translation function, and `locales` array
+   197→  - Created `src/components/LanguageToggle.tsx`: Globe icon dropdown with 3 locale options (Indonesia, English, Batak)
+   198→  - Integrated I18nProvider into providers.tsx wrapping all children
+   199→- **Change Notifications (Task 11)**:
+   200→  - Created `src/app/api/notifications/route.ts`: GET endpoint polling persons/marriages updatedAt counts since a timestamp, returns hasChanges flag
+   201→  - Created `src/components/NotificationBell.tsx`: 30-second polling with toast notification on data changes, red dot indicator, manual refresh button
+   202→- **Integration**:
+   203→  - Updated `src/store/app-store.ts`: Added "dashboard" and "password" to activeView union type
+   204→  - Created `src/components/tarombo/DashboardStats.tsx`: Placeholder dashboard with stat cards
+   205→  - Created `src/components/tarombo/PasswordChange.tsx`: Password change form calling existing PUT /api/auth/password endpoint
+   206→  - Updated `src/app/page.tsx`: Added DashboardStats and PasswordChange imports and view routes
+   207→  - Updated `src/components/layout/AppSidebar.tsx`: Added Dashboard (BarChart3) and Ganti Password (KeyRound) nav items, added LanguageToggle + ThemeToggle row in user section, added NotificationBell next to logo/X button
+   208→- Ran `bun run lint` — 0 errors
+   209→
+   210→Stage Summary:
+   211→- 6 new files: ThemeToggle.tsx, i18n/translations.ts, i18n/context.tsx, LanguageToggle.tsx, NotificationBell.tsx, api/notifications/route.ts, DashboardStats.tsx, PasswordChange.tsx
+   212→- 4 files modified: providers.tsx, AppSidebar.tsx, app-store.ts, page.tsx, layout.tsx
+   213→- Dark mode: Full sidebar support with dark variants on backgrounds, borders, text colors
+   214→- i18n: Lightweight context-based system with 3 locales, ready for component integration via `useI18n().t("key")`
+   215→- Notifications: 30-second polling detects data changes from other users with toast + refresh action
+   216→- New nav items: Dashboard and Ganti Password accessible to all authenticated users
+   217→
+   218→---
+   219→Task ID: Frontend Features Agent
+   220→Task: Tree search, dashboard stats, generation numbers, tree export, password change
+   221→
+   222→Work Log:
+   223→- **Task 5: Tree Search** (`src/components/tarombo/TreeVisualization.tsx`):
+   224→  - Added `searchTerm`, `searchResults`, and `highlightedNodeId` state
+   225→  - Added `nodePositionsRef` (Map) to store D3 node positions after drawing
+   226→  - Added `collectAllNodes()` helper to flatten tree for search matching
+   227→  - Added `useMemo` to build searchable node list from treeData
+   228→  - Added `useEffect` for case-insensitive search filtering (fullName + nickname), max 5 results
+   229→  - Added `zoomToNode()` callback: centers on matched node at 1.5x scale with 750ms transition
+   230→  - Added search UI: absolute-positioned div below legend with Search icon, Input, and dropdown results
+   231→  - Added highlight effect: amber glowing border rect on matched node via D3 filter
+   232→- **Task 7: Generation Numbers** (`src/components/tarombo/TreeVisualization.tsx`):
+   233→  - Added `getGenerationLabel()` helper with Roman numerals (I-X) and numeric fallback for Gen 11+
+   234→  - Added `isVirtualRoot` boolean to handle generation offset (virtual root children = Gen I)
+   235→  - Added generation badge text element on each node (excluding virtual-root), positioned at bottom-right
+   236→- **Task 8: Export Tree to SVG** (`src/components/tarombo/TreeVisualization.tsx`):
+   237→  - Added Camera icon import from lucide-react, toast import from sonner
+   238→  - Added `handleExportImage()` function: clones SVG, sets explicit dimensions from getBBox, white background, serializes to SVG blob, triggers download as "tarombo-hariandja.svg"
+   239→  - Added Camera button in toolbar (left of zoom buttons)
+   240→- **Task 6: Dashboard Statistics** (`src/components/tarombo/DashboardStats.tsx`):
+   241→  - Fully implemented dashboard with 6 stat cards (Total Anggota, Laki-laki, Perempuan, Generasi, Rata-rata Umur, Pernikahan Aktif)
+   242→  - Recharts PieChart for gender distribution (amber/pink donut chart with labels)
+   243→  - Recharts BarChart for marital status breakdown (colored bars with CartesianGrid)
+   244→  - "Anggota Terbaru" card showing latest added person with "Lihat Detail →" link
+   245→  - All using amber color theme, EDITOR+ access check for detail link
+   246→- **Password Change** (`src/components/tarombo/PasswordChange.tsx`):
+   247→  - 3 fields: Password Lama, Password Baru, Konfirmasi Password Baru with show/hide toggles
+   248→  - Client-side validation: all fields required, min 8 chars, passwords match, old ≠ new
+   249→  - Password strength indicator with color-coded progress bar (Lemah/Sedang/Kuat)
+   250→  - Calls PUT /api/auth/password via TanStack Query mutation
+   251→  - Success toast + form clear on success, error toast on failure
+   252→  - Available to all authenticated users (minRole 1)
+   253→- **API Routes Created** (necessary for frontend features):
+   254→  - `src/app/api/stats/route.ts`: GET endpoint with parallel queries for counts, average age, generation depth calculation, latest person, marital status breakdown
+   255→  - `src/app/api/auth/password/route.ts`: PUT endpoint with current password verification, bcrypt hash, min 8 char validation
+   256→- **Integration**: page.tsx and AppSidebar.tsx already had routing/navigation for dashboard and password views (set up by prior agent)
+   257→- Ran `bun run lint` — 0 errors
+   258→
+   259→Stage Summary:
+   260→- 1 file modified: TreeVisualization.tsx (search, generation badges, SVG export)
+   261→- 2 files rewritten with full implementations: DashboardStats.tsx, PasswordChange.tsx (replaced placeholder versions)
+   262→- 2 new API route files created: stats/route.ts, auth/password/route.ts
+   263→- Tree search: case-insensitive, max 5 results, smooth zoom-to with amber highlight glow
+   264→- Generation badges: Roman numerals Gen I–X, handles both virtual-root and single-root trees
+   265→- SVG export: one-click download of full tree as tarombo-hariandja.svg
+   266→- Dashboard: 6 stat cards + gender pie chart + marital status bar chart + latest member card
+   267→- Password change: strength indicator, show/hide toggles, client-side validation, TanStack Query mutation
+   268→
+   269→---
+   270→Task ID: 3
+   271→Agent: Theme Agent
+   272→Task: Implement global Batak Toba theme in globals.css and core layout files
+   273→
+   274→Work Log:
+   275→- Replaced all CSS variables in `:root` with Batak Toba color palette (oklch values): maroon primary, gold secondary/accent, cream backgrounds, brown foreground text, tan borders
+   276→- Updated `.dark` mode variables to deeper Batak tones: dark brown-black backgrounds, gold as primary, muted warm tones
+   277→- Updated chart colors to Batak palette (maroon, gold, dark brown, ochre, sienna) in both light and dark modes
+   278→- Added 5 Batak Toba custom utility classes at end of globals.css:
+   279→  - `.batak-gorga-border`: repeating gorga-pattern border-image (maroon/gold/brown stripes)
+   280→  - `.batak-sidebar-bg`: dark carved-wood background (#1C1410)
+   281→  - `.batak-ulos-stripe`: repeating ulos-cloth stripe pattern
+   282→  - `.batak-card-traditional`: warm cream card with gold-top gorga accent bar
+   283→  - `.gorga-divider`: decorative gorga-pattern divider bar
+   284→- Updated `page.tsx` styling:
+   285→  - Loading state: changed gradient to Batak cream tones (`#FDF6E3`/`#F5E6D3`/`#FFF8F0`)
+   286→  - Loading spinner: changed to tan border with maroon top (`#D4A574`/`#7F1D1D`)
+   287→  - Loading text: changed to maroon (`#7F1D1D`)
+   288→  - TreeView background: changed to Batak cream gradient
+   289→  - MainLayout background: changed to Batak cream gradient
+   290→  - Footer: replaced with gorga-divider + dark brown-black bg (#1C1410) + gold text (#DAA520)
+   291→- Ran ESLint: 0 errors
+   292→
+   293→Stage Summary:
+   294→- 2 files modified: globals.css, page.tsx
+   295→- Complete Batak Toba color system applied globally via CSS custom properties (light + dark mode)
+   296→- 5 custom Batak utility classes available for component-level use
+   297→- All shadcn/ui components automatically inherit Batak theming via CSS variables
+   298→- No component logic changed — purely visual/styling updates
+   299→
+   300→---
+   301→Task ID: 4
+   302→Agent: full-stack-developer
+   303→Task: Restyle sidebar and auth pages with Batak Toba theme
+   304→
+   305→Work Log:
+   306→- Updated AppSidebar with dark Batak carved-wood theme
+   307→- Updated LoginForm with Batak Toba traditional styling
+   308→- Updated RegisterForm with Batak Toba traditional styling
+   309→
+   310→Stage Summary:
+   311→- Sidebar: Dark maroon/brown bg (#1C1410), gold text (#DAA520), gorga pattern header
+   312→- Auth pages: Cream backgrounds, maroon buttons, gold accents, gorga card headers
+   313→
+   314→---
+   315→Task ID: 5-7
+   316→Agent: Main
+   317→Task: Restyle ALL tarombo components and TreeVisualization with Batak Toba traditional theme
+   318→
+   319→Work Log:
+   320→- Restyled TreeVisualization.tsx: D3 tree link stroke (#D4A574), male/female node fills (#FFF8F0), male node stroke (#7F1D1D), female node stroke (#991B1B), gender icon colors, name text (#3E2723), birth place text (#B8860B), generation badge (#B8860B), spouse connection line (#991B1B), heart symbol (#991B1B), highlight stroke (#DAA520), highlight drop-shadow (rgba(218,165,32,0.5)), loading spinner/text (#7F1D1D), empty state icon (#D4A574), empty state title (#3E2723), toolbar hover (#F5E6D3), legend (male swatch border #7F1D1D bg #F5E6D3, female swatch border #991B1B bg #F5E6D3), search input border (#D4A574), search result hover (#F5E6D3), node popup border/names, popup button (#7F1D1D/#991B1B), SVG export bg (#FDF6E3), "Tambah Anggota Pertama" button
+   321→- Restyled PersonList.tsx: All text-amber-900→#3E2723, text-amber-800→#3E2723, text-amber-700→#795548, text-amber-600→#795548, text-amber-300→#D4A574, bg-amber-100→#F5E6D3, border-amber-200→#D4A574, hover:bg-amber-50/50→#F5E6D3/50, bg-amber-700→#7F1D1D, hover:bg-amber-800→#991B1B, loading spinner #7F1D1D. Kept pink for female gender.
+   322→- Restyled PersonDetail.tsx: Same color replacements. Back link #7F1D1D/#991B1B. Photo border/bg/icon. All bg-amber-50/50→#F5E6D3/50, hover:bg-amber-50→#F5E6D3. Kept red-50 for deceased sections.
+   323→- Restyled PersonForm.tsx: Same color replacements. Back link #7F1D1D/#991B1B. All input/select/textarea borders →#D4A574. Submit button #7F1D1D/#991B1B. Loading spinner #7F1D1D. Section headers #3E2723.
+   324→- Restyled MarriageList.tsx: Same color replacements. Card/table borders. Add/save buttons. Loading spinner. Empty state icon. Kept pink for wife names.
+   325→- Restyled DashboardStats.tsx: CHART_COLORS→["#7F1D1D","#DAA520","#3E2723","#B8860B","#A0522D"]. BarChart grid/tick/axisline/tooltip colors. Stat card borders. Latest member link #7F1D1D/#991B1B. Icon colors #795548.
+   326→- Restyled BackupRestore.tsx: Warning box bg/border/text. Warning icon #B8860B. Export/import buttons. Confirmation dialog. All card borders.
+   327→- Restyled AuditLogViewer.tsx: Table header text, row hover, loading spinner, empty state icon, badge borders, pagination buttons.
+   328→- Restyled UserManagement.tsx: RBAC info cards (Editor→#F5E6D3/#D4A574/#3E2723/#795548). roleColors EDITOR entry updated. Table/buttons/loading. Kept admin red and viewer gray.
+   329→- Restyled PasswordChange.tsx: Heading, card border, labels, input borders, submit button. Kept password strength colors (red/green/amber) as they are semantic.
+   330→- Ran ESLint: 0 errors
+   331→
+   332→Stage Summary:
+   333→- 10 files modified: TreeVisualization, PersonList, PersonDetail, PersonForm, MarriageList, DashboardStats, BackupRestore, AuditLogViewer, UserManagement, PasswordChange
+   334→- All amber/x color classes replaced with Batak Toba traditional palette (maroon, gold, dark brown, cream, tan)
+   335→- No component logic, event handlers, state management, or imports changed
+   336→- All functionality preserved — purely visual/styling updates
+   337→
