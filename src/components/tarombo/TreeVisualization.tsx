@@ -15,8 +15,25 @@ import {
   TreePine,
   Search,
   Camera,
+  FileDown,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toPng, toSvg } from "html-to-image";
+import { jsPDF } from "jspdf";
+
+interface SpouseData {
+  id: string;
+  fullName: string;
+  nickname: string | null;
+  gender: "MALE" | "FEMALE";
+  birthDate: string | null;
+  deathDate: string | null;
+  isDeceased: boolean;
+  photoPath: string | null;
+  maritalStatus: string;
+  marriageStatus?: "AKTIF" | "DUDA/JANDA";
+}
 
 interface TreeNode {
   id: string;
@@ -29,17 +46,7 @@ interface TreeNode {
   photoPath: string | null;
   birthPlace: string | null;
   maritalStatus: string;
-  spouse: {
-    id: string;
-    fullName: string;
-    nickname: string | null;
-    gender: "MALE" | "FEMALE";
-    birthDate: string | null;
-    deathDate: string | null;
-    isDeceased: boolean;
-    photoPath: string | null;
-    maritalStatus: string;
-  } | null;
+  spouse: SpouseData | null;
   children: TreeNode[];
   birthOrder: number | null;
 }
@@ -55,10 +62,13 @@ interface SearchMatch {
   gender: "MALE" | "FEMALE";
 }
 
-const NODE_WIDTH = 160;
-const NODE_HEIGHT = 70;
-const SPOUSE_GAP = 10;
-const COUPLE_WIDTH = NODE_WIDTH * 2 + SPOUSE_GAP;
+// Card dimensions
+const SINGLE_WIDTH = 180;
+const SINGLE_HEIGHT = 70;
+const COUPLE_WIDTH = 320;
+const COUPLE_HEIGHT = 70;
+const SPOUSE_LINE_X = 155; // x position of divider line within couple card
+const CARD_GAP = 30;
 
 const ROMAN_NUMERALS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
@@ -95,6 +105,12 @@ function collectAllNodes(node: TreeNode): TreeNode[] {
   return result;
 }
 
+type PdfSize = "normal" | "besar" | "multiple";
+
+function getCardWidth(d: D3Node): number {
+  return d.data.spouse ? COUPLE_WIDTH : SINGLE_WIDTH;
+}
+
 export function TreeVisualization() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,6 +120,8 @@ export function TreeVisualization() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<SearchMatch[]>([]);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const [showPdfMenu, setShowPdfMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedPersonId = useAppStore((s) => s.setSelectedPersonId);
   const canCreate = useAppStore((s) => s.canCreate);
@@ -118,13 +136,11 @@ export function TreeVisualization() {
 
   const isVirtualRoot = treeData?.id === "virtual-root";
 
-  // Build a flat list of all nodes for search
   const allNodes = useMemo(() => {
     if (!treeData) return [];
     return collectAllNodes(treeData).filter((n) => n.id !== "virtual-root");
   }, [treeData]);
 
-  // Search handler
   useEffect(() => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
@@ -196,10 +212,10 @@ export function TreeVisualization() {
 
       const root = d3.hierarchy(treeData, (d) => d.children);
 
-      const treeLayout = d3.tree<TreeNode>().nodeSize([COUPLE_WIDTH + 30, 120]);
+      const treeLayout = d3.tree<TreeNode>().nodeSize([COUPLE_WIDTH + CARD_GAP, 130]);
       treeLayout(root);
 
-      // Store node positions for search
+      // Store node positions
       const positions = new Map<string, { x: number; y: number }>();
       root.descendants().forEach((d) => {
         positions.set(d.data.id, { x: d.x, y: d.y });
@@ -218,9 +234,9 @@ export function TreeVisualization() {
         .attr("stroke-opacity", 0.6)
         .attr("d", (d) => {
           const sx = d.source.x;
-          const sy = d.source.y + NODE_HEIGHT / 2;
+          const sy = d.source.y + (d.source.data.spouse ? COUPLE_HEIGHT / 2 : SINGLE_HEIGHT / 2);
           const tx = d.target.x;
-          const ty = d.target.y - NODE_HEIGHT / 2;
+          const ty = d.target.y - (d.target.data.spouse ? COUPLE_HEIGHT / 2 : SINGLE_HEIGHT / 2);
           const midY = (sy + ty) / 2;
           return `M ${sx} ${sy} C ${sx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`;
         });
@@ -232,7 +248,11 @@ export function TreeVisualization() {
         .enter()
         .append("g")
         .attr("class", "node")
-        .attr("transform", (d) => `translate(${d.x - COUPLE_WIDTH / 2}, ${d.y - NODE_HEIGHT / 2})`)
+        .attr("transform", (d) => {
+          const cw = getCardWidth(d);
+          const ch = d.data.spouse ? COUPLE_HEIGHT : SINGLE_HEIGHT;
+          return `translate(${d.x - cw / 2}, ${d.y - ch / 2})`;
+        })
         .style("cursor", "pointer")
         .on("click", (_event, d) => {
           if (d.data.id !== "virtual-root") {
@@ -240,154 +260,127 @@ export function TreeVisualization() {
           }
         });
 
-      // Person card background
-      nodes
-        .append("rect")
-        .attr("width", NODE_WIDTH)
-        .attr("height", NODE_HEIGHT)
-        .attr("rx", 10)
-        .attr("ry", 10)
-        .attr("fill", (d) => (d.data.gender === "MALE" ? "#FFF8F0" : "#FFF8F0"))
-        .attr("stroke", (d) => (d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B"))
-        .attr("stroke-width", 2)
-        .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.1))");
+      // For each node, draw combined couple card or single card
+      nodes.each(function (d) {
+        const node = d3.select(this);
+        const hasSpouse = !!d.data.spouse;
+        const cw = hasSpouse ? COUPLE_WIDTH : SINGLE_WIDTH;
+        const ch = hasSpouse ? COUPLE_HEIGHT : SINGLE_HEIGHT;
+        const isVirtual = d.data.id === "virtual-root";
 
-      // Gender icon
-      nodes
-        .append("text")
-        .attr("x", 12)
-        .attr("y", 20)
-        .attr("font-size", "12px")
-        .text((d) => (d.data.gender === "MALE" ? "♂" : "♀"))
-        .attr("fill", (d) => (d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B"));
+        if (isVirtual) return;
 
-      // Name
-      nodes
-        .append("text")
-        .attr("x", 26)
-        .attr("y", 20)
-        .attr("font-size", "11px")
-        .attr("font-weight", "600")
-        .attr("fill", (d) => (d.data.isDeceased ? "#9ca3af" : "#3E2723"))
-        .text((d) => truncate(d.data.fullName, 18))
-        .append("title")
-        .text((d) => d.data.fullName);
+        // === Card background ===
+        node
+          .append("rect")
+          .attr("width", cw)
+          .attr("height", ch)
+          .attr("rx", 12)
+          .attr("ry", 12)
+          .attr("fill", "#FFF8F0")
+          .attr("stroke", d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B")
+          .attr("stroke-width", 2)
+          .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.1))");
 
-      // Nickname (only for nodes that have one)
-      nodes
-        .filter((d) => d.data.nickname)
-        .append("text")
-        .attr("x", 12)
-        .attr("y", 36)
-        .attr("font-size", "9px")
-        .attr("fill", "#9ca3af")
-        .text((d) => `"${d.data.nickname}"`);
-
-      // Birth/Death dates
-      nodes
-        .filter((d) => d.data.birthDate || d.data.deathDate)
-        .append("text")
-        .attr("x", 12)
-        .attr("y", 50)
-        .attr("font-size", "8px")
-        .attr("fill", "#9ca3af")
-        .text((d) => {
-          const birth = formatDate(d.data.birthDate);
-          const death = d.data.deathDate ? ` ✝ ${formatDate(d.data.deathDate)}` : "";
-          return `${birth}${death}`;
-        });
-
-      // Birth place
-      nodes
-        .filter((d) => d.data.birthPlace)
-        .append("text")
-        .attr("x", 12)
-        .attr("y", 62)
-        .attr("font-size", "8px")
-        .attr("fill", "#B8860B")
-        .text((d) => `📍 ${d.data.birthPlace}`);
-
-      // Deceased indicator
-      nodes
-        .filter((d) => d.data.isDeceased)
-        .append("rect")
-        .attr("x", NODE_WIDTH - 24)
-        .attr("y", 4)
-        .attr("width", 20)
-        .attr("height", 14)
-        .attr("rx", 3)
-        .attr("fill", "#ef4444")
-        .attr("opacity", 0.8);
-
-      nodes
-        .filter((d) => d.data.isDeceased)
-        .append("text")
-        .attr("x", NODE_WIDTH - 19)
-        .attr("y", 14)
-        .attr("font-size", "7px")
-        .attr("fill", "white")
-        .attr("font-weight", "600")
-        .text("✝");
-
-      // Generation badge (Task 7)
-      nodes
-        .filter((d) => d.data.id !== "virtual-root")
-        .append("text")
-        .attr("x", NODE_WIDTH - 8)
-        .attr("y", 64)
-        .attr("text-anchor", "end")
-        .attr("font-size", "7px")
-        .attr("fill", "#B8860B")
-        .attr("font-weight", "600")
-        .text((d) => getGenerationLabel(d.depth, !!isVirtualRoot));
-
-      // Draw spouse
-      nodes
-        .filter((d) => d.data.spouse)
-        .each(function (d) {
-          const node = d3.select(this);
+        if (hasSpouse) {
+          // === COUPLE CARD ===
           const spouse = d.data.spouse!;
-          const spouseX = NODE_WIDTH + SPOUSE_GAP;
 
-          // Connection line
+          // Left person background (subtle)
+          node
+            .append("rect")
+            .attr("x", 1)
+            .attr("y", 1)
+            .attr("width", SPOUSE_LINE_X - 1)
+            .attr("height", ch - 2)
+            .attr("rx", 11)
+            .attr("fill", "rgba(127, 29, 29, 0.03)");
+
+          // Divider line
           node
             .append("line")
-            .attr("x1", NODE_WIDTH)
-            .attr("y1", NODE_HEIGHT / 2)
-            .attr("x2", spouseX)
-            .attr("y2", NODE_HEIGHT / 2)
-            .attr("stroke", "#991B1B")
-            .attr("stroke-width", 2)
-            .attr("stroke-dasharray", "4,2");
+            .attr("x1", SPOUSE_LINE_X)
+            .attr("y1", 8)
+            .attr("x2", SPOUSE_LINE_X)
+            .attr("y2", ch - 8)
+            .attr("stroke", "#D4A574")
+            .attr("stroke-width", 1)
+            .attr("stroke-dasharray", "3,3");
 
-          // Heart
+          // Heart at center divider
           node
             .append("text")
-            .attr("x", NODE_WIDTH + SPOUSE_GAP / 2)
-            .attr("y", NODE_HEIGHT / 2 + 4)
+            .attr("x", SPOUSE_LINE_X)
+            .attr("y", ch / 2 + 4)
             .attr("text-anchor", "middle")
-            .attr("font-size", "10px")
+            .attr("font-size", "11px")
             .text("♥")
             .attr("fill", "#991B1B");
 
-          // Spouse card
+          // Left: Main person
+          // Gender icon
           node
-            .append("rect")
-            .attr("x", spouseX)
-            .attr("width", NODE_WIDTH)
-            .attr("height", NODE_HEIGHT)
-            .attr("rx", 10)
-            .attr("ry", 10)
-            .attr("fill", spouse.gender === "FEMALE" ? "#FFF8F0" : "#FFF8F0")
-            .attr("stroke", spouse.gender === "FEMALE" ? "#991B1B" : "#7F1D1D")
-            .attr("stroke-width", 2)
-            .attr("stroke-dasharray", "6,3")
-            .style("filter", "drop-shadow(0 1px 2px rgba(0,0,0,0.08))");
+            .append("text")
+            .attr("x", 10)
+            .attr("y", 20)
+            .attr("font-size", "12px")
+            .text(d.data.gender === "MALE" ? "♂" : "♀")
+            .attr("fill", d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B");
+
+          // Name
+          node
+            .append("text")
+            .attr("x", 24)
+            .attr("y", 20)
+            .attr("font-size", "11px")
+            .attr("font-weight", "600")
+            .attr("fill", d.data.isDeceased ? "#9ca3af" : "#3E2723")
+            .text(truncate(d.data.fullName, 17))
+            .append("title")
+            .text(d.data.fullName);
+
+          // Nickname
+          if (d.data.nickname) {
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 36)
+              .attr("font-size", "9px")
+              .attr("fill", "#9ca3af")
+              .text(`"${d.data.nickname}"`);
+          }
+
+          // Dates
+          if (d.data.birthDate || d.data.deathDate) {
+            const birth = formatDate(d.data.birthDate);
+            const death = d.data.deathDate ? ` ✝ ${formatDate(d.data.deathDate)}` : "";
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 50)
+              .attr("font-size", "8px")
+              .attr("fill", "#9ca3af")
+              .text(`${birth}${death}`);
+          }
+
+          // Birth place
+          if (d.data.birthPlace) {
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 62)
+              .attr("font-size", "8px")
+              .attr("fill", "#B8860B")
+              .text(`📍${d.data.birthPlace}`);
+          }
+
+          // Right: Spouse
+          const spX = SPOUSE_LINE_X + 10;
 
           // Spouse gender icon
           node
             .append("text")
-            .attr("x", spouseX + 12)
+            .attr("x", spX)
             .attr("y", 20)
             .attr("font-size", "12px")
             .text(spouse.gender === "FEMALE" ? "♀" : "♂")
@@ -396,18 +389,20 @@ export function TreeVisualization() {
           // Spouse name
           node
             .append("text")
-            .attr("x", spouseX + 26)
+            .attr("x", spX + 14)
             .attr("y", 20)
             .attr("font-size", "11px")
             .attr("font-weight", "600")
             .attr("fill", spouse.isDeceased ? "#9ca3af" : "#6b7280")
-            .text(truncate(spouse.fullName, 18));
+            .text(truncate(spouse.fullName, 15))
+            .append("title")
+            .text(spouse.fullName);
 
           // Spouse nickname
           if (spouse.nickname) {
             node
               .append("text")
-              .attr("x", spouseX + 12)
+              .attr("x", spX)
               .attr("y", 36)
               .attr("font-size", "9px")
               .attr("fill", "#9ca3af")
@@ -415,32 +410,141 @@ export function TreeVisualization() {
           }
 
           // Spouse dates
+          if (spouse.birthDate || spouse.deathDate) {
+            const birth = formatDate(spouse.birthDate);
+            const death = spouse.deathDate ? ` ✝ ${formatDate(spouse.deathDate)}` : "";
+            node
+              .append("text")
+              .attr("x", spX)
+              .attr("y", 50)
+              .attr("font-size", "8px")
+              .attr("fill", "#9ca3af")
+              .text(`${birth}${death}`);
+          }
+
+          // Spouse birth place
+          if (spouse.maritalStatus) {
+            node
+              .append("text")
+              .attr("x", spX)
+              .attr("y", 62)
+              .attr("font-size", "8px")
+              .attr("fill", spouse.marriageStatus === "DUDA/JANDA" ? "#ef4444" : "#B8860B")
+              .text(spouse.marriageStatus === "DUDA/JANDA" ? "✝ Cerai (wafat)" : "");
+          }
+        } else {
+          // === SINGLE CARD ===
+          // Gender icon
           node
             .append("text")
-            .attr("x", spouseX + 12)
-            .attr("y", 50)
-            .attr("font-size", "8px")
-            .attr("fill", "#9ca3af")
-            .text(() => {
-              const birth = formatDate(spouse.birthDate);
-              const death = spouse.deathDate ? ` ✝ ${formatDate(spouse.deathDate)}` : "";
-              return `${birth}${death}`;
-            });
-        });
+            .attr("x", 10)
+            .attr("y", 20)
+            .attr("font-size", "12px")
+            .text(d.data.gender === "MALE" ? "♂" : "♀")
+            .attr("fill", d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B");
 
-      // Highlight effect for searched node (Task 5)
+          // Name
+          node
+            .append("text")
+            .attr("x", 24)
+            .attr("y", 20)
+            .attr("font-size", "11px")
+            .attr("font-weight", "600")
+            .attr("fill", d.data.isDeceased ? "#9ca3af" : "#3E2723")
+            .text(truncate(d.data.fullName, 22))
+            .append("title")
+            .text(d.data.fullName);
+
+          // Nickname
+          if (d.data.nickname) {
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 36)
+              .attr("font-size", "9px")
+              .attr("fill", "#9ca3af")
+              .text(`"${d.data.nickname}"`);
+          }
+
+          // Dates
+          if (d.data.birthDate || d.data.deathDate) {
+            const birth = formatDate(d.data.birthDate);
+            const death = d.data.deathDate ? ` ✝ ${formatDate(d.data.deathDate)}` : "";
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 50)
+              .attr("font-size", "8px")
+              .attr("fill", "#9ca3af")
+              .text(`${birth}${death}`);
+          }
+
+          // Birth place
+          if (d.data.birthPlace) {
+            node
+              .append("text")
+              .attr("x", 10)
+              .attr("y", 62)
+              .attr("font-size", "8px")
+              .attr("fill", "#B8860B")
+              .text(`📍${d.data.birthPlace}`);
+          }
+        }
+
+        // Deceased indicator badge
+        if (d.data.isDeceased) {
+          node
+            .append("rect")
+            .attr("x", cw - 26)
+            .attr("y", 4)
+            .attr("width", 22)
+            .attr("height", 14)
+            .attr("rx", 3)
+            .attr("fill", "#ef4444")
+            .attr("opacity", 0.8);
+
+          node
+            .append("text")
+            .attr("x", cw - 20)
+            .attr("y", 14)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "7px")
+            .attr("fill", "white")
+            .attr("font-weight", "600")
+            .text("✝");
+        }
+
+        // Generation badge
+        node
+          .append("text")
+          .attr("x", cw - 8)
+          .attr("y", ch - 6)
+          .attr("text-anchor", "end")
+          .attr("font-size", "7px")
+          .attr("fill", "#B8860B")
+          .attr("font-weight", "600")
+          .text(getGenerationLabel(d.depth, !!isVirtualRoot));
+      });
+
+      // Highlight for searched node
       nodes
         .filter((d) => highlightedNodeId && d.data.id === highlightedNodeId)
-        .append("rect")
-        .attr("x", -4)
-        .attr("y", -4)
-        .attr("width", COUPLE_WIDTH + 8)
-        .attr("height", NODE_HEIGHT + 8)
-        .attr("rx", 12)
-        .attr("fill", "none")
-        .attr("stroke", "#DAA520")
-        .attr("stroke-width", 3)
-        .style("filter", "drop-shadow(0 0 6px rgba(218, 165, 32, 0.5))");
+        .each(function (d) {
+          const node = d3.select(this);
+          const cw = getCardWidth(d);
+          const ch = d.data.spouse ? COUPLE_HEIGHT : SINGLE_HEIGHT;
+          node
+            .append("rect")
+            .attr("x", -4)
+            .attr("y", -4)
+            .attr("width", cw + 8)
+            .attr("height", ch + 8)
+            .attr("rx", 14)
+            .attr("fill", "none")
+            .attr("stroke", "#DAA520")
+            .attr("stroke-width", 3)
+            .style("filter", "drop-shadow(0 0 6px rgba(218, 165, 32, 0.5))");
+        });
 
       // Initial zoom to fit
       const svgEl = svgRef.current;
@@ -500,26 +604,38 @@ export function TreeVisualization() {
     setActiveView("person-detail");
   };
 
-  const handleExportImage = () => {
-    if (!svgRef.current) return;
+  // Add watermark to a canvas context
+  const addWatermark = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.save();
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillStyle = "rgba(127, 29, 29, 0.08)";
+    ctx.textAlign = "center";
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-Math.PI / 6);
+    const gap = 200;
+    for (let y = -h; y < h * 2; y += gap) {
+      for (let x = -w; x < w * 2; x += gap * 2.5) {
+        ctx.fillText("TAROMBO MARGA HARIANDJA", x, y);
+      }
+    }
+    ctx.restore();
+  };
 
+  // Export SVG (unchanged)
+  const handleExportSvg = async () => {
+    if (!svgRef.current) return;
     const svg = svgRef.current;
     const clone = svg.cloneNode(true) as SVGSVGElement;
-
     const bounds = svg.getBBox();
     const width = bounds.width + bounds.x * 2 + 40;
     const height = bounds.height + bounds.y * 2 + 40;
-
     clone.setAttribute("width", String(width));
     clone.setAttribute("height", String(height));
     clone.setAttribute("viewBox", `${bounds.x - 20} ${bounds.y - 20} ${width} ${height}`);
-
     clone.style.backgroundColor = "#FDF6E3";
-
     const svgData = new XMLSerializer().serializeToString(clone);
     const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = "tarombo-hariandja.svg";
@@ -527,8 +643,216 @@ export function TreeVisualization() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
     toast.success("Pohon keluarga berhasil diekspor sebagai SVG");
+  };
+
+  // Export PDF
+  const handleExportPdf = async (size: PdfSize) => {
+    if (!svgRef.current || !containerRef.current) return;
+    setIsExporting(true);
+    setShowPdfMenu(false);
+
+    try {
+      // First, capture the SVG as a high-res PNG using html-to-image
+      const svg = svgRef.current;
+      const bounds = svg.getBBox();
+
+      // Create a temporary container for the export
+      const exportDiv = document.createElement("div");
+      exportDiv.style.position = "fixed";
+      exportDiv.style.left = "-9999px";
+      exportDiv.style.top = "0";
+      exportDiv.style.backgroundColor = "#FDF6E3";
+
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      const padding = 40;
+      const svgWidth = bounds.width + Math.abs(bounds.x) * 2 + padding * 2;
+      const svgHeight = bounds.height + Math.abs(bounds.y) * 2 + padding * 2;
+
+      clone.setAttribute("width", String(svgWidth));
+      clone.setAttribute("height", String(svgHeight));
+      clone.setAttribute("viewBox", `${bounds.x - padding} ${bounds.y - padding} ${svgWidth} ${svgHeight}`);
+      clone.style.backgroundColor = "#FDF6E3";
+      // Remove any zoom transforms for full export
+      clone.querySelector("g")?.setAttribute("transform", "");
+
+      exportDiv.appendChild(clone);
+      document.body.appendChild(exportDiv);
+
+      // Render at higher resolution for quality
+      const scale = size === "besar" ? 3 : 2;
+      const dataUrl = await toPng(exportDiv, {
+        width: svgWidth * scale,
+        height: svgHeight * scale,
+        pixelRatio: scale,
+        backgroundColor: "#FDF6E3",
+      });
+
+      document.body.removeChild(exportDiv);
+
+      // Create image from data URL
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+      });
+
+      // Determine PDF dimensions
+      let pdfWidth: number;
+      let pdfHeight: number;
+      let orientation: "portrait" | "landscape" = "landscape";
+
+      if (size === "besar") {
+        pdfWidth = 420; // mm (A3 landscape)
+        pdfHeight = 297;
+        orientation = "landscape";
+      } else {
+        pdfWidth = 297; // mm (A4 landscape)
+        pdfHeight = 210;
+        orientation = "landscape";
+      }
+
+      const pdf = new jsPDF({
+        orientation,
+        unit: "mm",
+        format: [pdfWidth, pdfHeight],
+      });
+
+      // Calculate image dimensions to fit
+      const margin = 10;
+      const availW = pdfWidth - margin * 2;
+      const availH = pdfHeight - margin * 2;
+
+      const imgAspect = img.width / img.height;
+      const pageAspect = availW / availH;
+
+      let drawW: number, drawH: number;
+      if (imgAspect > pageAspect) {
+        drawW = availW;
+        drawH = availW / imgAspect;
+      } else {
+        drawH = availH;
+        drawW = availH * imgAspect;
+      }
+
+      if (size === "multiple") {
+        // Multiple pages: split the tree vertically
+        const totalImgHeightMM = (img.width / img.height) * availW;
+        const pageHeightMM = pdfHeight - margin * 2;
+        const numPages = Math.max(1, Math.ceil(totalImgHeightMM / pageHeightMM));
+
+        if (numPages <= 1) {
+          // Fits in one page
+          const offsetX = margin + (availW - drawW) / 2;
+          const offsetY = margin + (availH - drawH) / 2;
+          pdf.addImage(dataUrl, "PNG", offsetX, offsetY, drawW, drawH);
+          addWatermarkToPdf(pdf, pdfWidth, pdfHeight, margin);
+        } else {
+          // Split across pages
+          const sliceHeight = img.height / numPages;
+          for (let i = 0; i < numPages; i++) {
+            if (i > 0) pdf.addPage([pdfWidth, pdfHeight], orientation);
+
+            // Create a canvas slice
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = Math.ceil(sliceHeight) + 20; // overlap for continuity
+            const ctx = canvas.getContext("2d")!;
+            ctx.fillStyle = "#FDF6E3";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(
+              img,
+              0,
+              Math.max(0, i * sliceHeight - 10),
+              img.width,
+              Math.ceil(sliceHeight) + 20,
+              0,
+              0,
+              canvas.width,
+              canvas.height
+            );
+
+            const sliceDataUrl = canvas.toDataURL("image/png");
+            const sliceImgAspect = canvas.width / canvas.height;
+            let sDrawW: number, sDrawH: number;
+            if (sliceImgAspect > pageAspect) {
+              sDrawW = availW;
+              sDrawH = availW / sliceImgAspect;
+            } else {
+              sDrawH = availH;
+              sDrawW = availH * sliceImgAspect;
+            }
+
+            const offsetX = margin + (availW - sDrawW) / 2;
+            const offsetY = margin + (availH - sDrawH) / 2;
+            pdf.addImage(sliceDataUrl, "PNG", offsetX, offsetY, sDrawW, sDrawH);
+
+            // Add watermark
+            addWatermarkToPdf(pdf, pdfWidth, pdfHeight, margin);
+
+            // Page number
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(`Halaman ${i + 1} / ${numPages}`, pdfWidth / 2, pdfHeight - 5, { align: "center" });
+          }
+        }
+      } else {
+        // Single page (normal or besar)
+        const offsetX = margin + (availW - drawW) / 2;
+        const offsetY = margin + (availH - drawH) / 2;
+        pdf.addImage(dataUrl, "PNG", offsetX, offsetY, drawW, drawH);
+        addWatermarkToPdf(pdf, pdfWidth, pdfHeight, margin);
+      }
+
+      // Add footer
+      pdf.setFontSize(7);
+      pdf.setTextColor(180, 180, 180);
+      const dateStr = new Date().toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      pdf.text(
+        `Tarombo Marga Hariandja — Diekspor pada ${dateStr}`,
+        pdfWidth / 2,
+        pdfHeight - 3,
+        { align: "center" }
+      );
+
+      const sizeLabel = size === "besar" ? "besar" : size === "multiple" ? "multi-halaman" : "standar";
+      pdf.save(`tarombo-hariandja-${sizeLabel}.pdf`);
+      toast.success(`PDF (${sizeLabel}) berhasil diekspor`);
+    } catch (err) {
+      console.error("PDF export error:", err);
+      toast.error("Gagal mengekspor PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const addWatermarkToPdf = (pdf: jsPDF, w: number, h: number, margin: number) => {
+    pdf.saveGraphicsState();
+    pdf.setFontSize(10);
+    pdf.setTextColor(127, 29, 29);
+    pdf.setGState(new (pdf as unknown as Record<string, unknown>).GState({ opacity: 0.04 }));
+    // Unfortunately jsPDF GState opacity is limited, use text approach
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(28);
+
+    const text = "TAROMBO MARGA HARIANDJA";
+    const textWidth = pdf.getTextWidth(text);
+
+    // Use built-in opacity via drawing many times at light color
+    pdf.setTextColor(230, 220, 210);
+    pdf.setFontSize(32);
+
+    for (let y = margin; y < h - margin; y += 50) {
+      for (let x = margin; x < w - margin; x += textWidth + 40) {
+        pdf.text(text, x, y, { angle: -30 });
+      }
+    }
+    pdf.restoreGraphicsState();
   };
 
   if (isLoading) {
@@ -588,11 +912,53 @@ export function TreeVisualization() {
     <div className="relative w-full h-full" ref={containerRef}>
       {/* Toolbar */}
       <div className="absolute top-3 right-3 z-10 flex gap-2">
+        {/* PDF Export Dropdown */}
+        <div className="relative">
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-white/90 shadow-md hover:bg-[#F5E6D3] gap-1.5"
+            onClick={() => setShowPdfMenu(!showPdfMenu)}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            PDF
+            <ChevronDown className="w-3 h-3" />
+          </Button>
+          {showPdfMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-[#D4A574]/50 py-1 min-w-[180px] z-20">
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5E6D3] transition-colors"
+                onClick={() => handleExportPdf("normal")}
+              >
+                📄 PDF Standar (A4)
+              </button>
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5E6D3] transition-colors"
+                onClick={() => handleExportPdf("besar")}
+              >
+                📐 PDF Besar (A3)
+              </button>
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5E6D3] transition-colors"
+                onClick={() => handleExportPdf("multiple")}
+              >
+                📑 PDF Multi-Halaman
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* SVG Export */}
         <Button
           variant="outline"
           size="icon"
           className="bg-white/90 shadow-md hover:bg-[#F5E6D3]"
-          onClick={handleExportImage}
+          onClick={handleExportSvg}
           title="Ekspor SVG"
         >
           <Camera className="w-4 h-4" />
@@ -628,26 +994,30 @@ export function TreeVisualization() {
         <p className="font-semibold text-[#3E2723] mb-1.5">Keterangan:</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-[#7F1D1D] bg-[#F5E6D3]" />
+            <div className="w-6 h-3 rounded-sm border-2 border-[#7F1D1D] bg-[#F5E6D3]" />
             <span className="text-muted-foreground">Laki-laki</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-[#991B1B] bg-[#F5E6D3]" />
+            <div className="w-6 h-3 rounded-sm border-2 border-[#991B1B] bg-[#F5E6D3]" />
             <span className="text-muted-foreground">Perempuan</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-dashed border-[#991B1B] bg-[#F5E6D3]" />
-            <span className="text-muted-foreground">Pasangan (Boru)</span>
+            <div className="w-6 h-3 rounded-sm border-2 border-[#7F1D1D] bg-[rgba(127,29,29,0.03)]" />
+            <span className="text-muted-foreground">Pasangan (dalam 1 card)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-3 rounded-sm bg-red-500 text-white text-[7px] flex items-center justify-center font-bold">✝</div>
             <span className="text-muted-foreground">Telah Meninggal</span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[#B8860B] text-xs">Gen I, II...</span>
+            <span className="text-muted-foreground">Generasi</span>
+          </div>
         </div>
       </div>
 
-      {/* Search in Tree - below legend */}
-      <div className="absolute top-[180px] left-3 z-10 w-56">
+      {/* Search in Tree */}
+      <div className="absolute top-[200px] left-3 z-10 w-56">
         <div className="bg-white/90 rounded-lg shadow-md p-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
