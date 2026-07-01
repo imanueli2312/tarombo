@@ -88,9 +88,52 @@ export async function GET(
       ...person.childrenAsMother.map((c) => ({ ...c, parentRelation: "mother" as const })),
     ];
 
+    // Fetch siblings (same father or mother, excluding self)
+    const siblingIds = new Set<string>();
+    const siblingMap = new Map<string, {
+      id: string;
+      fullName: string;
+      nickname: string | null;
+      gender: string;
+      birthOrder: number | null;
+      isDeceased: boolean;
+    }>();
+
+    const fatherId = person.fatherId;
+    const motherId = person.motherId;
+
+    const siblingCandidates = await db.person.findMany({
+      where: {
+        id: { not: person.id },
+        OR: [
+          ...(fatherId ? [{ fatherId }] : []),
+          ...(motherId ? [{ motherId }] : []),
+        ],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        nickname: true,
+        gender: true,
+        birthOrder: true,
+        isDeceased: true,
+      },
+      orderBy: [{ birthOrder: "asc" }, { fullName: "asc" }],
+    });
+
+    for (const s of siblingCandidates) {
+      if (!siblingIds.has(s.id)) {
+        siblingIds.add(s.id);
+        siblingMap.set(s.id, s);
+      }
+    }
+
+    const siblings = Array.from(siblingMap.values());
+
     return NextResponse.json({
       ...person,
       allChildren,
+      siblings,
     });
   } catch (error) {
     console.error("Get person error:", error);

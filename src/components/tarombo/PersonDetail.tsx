@@ -95,6 +95,14 @@ interface PersonDetail {
     divorceDate: string | null;
     isActive: boolean;
   }>;
+  siblings: Array<{
+    id: string;
+    fullName: string;
+    nickname: string | null;
+    gender: string;
+    birthOrder: number | null;
+    isDeceased: boolean;
+  }>;
 }
 
 export function PersonDetail() {
@@ -490,6 +498,43 @@ export function PersonDetail() {
                     )}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Siblings */}
+          {person.siblings && person.siblings.length > 0 && (
+            <Card className="border-[#D4A574]/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-[#3E2723]">
+                  Saudara ({person.siblings.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {person.siblings.map((sibling) => (
+                    <button
+                      key={sibling.id}
+                      onClick={() => setSelectedPersonId(sibling.id)}
+                      className="w-full text-left p-2 rounded-lg hover:bg-[#F5E6D3] transition-colors flex items-center gap-2"
+                    >
+                      <span className="text-xs">
+                        {sibling.gender === "MALE" ? "♂" : "♀"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#3E2723] truncate">
+                          {sibling.fullName}
+                          {sibling.isDeceased && " ✝"}
+                        </p>
+                      </div>
+                      {sibling.birthOrder && (
+                        <span className="text-xs text-muted-foreground bg-[#F5E6D3] px-1.5 py-0.5 rounded">
+                          #{sibling.birthOrder}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

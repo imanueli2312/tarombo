@@ -64,9 +64,9 @@ interface SearchMatch {
 
 // Card dimensions
 const SINGLE_WIDTH = 180;
-const SINGLE_HEIGHT = 70;
+const SINGLE_HEIGHT = 50;
 const COUPLE_WIDTH = 320;
-const COUPLE_HEIGHT = 70;
+const COUPLE_HEIGHT = 50;
 const SPOUSE_LINE_X = 155; // x position of divider line within couple card
 const CARD_GAP = 30;
 
@@ -300,9 +300,9 @@ export function TreeVisualization() {
           node
             .append("line")
             .attr("x1", SPOUSE_LINE_X)
-            .attr("y1", 8)
+            .attr("y1", 6)
             .attr("x2", SPOUSE_LINE_X)
-            .attr("y2", ch - 8)
+            .attr("y2", ch - 6)
             .attr("stroke", "#D4A574")
             .attr("stroke-width", 1)
             .attr("stroke-dasharray", "3,3");
@@ -317,8 +317,7 @@ export function TreeVisualization() {
             .text("♥")
             .attr("fill", "#991B1B");
 
-          // Left: Main person
-          // Gender icon
+          // Left: Main person - Gender icon
           node
             .append("text")
             .attr("x", 10)
@@ -327,7 +326,10 @@ export function TreeVisualization() {
             .text(d.data.gender === "MALE" ? "♂" : "♀")
             .attr("fill", d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B");
 
-          // Name
+          // Name + deceased mark
+          const mainNameText = d.data.isDeceased
+            ? `${truncate(d.data.fullName, 15)} ✝`
+            : truncate(d.data.fullName, 17);
           node
             .append("text")
             .attr("x", 24)
@@ -335,9 +337,9 @@ export function TreeVisualization() {
             .attr("font-size", "11px")
             .attr("font-weight", "600")
             .attr("fill", d.data.isDeceased ? "#9ca3af" : "#3E2723")
-            .text(truncate(d.data.fullName, 17))
+            .text(mainNameText)
             .append("title")
-            .text(d.data.fullName);
+            .text(d.data.fullName + (d.data.isDeceased ? " (Meninggal)" : ""));
 
           // Nickname
           if (d.data.nickname) {
@@ -350,34 +352,8 @@ export function TreeVisualization() {
               .text(`"${d.data.nickname}"`);
           }
 
-          // Dates
-          if (d.data.birthDate || d.data.deathDate) {
-            const birth = formatDate(d.data.birthDate);
-            const death = d.data.deathDate ? ` ✝ ${formatDate(d.data.deathDate)}` : "";
-            node
-              .append("text")
-              .attr("x", 10)
-              .attr("y", 50)
-              .attr("font-size", "8px")
-              .attr("fill", "#9ca3af")
-              .text(`${birth}${death}`);
-          }
-
-          // Birth place
-          if (d.data.birthPlace) {
-            node
-              .append("text")
-              .attr("x", 10)
-              .attr("y", 62)
-              .attr("font-size", "8px")
-              .attr("fill", "#B8860B")
-              .text(`📍${d.data.birthPlace}`);
-          }
-
-          // Right: Spouse
+          // Right: Spouse - Gender icon
           const spX = SPOUSE_LINE_X + 10;
-
-          // Spouse gender icon
           node
             .append("text")
             .attr("x", spX)
@@ -386,7 +362,10 @@ export function TreeVisualization() {
             .text(spouse.gender === "FEMALE" ? "♀" : "♂")
             .attr("fill", spouse.gender === "FEMALE" ? "#991B1B" : "#7F1D1D");
 
-          // Spouse name
+          // Spouse name + deceased mark
+          const spNameText = spouse.isDeceased
+            ? `${truncate(spouse.fullName, 13)} ✝`
+            : truncate(spouse.fullName, 15);
           node
             .append("text")
             .attr("x", spX + 14)
@@ -394,9 +373,9 @@ export function TreeVisualization() {
             .attr("font-size", "11px")
             .attr("font-weight", "600")
             .attr("fill", spouse.isDeceased ? "#9ca3af" : "#6b7280")
-            .text(truncate(spouse.fullName, 15))
+            .text(spNameText)
             .append("title")
-            .text(spouse.fullName);
+            .text(spouse.fullName + (spouse.isDeceased ? " (Meninggal)" : ""));
 
           // Spouse nickname
           if (spouse.nickname) {
@@ -408,110 +387,56 @@ export function TreeVisualization() {
               .attr("fill", "#9ca3af")
               .text(`"${spouse.nickname}"`);
           }
-
-          // Spouse dates
-          if (spouse.birthDate || spouse.deathDate) {
-            const birth = formatDate(spouse.birthDate);
-            const death = spouse.deathDate ? ` ✝ ${formatDate(spouse.deathDate)}` : "";
-            node
-              .append("text")
-              .attr("x", spX)
-              .attr("y", 50)
-              .attr("font-size", "8px")
-              .attr("fill", "#9ca3af")
-              .text(`${birth}${death}`);
-          }
-
-          // Spouse birth place
-          if (spouse.maritalStatus) {
-            node
-              .append("text")
-              .attr("x", spX)
-              .attr("y", 62)
-              .attr("font-size", "8px")
-              .attr("fill", spouse.marriageStatus === "DUDA/JANDA" ? "#ef4444" : "#B8860B")
-              .text(spouse.marriageStatus === "DUDA/JANDA" ? "✝ Cerai (wafat)" : "");
-          }
         } else {
           // === SINGLE CARD ===
           // Gender icon
           node
             .append("text")
             .attr("x", 10)
-            .attr("y", 20)
+            .attr("y", 18)
             .attr("font-size", "12px")
             .text(d.data.gender === "MALE" ? "♂" : "♀")
             .attr("fill", d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B");
 
-          // Name
+          // Name + deceased mark
+          const nameText = d.data.isDeceased
+            ? `${truncate(d.data.fullName, 20)} ✝`
+            : truncate(d.data.fullName, 22);
           node
             .append("text")
             .attr("x", 24)
-            .attr("y", 20)
+            .attr("y", 18)
             .attr("font-size", "11px")
             .attr("font-weight", "600")
             .attr("fill", d.data.isDeceased ? "#9ca3af" : "#3E2723")
-            .text(truncate(d.data.fullName, 22))
+            .text(nameText)
             .append("title")
-            .text(d.data.fullName);
+            .text(d.data.fullName + (d.data.isDeceased ? " (Meninggal)" : ""));
 
           // Nickname
           if (d.data.nickname) {
             node
               .append("text")
               .attr("x", 10)
-              .attr("y", 36)
+              .attr("y", 33)
               .attr("font-size", "9px")
               .attr("fill", "#9ca3af")
               .text(`"${d.data.nickname}"`);
           }
 
-          // Dates
-          if (d.data.birthDate || d.data.deathDate) {
-            const birth = formatDate(d.data.birthDate);
-            const death = d.data.deathDate ? ` ✝ ${formatDate(d.data.deathDate)}` : "";
+          // Spouse line (replaces dates/birthplace)
+          if (d.data.spouse) {
+            const spName = d.data.spouse.isDeceased
+              ? `${d.data.spouse.fullName} ✝`
+              : d.data.spouse.fullName;
             node
               .append("text")
               .attr("x", 10)
-              .attr("y", 50)
+              .attr("y", 46)
               .attr("font-size", "8px")
-              .attr("fill", "#9ca3af")
-              .text(`${birth}${death}`);
+              .attr("fill", "#6b7280")
+              .text(`♥ ${truncate(spName, 25)}`);
           }
-
-          // Birth place
-          if (d.data.birthPlace) {
-            node
-              .append("text")
-              .attr("x", 10)
-              .attr("y", 62)
-              .attr("font-size", "8px")
-              .attr("fill", "#B8860B")
-              .text(`📍${d.data.birthPlace}`);
-          }
-        }
-
-        // Deceased indicator badge
-        if (d.data.isDeceased) {
-          node
-            .append("rect")
-            .attr("x", cw - 26)
-            .attr("y", 4)
-            .attr("width", 22)
-            .attr("height", 14)
-            .attr("rx", 3)
-            .attr("fill", "#ef4444")
-            .attr("opacity", 0.8);
-
-          node
-            .append("text")
-            .attr("x", cw - 20)
-            .attr("y", 14)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "7px")
-            .attr("fill", "white")
-            .attr("font-weight", "600")
-            .text("✝");
         }
 
         // Generation badge
