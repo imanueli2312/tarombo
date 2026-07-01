@@ -430,3 +430,31 @@ Stage Summary:
 - 3 files changed: package.json, bun.lock, docs/DEPLOYMENT.md
 - All npm scripts now work on Windows CMD, PowerShell, Git Bash, and Unix/macOS
 - Added 140 lines of Windows-specific documentation
+
+---
+Task ID: 7
+Agent: Main
+Task: Combine active couples into single card + PDF export with watermark
+
+Work Log:
+- Analyzed current TreeVisualization component (735 lines) to understand D3.js tree rendering
+- Installed jspdf@4.2.1 for client-side PDF generation
+- Rewrote TreeVisualization.tsx with combined couple card design:
+  - Single card: 180x70px for persons without spouse
+  - Couple card: 320x70px with heart divider for married couples
+  - Left side: main person info, Right side: spouse info
+  - Dashed divider line with ♥ symbol at center
+- Implemented 3 PDF export options:
+  - PDF Standar (A4): Landscape A4, 2x resolution
+  - PDF Besar (A3): Landscape A3, 3x resolution
+  - PDF Multi-Halaman: Auto-splits large trees across pages with page numbers
+- Added watermark "TAROMBO MARGA HARIANDJA" on every PDF export
+- Added footer with export date
+- Verified in browser: couple cards render correctly, PDF menu shows all 3 options
+- 0 ESLint errors
+- Committed and pushed to GitHub (commit 604da40)
+
+Stage Summary:
+- 5 files changed: TreeVisualization.tsx (rewritten), package.json, bun.lock, 2 new screenshots
+- Active couples now in unified cards (no more separate dashed-border spouse cards)
+- PDF export with 3 size options + watermark + date footer
