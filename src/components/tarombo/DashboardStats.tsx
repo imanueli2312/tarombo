@@ -25,7 +25,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const CHART_COLORS = ["#7F1D1D", "#DAA520", "#3E2723", "#B8860B", "#A0522D"];
+const CHART_COLORS = ["var(--t-primary)", "var(--t-secondary)", "var(--t-text)", "var(--t-accent)", "#A0522D"];
 
 interface StatsData {
   totalPersons: number;
@@ -68,8 +68,8 @@ export function DashboardStats() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D] mx-auto mb-3" />
-          <p className="text-[#7F1D1D]">Memuat statistik keluarga...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--t-primary)] mx-auto mb-3" />
+          <p className="text-[var(--t-primary)]">Memuat statistik keluarga...</p>
         </div>
       </div>
     );
@@ -97,12 +97,12 @@ export function DashboardStats() {
     {
       label: "Total Anggota",
       value: stats.totalPersons,
-      icon: <Users className="w-5 h-5 text-[#795548]" />,
+      icon: <Users className="w-5 h-5 text-[var(--t-text-sec)]" />,
     },
     {
       label: "Laki-laki",
       value: stats.males,
-      icon: <User className="w-5 h-5 text-[#795548]" />,
+      icon: <User className="w-5 h-5 text-[var(--t-text-sec)]" />,
     },
     {
       label: "Perempuan",
@@ -112,12 +112,12 @@ export function DashboardStats() {
     {
       label: "Generasi",
       value: stats.generations,
-      icon: <Layers className="w-5 h-5 text-[#795548]" />,
+      icon: <Layers className="w-5 h-5 text-[var(--t-text-sec)]" />,
     },
     {
       label: "Rata-rata Umur",
       value: `${stats.avgAge} tahun`,
-      icon: <Calendar className="w-5 h-5 text-[#795548]" />,
+      icon: <Calendar className="w-5 h-5 text-[var(--t-text-sec)]" />,
     },
     {
       label: "Pernikahan Aktif",
@@ -129,7 +129,7 @@ export function DashboardStats() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-[#3E2723]">Dashboard Statistik</h2>
+        <h2 className="text-2xl font-bold text-[var(--t-text)]">Dashboard Statistik</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Ringkasan data keluarga Marga Hariandja
         </p>
@@ -138,13 +138,13 @@ export function DashboardStats() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map((card) => (
-          <Card key={card.label} className="border-[#D4A574]/50">
+          <Card key={card.label} className="border-[var(--t-border)]/50">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 {card.icon}
                 <span className="text-xs text-muted-foreground">{card.label}</span>
               </div>
-              <p className="text-2xl font-bold text-[#3E2723]">{card.value}</p>
+              <p className="text-2xl font-bold text-[var(--t-text)]">{card.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -153,9 +153,9 @@ export function DashboardStats() {
       {/* Charts Row */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Gender Pie Chart */}
-        <Card className="border-[#D4A574]/50">
+        <Card className="border-[var(--t-border)]/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[#3E2723]">
+            <CardTitle className="text-sm font-semibold text-[var(--t-text)]">
               Distribusi Jenis Kelamin
             </CardTitle>
           </CardHeader>
@@ -191,9 +191,9 @@ export function DashboardStats() {
         </Card>
 
         {/* Marital Status Bar Chart */}
-        <Card className="border-[#D4A574]/50">
+        <Card className="border-[var(--t-border)]/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[#3E2723]">
+            <CardTitle className="text-sm font-semibold text-[var(--t-text)]">
               Status Pernikahan
             </CardTitle>
           </CardHeader>
@@ -201,21 +201,21 @@ export function DashboardStats() {
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={maritalData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F5E6D3" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--t-bg-warm)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 11, fill: "#795548" }}
-                    axisLine={{ stroke: "#D4A574" }}
+                    tick={{ fontSize: 11, fill: "var(--t-text-sec)" }}
+                    axisLine={{ stroke: "var(--t-border)" }}
                   />
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 11, fill: "#795548" }}
-                    axisLine={{ stroke: "#D4A574" }}
+                    tick={{ fontSize: 11, fill: "var(--t-text-sec)" }}
+                    axisLine={{ stroke: "var(--t-border)" }}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#FFF8F0",
-                      borderColor: "#D4A574",
+                      backgroundColor: "var(--t-bg-card)",
+                      borderColor: "var(--t-border)",
                       borderRadius: "8px",
                     }}
                   />
@@ -236,21 +236,21 @@ export function DashboardStats() {
 
       {/* Latest Member */}
       {stats.latestPerson && (
-        <Card className="border-[#D4A574]/50">
+        <Card className="border-[var(--t-border)]/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-[#3E2723]">
+            <CardTitle className="text-sm font-semibold text-[var(--t-text)]">
               Anggota Terbaru
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#F5E6D3] flex items-center justify-center text-lg">
+              <div className="w-12 h-12 rounded-full bg-[var(--t-bg-warm)] flex items-center justify-center text-lg">
                 {stats.latestPerson.gender === "MALE" ? "♂" : "♀"}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-[#3E2723]">{stats.latestPerson.fullName}</p>
+                <p className="font-semibold text-[var(--t-text)]">{stats.latestPerson.fullName}</p>
                 {stats.latestPerson.nickname && (
-                  <p className="text-sm text-[#795548]">
+                  <p className="text-sm text-[var(--t-text-sec)]">
                     &quot;{stats.latestPerson.nickname}&quot;
                   </p>
                 )}
@@ -269,7 +269,7 @@ export function DashboardStats() {
                     setSelectedPersonId(stats.latestPerson!.id);
                     setActiveView("person-detail");
                   }}
-                  className="text-xs text-[#7F1D1D] hover:text-[#991B1B] hover:underline"
+                  className="text-xs text-[var(--t-primary)] hover:text-[var(--t-primary-light)] hover:underline"
                 >
                   Lihat Detail →
                 </button>

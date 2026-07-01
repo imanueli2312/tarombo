@@ -125,32 +125,32 @@
 .batak-gorga-border {
   border-image: repeating-linear-gradient(
     90deg,
-    #7F1D1D 0px, #7F1D1D 8px,
-    #DAA520 8px, #DAA520 12px,
-    #3E2723 12px, #3E2723 16px,
-    #DAA520 16px, #DAA520 20px,
-    #7F1D1D 20px, #7F1D1D 28px
+    var(--t-primary) 0px, var(--t-primary) 8px,
+    var(--t-secondary) 8px, var(--t-secondary) 12px,
+    var(--t-text) 12px, var(--t-text) 16px,
+    var(--t-secondary) 16px, var(--t-secondary) 20px,
+    var(--t-primary) 20px, var(--t-primary) 28px
   ) 4;
 }
 
 .batak-sidebar-bg {
-  background-color: #1C1410;
+  background-color: var(--t-sidebar);
 }
 
 .batak-ulos-stripe {
   background: repeating-linear-gradient(
     90deg,
-    #7F1D1D 0px, #7F1D1D 4px,
-    #DAA520 4px, #DAA520 6px,
-    #3E2723 6px, #3E2723 8px,
-    #DAA520 8px, #DAA520 10px,
+    var(--t-primary) 0px, var(--t-primary) 4px,
+    var(--t-secondary) 4px, var(--t-secondary) 6px,
+    var(--t-text) 6px, var(--t-text) 8px,
+    var(--t-secondary) 8px, var(--t-secondary) 10px,
     transparent 10px, transparent 16px
   );
 }
 
 .batak-card-traditional {
-  background: linear-gradient(135deg, #FFF8F0 0%, #FDF6E3 100%);
-  border: 1px solid #D4A574;
+  background: linear-gradient(135deg, var(--t-bg-card) 0%, var(--t-bg-cream) 100%);
+  border: 1px solid var(--t-border);
   position: relative;
 }
 
@@ -161,17 +161,17 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #7F1D1D, #DAA520, #7F1D1D, #DAA520, #7F1D1D);
+  background: linear-gradient(90deg, var(--t-primary), var(--t-secondary), var(--t-primary), var(--t-secondary), var(--t-primary));
 }
 
 .gorga-divider {
   height: 6px;
   background: repeating-linear-gradient(
     90deg,
-    #7F1D1D 0px, #7F1D1D 12px,
-    #DAA520 12px, #DAA520 16px,
-    #3E2723 16px, #3E2723 24px,
-    #DAA520 24px, #DAA520 28px
+    var(--t-primary) 0px, var(--t-primary) 12px,
+    var(--t-secondary) 12px, var(--t-secondary) 16px,
+    var(--t-text) 16px, var(--t-text) 24px,
+    var(--t-secondary) 24px, var(--t-secondary) 28px
   );
   border-radius: 3px;
 }

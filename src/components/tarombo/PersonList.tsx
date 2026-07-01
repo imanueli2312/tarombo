@@ -126,7 +126,7 @@ export function PersonList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#3E2723]">Data Anggota</h2>
+          <h2 className="text-xl font-bold text-[var(--t-text)]">Data Anggota</h2>
           <p className="text-sm text-muted-foreground">
             Daftar seluruh anggota Marga Hariandja
           </p>
@@ -137,7 +137,7 @@ export function PersonList() {
               setEditingPersonId(null);
               setActiveView("person-form");
             }}
-            className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
+            className="bg-[var(--t-primary)] hover:bg-[var(--t-primary-light)] text-white"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Tambah Anggota
@@ -153,11 +153,11 @@ export function PersonList() {
             placeholder="Cari nama atau nama panggilan..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 border-[#D4A574]"
+            className="pl-9 border-[var(--t-border)]"
           />
         </div>
         <Select value={genderFilter} onValueChange={(v) => { setGenderFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-full sm:w-40 border-[#D4A574]">
+          <SelectTrigger className="w-full sm:w-40 border-[var(--t-border)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -169,11 +169,11 @@ export function PersonList() {
       </div>
 
       {/* Table */}
-      <Card className="border-[#D4A574]/50">
+      <Card className="border-[var(--t-border)]/50">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--t-primary)]" />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12 text-red-600">
@@ -182,12 +182,12 @@ export function PersonList() {
             </div>
           ) : persons.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Users className="w-12 h-12 mx-auto mb-3 text-[#D4A574]" />
+              <Users className="w-12 h-12 mx-auto mb-3 text-[var(--t-border)]" />
               <p>Belum ada data anggota</p>
               {canCreate() && (
                 <Button
                   variant="outline"
-                  className="mt-3 border-[#D4A574]"
+                  className="mt-3 border-[var(--t-border)]"
                   onClick={() => {
                     setEditingPersonId(null);
                     setActiveView("person-form");
@@ -202,12 +202,12 @@ export function PersonList() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-[#F5E6D3]/50">
-                    <TableHead className="text-[#3E2723]">Nama</TableHead>
-                    <TableHead className="text-[#3E2723]">Jenis Kelamin</TableHead>
-                    <TableHead className="text-[#3E2723]">Lahir</TableHead>
-                    <TableHead className="text-[#3E2723]">Status</TableHead>
-                    <TableHead className="text-[#3E2723] text-right">
+                  <TableRow className="hover:bg-[var(--t-bg-warm)]/50">
+                    <TableHead className="text-[var(--t-text)]">Nama</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Jenis Kelamin</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Lahir</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Status</TableHead>
+                    <TableHead className="text-[var(--t-text)] text-right">
                       Aksi
                     </TableHead>
                   </TableRow>
@@ -216,7 +216,7 @@ export function PersonList() {
                   {persons.map((person) => (
                     <TableRow
                       key={person.id}
-                      className="hover:bg-[#F5E6D3]/50 cursor-pointer"
+                      className="hover:bg-[var(--t-bg-warm)]/50 cursor-pointer"
                       onClick={() => {
                         setSelectedPersonId(person.id);
                         setActiveView("person-detail");
@@ -224,7 +224,7 @@ export function PersonList() {
                     >
                       <TableCell>
                         <div>
-                          <p className="font-medium text-[#3E2723]">
+                          <p className="font-medium text-[var(--t-text)]">
                             {person.fullName}
                           </p>
                           {person.nickname && (
@@ -238,7 +238,7 @@ export function PersonList() {
                         <span
                           className={`text-sm ${
                             person.gender === "MALE"
-                              ? "text-[#795548]"
+                              ? "text-[var(--t-text-sec)]"
                               : "text-pink-600"
                           }`}
                         >
@@ -350,7 +350,7 @@ export function PersonList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-[#D4A574]"
+              className="border-[var(--t-border)]"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
@@ -360,7 +360,7 @@ export function PersonList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-[#D4A574]"
+              className="border-[var(--t-border)]"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

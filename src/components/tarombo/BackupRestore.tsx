@@ -102,16 +102,16 @@ export function BackupRestore() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-[#3E2723]">Pencadangan Data</h2>
+        <h2 className="text-xl font-bold text-[var(--t-text)]">Pencadangan Data</h2>
         <p className="text-sm text-muted-foreground">
           Ekspor dan impor data seluruh sistem Tarombo
         </p>
       </div>
 
       {/* Export Card */}
-      <Card className="border-[#D4A574]/50">
+      <Card className="border-[var(--t-border)]/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-[#3E2723] flex items-center gap-2">
+          <CardTitle className="text-[var(--t-text)] flex items-center gap-2">
             <Download className="w-5 h-5" />
             Ekspor Data
           </CardTitle>
@@ -123,7 +123,7 @@ export function BackupRestore() {
           <Button
             onClick={() => exportMutation.mutate()}
             disabled={exportMutation.isPending}
-            className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
+            className="bg-[var(--t-primary)] hover:bg-[var(--t-primary-light)] text-white"
           >
             {exportMutation.isPending ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -136,9 +136,9 @@ export function BackupRestore() {
       </Card>
 
       {/* Import Card */}
-      <Card className="border-[#D4A574]/50">
+      <Card className="border-[var(--t-border)]/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-[#3E2723] flex items-center gap-2">
+          <CardTitle className="text-[var(--t-text)] flex items-center gap-2">
             <Upload className="w-5 h-5" />
             Impor Data
           </CardTitle>
@@ -147,9 +147,9 @@ export function BackupRestore() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-start gap-2 p-3 bg-[#F5E6D3] border border-[#D4A574] rounded-md">
-            <AlertTriangle className="w-4 h-4 text-[#B8860B] mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-[#3E2723]">
+          <div className="flex items-start gap-2 p-3 bg-[var(--t-bg-warm)] border border-[var(--t-border)] rounded-md">
+            <AlertTriangle className="w-4 h-4 text-[var(--t-accent)] mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-[var(--t-text)]">
               <strong>Peringatan:</strong> Impor data akan mengganti seluruh data yang ada saat ini. Pastikan Anda telah membuat cadangan terlebih dahulu.
             </p>
           </div>
@@ -163,7 +163,7 @@ export function BackupRestore() {
             />
             <Button
               variant="outline"
-              className="border-[#D4A574]"
+              className="border-[var(--t-border)]"
               onClick={() => fileInputRef.current?.click()}
               disabled={importMutation.isPending}
             >
@@ -183,7 +183,7 @@ export function BackupRestore() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-[#B8860B]" />
+              <AlertTriangle className="w-5 h-5 text-[var(--t-accent)]" />
               Konfirmasi Impor Data
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -203,7 +203,7 @@ export function BackupRestore() {
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleImportConfirm}
-              className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
+              className="bg-[var(--t-primary)] hover:bg-[var(--t-primary-light)] text-white"
             >
               Ya, Impor Data
             </AlertDialogAction>

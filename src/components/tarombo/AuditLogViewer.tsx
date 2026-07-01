@@ -100,17 +100,17 @@ export function AuditLogViewer() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-[#3E2723]">Log Audit</h2>
+        <h2 className="text-xl font-bold text-[var(--t-text)]">Log Audit</h2>
         <p className="text-sm text-muted-foreground">
           Riwayat aktivitas seluruh pengguna dalam sistem
         </p>
       </div>
 
-      <Card className="border-[#D4A574]/50">
+      <Card className="border-[var(--t-border)]/50">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--t-primary)]" />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12 text-red-600">
@@ -119,32 +119,32 @@ export function AuditLogViewer() {
             </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-3 text-[#D4A574]" />
+              <FileText className="w-12 h-12 mx-auto mb-3 text-[var(--t-border)]" />
               <p>Belum ada log audit</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-[#F5E6D3]/50">
-                    <TableHead className="text-[#3E2723]">Waktu</TableHead>
-                    <TableHead className="text-[#3E2723]">Pengguna</TableHead>
-                    <TableHead className="text-[#3E2723]">Aksi</TableHead>
-                    <TableHead className="text-[#3E2723]">Resource</TableHead>
-                    <TableHead className="text-[#3E2723]">Detail</TableHead>
+                  <TableRow className="hover:bg-[var(--t-bg-warm)]/50">
+                    <TableHead className="text-[var(--t-text)]">Waktu</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Pengguna</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Aksi</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Resource</TableHead>
+                    <TableHead className="text-[var(--t-text)]">Detail</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {logs.map((log) => (
                     <TableRow
                       key={log.id}
-                      className="hover:bg-[#F5E6D3]/50"
+                      className="hover:bg-[var(--t-bg-warm)]/50"
                     >
                       <TableCell className="text-sm whitespace-nowrap">
                         {formatTimestamp(log.createdAt)}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-medium text-[#3E2723]">
+                        <span className="text-sm font-medium text-[var(--t-text)]">
                           {log.userName}
                         </span>
                       </TableCell>
@@ -154,7 +154,7 @@ export function AuditLogViewer() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-[#D4A574]">
+                        <Badge variant="outline" className="border-[var(--t-border)]">
                           {RESOURCE_LABELS[log.resource] || log.resource}
                         </Badge>
                       </TableCell>
@@ -180,7 +180,7 @@ export function AuditLogViewer() {
             <Button
               variant="outline"
               size="sm"
-              className="border-[#D4A574]"
+              className="border-[var(--t-border)]"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
@@ -190,7 +190,7 @@ export function AuditLogViewer() {
             <Button
               variant="outline"
               size="sm"
-              className="border-[#D4A574]"
+              className="border-[var(--t-border)]"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

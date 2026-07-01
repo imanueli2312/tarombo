@@ -23,6 +23,7 @@ import {
 import { getRoleLabel } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeSelector } from "@/components/ThemeSelector";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useState } from "react";
 
@@ -70,7 +71,7 @@ export function AppSidebar() {
   };
 
   const navContent = (
-    <div className="flex flex-col h-full bg-[#1C1410]">
+    <div className="flex flex-col h-full bg-[var(--t-sidebar)]">
       {/* Gorga Pattern Header */}
       <img
         src="/batak-assets/gorga-border.png"
@@ -78,23 +79,23 @@ export function AppSidebar() {
         className="w-full h-[50px] object-cover"
       />
       {/* Logo */}
-      <div className="p-4 border-b border-[#DAA520]/20">
+      <div className="p-4 border-b border-[var(--t-secondary)]/20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#DAA520]/20 rounded-lg flex items-center justify-center">
-            <TreePine className="w-5 h-5 text-[#DAA520]" />
+          <div className="w-10 h-10 bg-[var(--t-secondary)]/20 rounded-lg flex items-center justify-center">
+            <TreePine className="w-5 h-5 text-[var(--t-secondary)]" />
           </div>
           <div className="flex items-center gap-2">
             <div>
-              <h1 className="font-bold text-[#DAA520] text-sm">Tarombo</h1>
-              <p className="text-xs text-[#DAA520]/70">Marga Hariandja</p>
+              <h1 className="font-bold text-[var(--t-secondary)] text-sm">Tarombo</h1>
+              <p className="text-xs text-[var(--t-secondary)]/70">Marga Hariandja</p>
             </div>
             <div className="flex gap-1 ml-auto">
               <NotificationBell />
               <button
-                className="lg:hidden p-1 hover:bg-[#DAA520]/10 rounded"
+                className="lg:hidden p-1 hover:bg-[var(--t-secondary)]/10 rounded"
                 onClick={() => setMobileOpen(false)}
               >
-                <X className="w-5 h-5 text-[#F5E6D3]" />
+                <X className="w-5 h-5 text-[var(--t-bg-warm)]" />
               </button>
             </div>
           </div>
@@ -112,8 +113,8 @@ export function AppSidebar() {
               onClick={() => handleNav(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-[#DAA520]/15 text-[#DAA520]"
-                  : "text-[#F5E6D3]/70 hover:bg-[#DAA520]/10 hover:text-[#DAA520]"
+                  ? "bg-[var(--t-secondary)]/15 text-[var(--t-secondary)]"
+                  : "text-[var(--t-bg-warm)]/70 hover:bg-[var(--t-secondary)]/10 hover:text-[var(--t-secondary)]"
               }`}
             >
               {item.icon}
@@ -123,10 +124,10 @@ export function AppSidebar() {
         })}
 
         {/* Seed Data Button (only for setup) */}
-        <div className="pt-4 mt-4 border-t border-[#DAA520]/20">
+        <div className="pt-4 mt-4 border-t border-[var(--t-secondary)]/20">
           <button
             onClick={handleSeed}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#F5E6D3]/50 hover:bg-[#DAA520]/10 hover:text-[#DAA520]/80 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--t-bg-warm)]/50 hover:bg-[var(--t-secondary)]/10 hover:text-[var(--t-secondary)]/80 transition-colors"
           >
             <Database className="w-5 h-5" />
             Seed Data Awal
@@ -135,10 +136,10 @@ export function AppSidebar() {
       </nav>
 
       {/* User Section */}
-      <div className="p-3 border-t border-[#DAA520]/20">
+      <div className="p-3 border-t border-[var(--t-secondary)]/20">
         <div className="flex items-center gap-3 px-2">
-          <Avatar className="w-9 h-9 bg-[#DAA520]/20">
-            <AvatarFallback className="text-[#DAA520] text-xs font-bold">
+          <Avatar className="w-9 h-9 bg-[var(--t-secondary)]/20">
+            <AvatarFallback className="text-[var(--t-secondary)] text-xs font-bold">
               {userName
                 .split(" ")
                 .map((n) => n[0])
@@ -148,14 +149,14 @@ export function AppSidebar() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[#F5E6D3] truncate">
+            <p className="text-sm font-medium text-[var(--t-bg-warm)] truncate">
               {userName}
             </p>
-            <p className="text-xs text-[#F5E6D3]/50 truncate">{userEmail}</p>
+            <p className="text-xs text-[var(--t-bg-warm)]/50 truncate">{userEmail}</p>
           </div>
           <Badge
             variant="secondary"
-            className="bg-[#DAA520]/20 text-[#DAA520] text-[10px] px-1.5 py-0"
+            className="bg-[var(--t-secondary)]/20 text-[var(--t-secondary)] text-[10px] px-1.5 py-0"
           >
             {userRole ? getRoleLabel(userRole as "ADMIN" | "EDITOR" | "VIEWER") : "—"}
           </Badge>
@@ -163,10 +164,11 @@ export function AppSidebar() {
         <div className="flex gap-1 mt-2">
           <LanguageToggle />
           <ThemeToggle />
+          <ThemeSelector />
         </div>
         <Button
           variant="ghost"
-          className="w-full mt-2 justify-start text-[#F5E6D3]/50 hover:text-red-400 hover:bg-red-900/20"
+          className="w-full mt-2 justify-start text-[var(--t-bg-warm)]/50 hover:text-red-400 hover:bg-red-900/20"
           onClick={() => signOut({ callbackUrl: "/" })}
         >
           <LogOut className="w-4 h-4 mr-2" />
@@ -180,10 +182,10 @@ export function AppSidebar() {
     <>
       {/* Mobile Menu Button */}
       <button
-        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-[#1C1410] text-[#DAA520] rounded-lg shadow-md"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-[var(--t-sidebar)] text-[var(--t-secondary)] rounded-lg shadow-md"
         onClick={() => setMobileOpen(true)}
       >
-        <Menu className="w-5 h-5 text-[#DAA520]" />
+        <Menu className="w-5 h-5 text-[var(--t-secondary)]" />
       </button>
 
       {/* Mobile Overlay */}
@@ -195,13 +197,13 @@ export function AppSidebar() {
       )}
 
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:block w-64 bg-[#1C1410] border-r border-[#DAA520]/20 h-screen sticky top-0">
+      <aside className="hidden lg:block w-64 bg-[var(--t-sidebar)] border-r border-[var(--t-secondary)]/20 h-screen sticky top-0">
         {navContent}
       </aside>
 
       {/* Sidebar - Mobile */}
       {mobileOpen && (
-        <aside className="lg:hidden fixed inset-y-0 left-0 w-72 bg-[#1C1410] border-r border-[#DAA520]/20 z-50 shadow-xl">
+        <aside className="lg:hidden fixed inset-y-0 left-0 w-72 bg-[var(--t-sidebar)] border-r border-[var(--t-secondary)]/20 z-50 shadow-xl">
           {navContent}
         </aside>
       )}

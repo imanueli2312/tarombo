@@ -42,7 +42,7 @@ function TreeView() {
   return (
     <div className="flex h-screen">
       <AppSidebar />
-      <main className="flex-1 overflow-hidden bg-gradient-to-b from-[#FDF6E3]/30 to-[#FFF8F0]">
+      <main className="flex-1 overflow-hidden bg-gradient-to-b from-[var(--t-bg-cream)]/30 to-[var(--t-bg-card)]">
         <TreeVisualization />
       </main>
     </div>
@@ -51,7 +51,7 @@ function TreeView() {
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#FDF6E3]/30 to-[#FFF8F0]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[var(--t-bg-cream)]/30 to-[var(--t-bg-card)]">
       <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 p-4 lg:p-6 lg:ml-0 mt-12 lg:mt-0 overflow-auto">
@@ -61,8 +61,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <div className="gorga-divider" />
-      <footer className="bg-[#1C1410] py-4 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-[#DAA520]/80">
+      <footer className="bg-[var(--t-sidebar)] py-4 mt-auto">
+        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-[var(--t-secondary)]/80">
           Tarombo Marga Hariandja — Sistem Pohon Keluarga Digital Marga Hariandja
         </div>
       </footer>
@@ -76,10 +76,10 @@ export default function HomePage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FDF6E3] via-[#F5E6D3] to-[#FFF8F0]">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--t-bg-cream)] via-[var(--t-bg-warm)] to-[var(--t-bg-card)]">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#D4A574] border-t-[#7F1D1D] rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[#7F1D1D]">Memuat...</p>
+          <div className="w-12 h-12 border-4 border-[var(--t-border)] border-t-[var(--t-primary)] rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--t-primary)]">Memuat...</p>
         </div>
       </div>
     );

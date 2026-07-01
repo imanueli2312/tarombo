@@ -64,17 +64,17 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FDF6E3] via-[#F5E6D3] to-[#FFF8F0] p-4">
-      <Card className="w-full max-w-md shadow-xl border-[#D4A574] overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-[#7F1D1D] via-[#DAA520] to-[#7F1D1D]" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--t-bg-cream)] via-[var(--t-bg-warm)] to-[var(--t-bg-card)] p-4">
+      <Card className="w-full max-w-md shadow-xl border-[var(--t-border)] overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-[var(--t-primary)] via-[var(--t-secondary)] to-[var(--t-primary)]" />
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-[#7F1D1D] rounded-full flex items-center justify-center mb-2">
-            <TreePine className="w-8 h-8 text-[#DAA520]" />
+          <div className="mx-auto w-16 h-16 bg-[var(--t-primary)] rounded-full flex items-center justify-center mb-2">
+            <TreePine className="w-8 h-8 text-[var(--t-secondary)]" />
           </div>
-          <CardTitle className="text-2xl font-bold text-[#3E2723]">
+          <CardTitle className="text-2xl font-bold text-[var(--t-text)]">
             Daftar Akun Baru
           </CardTitle>
-          <CardDescription className="text-[#795548]">
+          <CardDescription className="text-[var(--t-text-sec)]">
             Buat akun untuk mengakses Tarombo Hariandja
           </CardDescription>
         </CardHeader>
@@ -94,7 +94,7 @@ export function RegisterForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="border-[#D4A574] focus:border-[#B8860B]"
+                className="border-[var(--t-border)] focus:border-[var(--t-accent)]"
               />
             </div>
             <div className="space-y-2">
@@ -106,7 +106,7 @@ export function RegisterForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="border-[#D4A574] focus:border-[#B8860B]"
+                className="border-[var(--t-border)] focus:border-[var(--t-accent)]"
               />
             </div>
             <div className="space-y-2">
@@ -118,7 +118,7 @@ export function RegisterForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="border-[#D4A574] focus:border-[#B8860B]"
+                className="border-[var(--t-border)] focus:border-[var(--t-accent)]"
               />
             </div>
             <div className="space-y-2">
@@ -130,14 +130,14 @@ export function RegisterForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="border-[#D4A574] focus:border-[#B8860B]"
+                className="border-[var(--t-border)] focus:border-[var(--t-accent)]"
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button
               type="submit"
-              className="w-full bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
+              className="w-full bg-[var(--t-primary)] hover:bg-[var(--t-primary-light)] text-white"
               disabled={loading}
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -145,7 +145,7 @@ export function RegisterForm() {
             </Button>
             <button
               type="button"
-              className="text-sm text-[#7F1D1D] hover:text-[#991B1B] flex items-center gap-1"
+              className="text-sm text-[var(--t-primary)] hover:text-[var(--t-primary-light)] flex items-center gap-1"
               onClick={() => setActiveView("login")}
             >
               <ArrowLeft className="w-4 h-4" />
