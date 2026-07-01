@@ -48,3 +48,30 @@ Stage Summary:
 - 3 integration bugs fixed (missing upload API, broken seed data, missing toast)
 - All features verified end-to-end via browser automation
 - Application is fully functional and integrated correctly
+
+---
+Task ID: 3
+Agent: Main
+Task: Strengthen critical weak spots in Tarombo application
+
+Work Log:
+- Created `ancestor-utils.ts` with `getAncestorIds()`, `getDescendantIds()`, and `checkCircularReference()` — recursive traversal with safety limits (max depth 50)
+- Integrated full circular reference detection into PUT /api/persons/[id] — checks both descendant-of-target and ancestor-of-parent chains
+- Created `GET /api/persons/[id]/eligible-parents` endpoint that returns parent candidates excluding self + all descendants
+- Updated PersonForm to use eligible-parents API when editing (filters out descendants from parent dropdown)
+- Rewrote `death-utils.ts` — replaced fragile `divorceDate.getTime() === now.getTime()` comparison with a reliable approach: query active marriages first to get spouse IDs, then bulk-update marriages, then bulk-update spouse statuses
+- Added cycle protection to `buildTree()` in tree API — new `visited` Set and `depth` counter parameters, returns placeholder node if cycle detected or depth > 100
+- Improved marriage creation: added same-person validation, re-activation of previously inactive marriages (re-marriage scenario) instead of duplicate error
+- Created `rate-limit.ts` — in-memory rate limiter (5 attempts / 15 min window / 15 min block) with automatic cleanup
+- Integrated rate limiting into NextAuth authorize() with custom error messaging
+- Updated LoginForm to display rate limit error messages
+- All changes pass ESLint (0 errors)
+- Browser-verified: login, tree, person list, person edit form with eligible-parents API, zero console errors
+
+Stage Summary:
+- 6 critical/medium weaknesses strengthened
+- 3 new files: ancestor-utils.ts, rate-limit.ts, eligible-parents API route
+- Data integrity: circular reference prevention at API level AND UI level
+- Server resilience: buildTree cycle protection prevents infinite recursion
+- Security: login rate limiting against brute force
+- Business logic: reliable auto-divorce, re-marriage support

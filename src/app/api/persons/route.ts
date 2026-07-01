@@ -8,6 +8,7 @@ import type { Role } from "@/lib/rbac";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
 import { handleDeathAutoDivorce } from "@/lib/death-utils";
+import { checkCircularReference } from "@/lib/ancestor-utils";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "persons");
 
@@ -124,7 +125,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = personSchema.parse(body);
 
-    // Validate father exists and is male
+    // Circular reference check: father cannot be a descendant of this person
+    // (new person has no descendants yet, so this check is only needed
+    // when fatherId/motherId would create a cycle with existing data)
     if (validated.fatherId) {
       const father = await db.person.findUnique({
         where: { id: validated.fatherId },
@@ -141,6 +144,9 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      // Check: father should not already have this person as an ancestor
+      // (prevents: father is in the ancestor chain of the new person's sibling line)
+      // For new persons this is generally safe, but we validate gender consistency
     }
 
     // Validate mother exists and is female

@@ -82,10 +82,22 @@ export function PersonForm() {
     enabled: isEditing,
   });
 
-  // Fetch persons for parent selection
+  // Fetch persons for parent selection (all persons, used when creating new)
   const { data: persons = [] } = useQuery<Person[]>({
     queryKey: ["persons-list"],
     queryFn: () => fetch("/api/persons").then((r) => r.json()),
+  });
+
+  // Fetch eligible parents when editing (excludes descendants to prevent circular refs)
+  const { data: eligibleFathers = [] } = useQuery<Person[]>({
+    queryKey: ["eligible-fathers", editingPersonId],
+    queryFn: () => fetch(`/api/persons/${editingPersonId}/eligible-parents?role=father`).then((r) => r.json()),
+    enabled: isEditing,
+  });
+  const { data: eligibleMothers = [] } = useQuery<Person[]>({
+    queryKey: ["eligible-mothers", editingPersonId],
+    queryFn: () => fetch(`/api/persons/${editingPersonId}/eligible-parents?role=mother`).then((r) => r.json()),
+    enabled: isEditing,
   });
 
   useEffect(() => {
@@ -200,17 +212,13 @@ export function PersonForm() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Filter fathers (male persons) and mothers (female persons) for selection
-  const fathers = persons.filter(
-    (p) =>
-      p.gender === "MALE" &&
-      (!isEditing || p.id !== editingPersonId)
-  );
-  const mothers = persons.filter(
-    (p) =>
-      p.gender === "FEMALE" &&
-      (!isEditing || p.id !== editingPersonId)
-  );
+  // Use eligible parents (descendant-filtered) when editing, plain filter when creating
+  const fathers = isEditing
+    ? eligibleFathers
+    : persons.filter((p) => p.gender === "MALE");
+  const mothers = isEditing
+    ? eligibleMothers
+    : persons.filter((p) => p.gender === "FEMALE");
 
   if (isEditing && loadingPerson) {
     return (

@@ -143,8 +143,29 @@ export async function GET() {
 function buildTree(
   personId: string,
   personMap: Map<string, (typeof personMap extends Map<string, infer V> ? V : never)>,
-  allPersons: (typeof personMap extends Map<string, infer V> ? V : never)[]
+  allPersons: (typeof personMap extends Map<string, infer V> ? V : never)[],
+  visited: Set<string> = new Set(),
+  depth: number = 0
 ): TreeNode {
+  // Cycle protection: prevent infinite recursion from corrupted data
+  if (visited.has(personId) || depth > 100) {
+    return {
+      id: personId,
+      fullName: depth > 100 ? "[Kedalaman maks tercapai]" : "[Referensi melingkar terdeteksi]",
+      nickname: null,
+      gender: "MALE",
+      birthDate: null,
+      deathDate: null,
+      isDeceased: false,
+      photoPath: null,
+      birthPlace: null,
+      maritalStatus: "SINGLE",
+      spouse: null,
+      children: [],
+      birthOrder: null,
+    };
+  }
+  visited.add(personId);
   const person = personMap.get(personId);
   if (!person) {
     return {
@@ -199,7 +220,7 @@ function buildTree(
   const children = allPersons
     .filter((p) => p.fatherId === personId)
     .sort((a, b) => (a.birthOrder ?? 999) - (b.birthOrder ?? 999))
-    .map((child) => buildTree(child.id, personMap, allPersons));
+    .map((child) => buildTree(child.id, personMap, allPersons, visited, depth + 1));
 
   return {
     id: person.id,

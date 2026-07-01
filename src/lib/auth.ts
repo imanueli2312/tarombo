@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,6 +15,18 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // Rate limiting: check before querying DB
+        const rateLimit = checkRateLimit(credentials.email);
+        if (!rateLimit.allowed) {
+          // Throw an error that NextAuth passes as CredentialsAccountNotVerified
+          // We use a custom error to pass rate limit info
+          const err = new Error(
+            `Terlalu banyak percobaan login. Coba lagi dalam ${rateLimit.retryAfterSeconds} detik.`
+          ) as Error & { code?: string };
+          err.code = "RATE_LIMITED";
+          throw err;
         }
 
         const user = await db.user.findUnique({
@@ -32,6 +45,9 @@ export const authOptions: NextAuthOptions = {
         if (!isPasswordValid) {
           return null;
         }
+
+        // Successful login - reset rate limit
+        resetRateLimit(credentials.email);
 
         return {
           id: user.id,

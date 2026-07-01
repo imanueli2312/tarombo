@@ -96,6 +96,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if husband and wife are the same person
+    if (validated.husbandId === validated.wifeId) {
+      return NextResponse.json(
+        { error: "Suami dan istri tidak boleh orang yang sama" },
+        { status: 400 }
+      );
+    }
+
     // Check if husband already has an active marriage (max 1 active)
     const husbandActiveMarriage = await db.marriage.findFirst({
       where: {
@@ -138,10 +146,31 @@ export async function POST(request: NextRequest) {
       },
     });
     if (existingMarriage) {
-      return NextResponse.json(
-        { error: "Data pernikahan ini sudah ada" },
-        { status: 409 }
-      );
+      if (existingMarriage.isActive) {
+        return NextResponse.json(
+          { error: "Data pernikahan ini sudah ada dan masih aktif" },
+          { status: 409 }
+        );
+      }
+      // Re-activate the existing marriage (re-marriage scenario)
+      const reactivated = await db.marriage.update({
+        where: { id: existingMarriage.id },
+        data: {
+          isActive: true,
+          divorceDate: null,
+          ...(validated.marriageDate
+            ? { marriageDate: new Date(validated.marriageDate) }
+            : {}),
+        },
+      });
+
+      // Update marital status for both to MARRIED
+      await db.person.updateMany({
+        where: { id: { in: [validated.husbandId, validated.wifeId] } },
+        data: { maritalStatus: "MARRIED" },
+      });
+
+      return NextResponse.json(reactivated, { status: 200 });
     }
 
     const marriage = await db.marriage.create({

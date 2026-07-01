@@ -36,12 +36,18 @@ export function LoginForm() {
       });
 
       if (result?.error) {
+        // NextAuth doesn't easily pass custom errors, so we check for common patterns
         setError("Email atau password salah");
       } else if (result?.ok) {
         setActiveView("tree");
       }
-    } catch {
-      setError("Terjadi kesalahan. Silakan coba lagi.");
+    } catch (err) {
+      // Rate limit errors from our custom authorize throw
+      if (err instanceof Error && err.message.includes("Terlalu banyak")) {
+        setError(err.message);
+      } else {
+        setError("Terjadi kesalahan. Silakan coba lagi.");
+      }
     } finally {
       setLoading(false);
     }

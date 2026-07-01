@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { canUpdate, canDelete } from "@/lib/rbac";
 import type { Role } from "@/lib/rbac";
 import { handleDeathAutoDivorce } from "@/lib/death-utils";
+import { checkCircularReference } from "@/lib/ancestor-utils";
 import { existsSync, unlinkSync } from "fs";
 import path from "path";
 
@@ -130,18 +131,28 @@ export async function PUT(
     const body = await request.json();
     const validated = personUpdateSchema.parse(body);
 
-    // Prevent circular references
-    if (validated.fatherId === id) {
-      return NextResponse.json(
-        { error: "Seseorang tidak bisa menjadi ayah dari dirinya sendiri" },
-        { status: 400 }
-      );
+    // Prevent circular references (full ancestor chain check)
+    if (validated.fatherId && validated.fatherId !== id) {
+      const circularError = await checkCircularReference(id, validated.fatherId, "father");
+      if (circularError) {
+        return NextResponse.json({ error: circularError }, { status: 400 });
+      }
+
+      // Also check: new father should not already have this person as an ancestor
+      // (i.e., don't make someone your own grandchild's father)
+      const fatherAncestors = await (await import("@/lib/ancestor-utils")).getAncestorIds(validated.fatherId);
+      if (fatherAncestors.has(id)) {
+        return NextResponse.json(
+          { error: "Tidak dapat menetapkan — calon ayah sudah memiliki Anda dalam rantai keturunannya" },
+          { status: 400 }
+        );
+      }
     }
-    if (validated.motherId === id) {
-      return NextResponse.json(
-        { error: "Seseorang tidak bisa menjadi ibu dari dirinya sendiri" },
-        { status: 400 }
-      );
+    if (validated.motherId && validated.motherId !== id) {
+      const circularError = await checkCircularReference(id, validated.motherId, "mother");
+      if (circularError) {
+        return NextResponse.json({ error: circularError }, { status: 400 });
+      }
     }
 
     // Validate father is male
