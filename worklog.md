@@ -411,3 +411,22 @@ Stage Summary:
 - 5 documentation files totaling 3,501 lines of content
 - 15 screenshots covering all 13 application views plus dark mode and mobile responsive views
 - All files pushed to https://github.com/imanueli2312/tarombo.git (commit a1c68ee)
+
+---
+Task ID: 6
+Agent: Main
+Task: Make npm scripts cross-platform compatible for Windows 11
+
+Work Log:
+- Installed shx (cross-platform shell commands) and cross-env as devDependencies
+- Replaced `cp -r` with `shx cp -r` in build script
+- Replaced `NODE_ENV=production` with `cross-env NODE_ENV=production` in start script
+- Removed Unix-only `2>&1 | tee` pipe from dev and start scripts
+- Added comprehensive Windows 11 setup guide to DEPLOYMENT.md (section 11) with step-by-step instructions, PowerShell/CMD commands, common issues table, and NSSM Windows service configuration
+- Lint check passed with 0 errors
+- Committed and pushed to GitHub (commit 4c7451f)
+
+Stage Summary:
+- 3 files changed: package.json, bun.lock, docs/DEPLOYMENT.md
+- All npm scripts now work on Windows CMD, PowerShell, Git Bash, and Unix/macOS
+- Added 140 lines of Windows-specific documentation
