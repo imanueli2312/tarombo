@@ -64,16 +64,17 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-4">
-      <Card className="w-full max-w-md shadow-xl border-amber-200/50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FDF6E3] via-[#F5E6D3] to-[#FFF8F0] p-4">
+      <Card className="w-full max-w-md shadow-xl border-[#D4A574] overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-[#7F1D1D] via-[#DAA520] to-[#7F1D1D]" />
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-2">
-            <TreePine className="w-8 h-8 text-amber-700" />
+          <div className="mx-auto w-16 h-16 bg-[#7F1D1D] rounded-full flex items-center justify-center mb-2">
+            <TreePine className="w-8 h-8 text-[#DAA520]" />
           </div>
-          <CardTitle className="text-2xl font-bold text-amber-900">
+          <CardTitle className="text-2xl font-bold text-[#3E2723]">
             Daftar Akun Baru
           </CardTitle>
-          <CardDescription className="text-amber-700/70">
+          <CardDescription className="text-[#795548]">
             Buat akun untuk mengakses Tarombo Hariandja
           </CardDescription>
         </CardHeader>
@@ -93,7 +94,7 @@ export function RegisterForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="border-amber-200 focus:border-amber-400"
+                className="border-[#D4A574] focus:border-[#B8860B]"
               />
             </div>
             <div className="space-y-2">
@@ -105,7 +106,7 @@ export function RegisterForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="border-amber-200 focus:border-amber-400"
+                className="border-[#D4A574] focus:border-[#B8860B]"
               />
             </div>
             <div className="space-y-2">
@@ -117,7 +118,7 @@ export function RegisterForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="border-amber-200 focus:border-amber-400"
+                className="border-[#D4A574] focus:border-[#B8860B]"
               />
             </div>
             <div className="space-y-2">
@@ -129,14 +130,14 @@ export function RegisterForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="border-amber-200 focus:border-amber-400"
+                className="border-[#D4A574] focus:border-[#B8860B]"
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button
               type="submit"
-              className="w-full bg-amber-700 hover:bg-amber-800 text-white"
+              className="w-full bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
               disabled={loading}
             >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -144,7 +145,7 @@ export function RegisterForm() {
             </Button>
             <button
               type="button"
-              className="text-sm text-muted-foreground hover:text-amber-700 flex items-center gap-1"
+              className="text-sm text-[#7F1D1D] hover:text-[#991B1B] flex items-center gap-1"
               onClick={() => setActiveView("login")}
             >
               <ArrowLeft className="w-4 h-4" />

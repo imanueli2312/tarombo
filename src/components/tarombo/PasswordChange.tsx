@@ -94,15 +94,15 @@ export function PasswordChange() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-amber-900">Ubah Password</h2>
+        <h2 className="text-2xl font-bold text-[#3E2723]">Ubah Password</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Perbarui password akun Anda
         </p>
       </div>
 
-      <Card className="border-amber-200/50 max-w-md">
+      <Card className="border-[#D4A574]/50 max-w-md">
         <CardHeader className="pb-4">
-          <CardTitle className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold text-[#3E2723] flex items-center gap-2">
             <Lock className="w-4 h-4" />
             Keamanan Akun
           </CardTitle>
@@ -111,7 +111,7 @@ export function PasswordChange() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Current Password */}
             <div className="space-y-2">
-              <Label htmlFor="current-password" className="text-xs font-medium text-amber-900">
+              <Label htmlFor="current-password" className="text-xs font-medium text-[#3E2723]">
                 Password Lama
               </Label>
               <div className="relative">
@@ -120,7 +120,7 @@ export function PasswordChange() {
                   type={showCurrent ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="border-amber-200 pr-9"
+                  className="border-[#D4A574] pr-9"
                   placeholder="Masukkan password lama"
                 />
                 <button
@@ -135,7 +135,7 @@ export function PasswordChange() {
 
             {/* New Password */}
             <div className="space-y-2">
-              <Label htmlFor="new-password" className="text-xs font-medium text-amber-900">
+              <Label htmlFor="new-password" className="text-xs font-medium text-[#3E2723]">
                 Password Baru
               </Label>
               <div className="relative">
@@ -144,7 +144,7 @@ export function PasswordChange() {
                   type={showNew ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="border-amber-200 pr-9"
+                  className="border-[#D4A574] pr-9"
                   placeholder="Minimal 8 karakter"
                 />
                 <button
@@ -177,7 +177,7 @@ export function PasswordChange() {
 
             {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="confirm-password" className="text-xs font-medium text-amber-900">
+              <Label htmlFor="confirm-password" className="text-xs font-medium text-[#3E2723]">
                 Konfirmasi Password Baru
               </Label>
               <div className="relative">
@@ -186,7 +186,7 @@ export function PasswordChange() {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`border-amber-200 pr-9 ${
+                  className={`border-[#D4A574] pr-9 ${
                     confirmPassword.length > 0 && confirmPassword !== newPassword
                       ? "border-red-400 focus-visible:ring-red-400"
                       : confirmPassword.length > 0 && confirmPassword === newPassword
@@ -211,7 +211,7 @@ export function PasswordChange() {
             <Button
               type="submit"
               disabled={mutation.isPending}
-              className="w-full bg-amber-700 hover:bg-amber-800"
+              className="w-full bg-[#7F1D1D] hover:bg-[#991B1B]"
             >
               {mutation.isPending ? (
                 <>

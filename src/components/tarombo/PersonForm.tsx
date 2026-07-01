@@ -223,7 +223,7 @@ export function PersonForm() {
   if (isEditing && loadingPerson) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
       </div>
     );
   }
@@ -235,15 +235,15 @@ export function PersonForm() {
           setEditingPersonId(null);
           setActiveView(isEditing ? "person-detail" : "persons");
         }}
-        className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-800 mb-4"
+        className="flex items-center gap-2 text-sm text-[#7F1D1D] hover:text-[#991B1B] mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
         Kembali
       </button>
 
-      <Card className="border-amber-200/50">
+      <Card className="border-[#D4A574]/50">
         <CardHeader>
-          <CardTitle className="text-amber-900">
+          <CardTitle className="text-[#3E2723]">
             {isEditing ? "Edit Data Anggota" : "Tambah Anggota Baru"}
           </CardTitle>
           <CardDescription>
@@ -262,7 +262,7 @@ export function PersonForm() {
 
             {/* Basic Info */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">
+              <h3 className="font-semibold text-[#3E2723] text-sm uppercase tracking-wide">
                 Informasi Dasar
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -274,7 +274,7 @@ export function PersonForm() {
                     onChange={(e) => updateField("fullName", e.target.value)}
                     placeholder="Contoh: Raja Hariandja"
                     required
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -284,7 +284,7 @@ export function PersonForm() {
                     value={form.nickname}
                     onChange={(e) => updateField("nickname", e.target.value)}
                     placeholder="Contoh: Ompu"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -293,7 +293,7 @@ export function PersonForm() {
                     value={form.gender}
                     onValueChange={(v) => updateField("gender", v)}
                   >
-                    <SelectTrigger className="border-amber-200">
+                    <SelectTrigger className="border-[#D4A574]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -311,7 +311,7 @@ export function PersonForm() {
                     value={form.birthOrder}
                     onChange={(e) => updateField("birthOrder", e.target.value)}
                     placeholder="Contoh: 1"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -320,7 +320,7 @@ export function PersonForm() {
                     value={form.maritalStatus}
                     onValueChange={(v) => updateField("maritalStatus", v)}
                   >
-                    <SelectTrigger className="border-amber-200">
+                    <SelectTrigger className="border-[#D4A574]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -336,7 +336,7 @@ export function PersonForm() {
 
             {/* Birth & Death */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">
+              <h3 className="font-semibold text-[#3E2723] text-sm uppercase tracking-wide">
                 Kelahiran & Kematian
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,7 +347,7 @@ export function PersonForm() {
                     type="date"
                     value={form.birthDate}
                     onChange={(e) => updateField("birthDate", e.target.value)}
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -357,7 +357,7 @@ export function PersonForm() {
                     value={form.birthPlace}
                     onChange={(e) => updateField("birthPlace", e.target.value)}
                     placeholder="Contoh: Samosir"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="flex items-center gap-3 md:col-span-2">
@@ -378,7 +378,7 @@ export function PersonForm() {
                         onChange={(e) =>
                           updateField("deathDate", e.target.value)
                         }
-                        className="border-amber-200"
+                        className="border-[#D4A574]"
                       />
                     </div>
                     <div className="space-y-2">
@@ -390,7 +390,7 @@ export function PersonForm() {
                           updateField("deathPlace", e.target.value)
                         }
                         placeholder="Contoh: Medan"
-                        className="border-amber-200"
+                        className="border-[#D4A574]"
                       />
                     </div>
                   </>
@@ -400,7 +400,7 @@ export function PersonForm() {
 
             {/* Contact & Other */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">
+              <h3 className="font-semibold text-[#3E2723] text-sm uppercase tracking-wide">
                 Kontak & Lainnya
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -411,7 +411,7 @@ export function PersonForm() {
                     value={form.religion}
                     onChange={(e) => updateField("religion", e.target.value)}
                     placeholder="Contoh: Kristen Protestan"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -421,7 +421,7 @@ export function PersonForm() {
                     value={form.phone}
                     onChange={(e) => updateField("phone", e.target.value)}
                     placeholder="Contoh: +6281234567890"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -431,7 +431,7 @@ export function PersonForm() {
                     value={form.address}
                     onChange={(e) => updateField("address", e.target.value)}
                     placeholder="Contoh: Jl. Sisingamangaraja No. 10, Medan"
-                    className="border-amber-200 min-h-[60px]"
+                    className="border-[#D4A574] min-h-[60px]"
                   />
                 </div>
               </div>
@@ -439,7 +439,7 @@ export function PersonForm() {
 
             {/* Photo */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">
+              <h3 className="font-semibold text-[#3E2723] text-sm uppercase tracking-wide">
                 Foto
               </h3>
               <div className="space-y-2">
@@ -448,7 +448,7 @@ export function PersonForm() {
                     <img
                       src={form.photoPath}
                       alt="Foto"
-                      className="w-24 h-24 object-cover rounded-lg border border-amber-200"
+                      className="w-24 h-24 object-cover rounded-lg border border-[#D4A574]"
                     />
                     <button
                       type="button"
@@ -474,7 +474,7 @@ export function PersonForm() {
                       document.getElementById("photo-upload")?.click()
                     }
                     disabled={uploading}
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                   >
                     {uploading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -492,7 +492,7 @@ export function PersonForm() {
 
             {/* Parent Relations */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">
+              <h3 className="font-semibold text-[#3E2723] text-sm uppercase tracking-wide">
                 Orang Tua
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -502,7 +502,7 @@ export function PersonForm() {
                     value={form.fatherId}
                     onValueChange={(v) => updateField("fatherId", v)}
                   >
-                    <SelectTrigger className="border-amber-200">
+                    <SelectTrigger className="border-[#D4A574]">
                       <SelectValue placeholder="Pilih ayah..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -521,7 +521,7 @@ export function PersonForm() {
                     value={form.motherId}
                     onValueChange={(v) => updateField("motherId", v)}
                   >
-                    <SelectTrigger className="border-amber-200">
+                    <SelectTrigger className="border-[#D4A574]">
                       <SelectValue placeholder="Pilih ibu..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -541,7 +541,7 @@ export function PersonForm() {
             <div className="flex gap-3 pt-4 border-t">
               <Button
                 type="submit"
-                className="bg-amber-700 hover:bg-amber-800 text-white"
+                className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
                 disabled={mutation.isPending}
               >
                 {mutation.isPending && (

@@ -126,7 +126,7 @@ export function PersonList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-amber-900">Data Anggota</h2>
+          <h2 className="text-xl font-bold text-[#3E2723]">Data Anggota</h2>
           <p className="text-sm text-muted-foreground">
             Daftar seluruh anggota Marga Hariandja
           </p>
@@ -137,7 +137,7 @@ export function PersonList() {
               setEditingPersonId(null);
               setActiveView("person-form");
             }}
-            className="bg-amber-700 hover:bg-amber-800 text-white"
+            className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Tambah Anggota
@@ -153,11 +153,11 @@ export function PersonList() {
             placeholder="Cari nama atau nama panggilan..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 border-amber-200"
+            className="pl-9 border-[#D4A574]"
           />
         </div>
         <Select value={genderFilter} onValueChange={(v) => { setGenderFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-full sm:w-40 border-amber-200">
+          <SelectTrigger className="w-full sm:w-40 border-[#D4A574]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -169,11 +169,11 @@ export function PersonList() {
       </div>
 
       {/* Table */}
-      <Card className="border-amber-200/50">
+      <Card className="border-[#D4A574]/50">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12 text-red-600">
@@ -182,12 +182,12 @@ export function PersonList() {
             </div>
           ) : persons.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Users className="w-12 h-12 mx-auto mb-3 text-amber-300" />
+              <Users className="w-12 h-12 mx-auto mb-3 text-[#D4A574]" />
               <p>Belum ada data anggota</p>
               {canCreate() && (
                 <Button
                   variant="outline"
-                  className="mt-3 border-amber-200"
+                  className="mt-3 border-[#D4A574]"
                   onClick={() => {
                     setEditingPersonId(null);
                     setActiveView("person-form");
@@ -202,12 +202,12 @@ export function PersonList() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-amber-50/50">
-                    <TableHead className="text-amber-800">Nama</TableHead>
-                    <TableHead className="text-amber-800">Jenis Kelamin</TableHead>
-                    <TableHead className="text-amber-800">Lahir</TableHead>
-                    <TableHead className="text-amber-800">Status</TableHead>
-                    <TableHead className="text-amber-800 text-right">
+                  <TableRow className="hover:bg-[#F5E6D3]/50">
+                    <TableHead className="text-[#3E2723]">Nama</TableHead>
+                    <TableHead className="text-[#3E2723]">Jenis Kelamin</TableHead>
+                    <TableHead className="text-[#3E2723]">Lahir</TableHead>
+                    <TableHead className="text-[#3E2723]">Status</TableHead>
+                    <TableHead className="text-[#3E2723] text-right">
                       Aksi
                     </TableHead>
                   </TableRow>
@@ -216,7 +216,7 @@ export function PersonList() {
                   {persons.map((person) => (
                     <TableRow
                       key={person.id}
-                      className="hover:bg-amber-50/50 cursor-pointer"
+                      className="hover:bg-[#F5E6D3]/50 cursor-pointer"
                       onClick={() => {
                         setSelectedPersonId(person.id);
                         setActiveView("person-detail");
@@ -224,7 +224,7 @@ export function PersonList() {
                     >
                       <TableCell>
                         <div>
-                          <p className="font-medium text-amber-900">
+                          <p className="font-medium text-[#3E2723]">
                             {person.fullName}
                           </p>
                           {person.nickname && (
@@ -238,7 +238,7 @@ export function PersonList() {
                         <span
                           className={`text-sm ${
                             person.gender === "MALE"
-                              ? "text-amber-700"
+                              ? "text-[#795548]"
                               : "text-pink-600"
                           }`}
                         >
@@ -350,7 +350,7 @@ export function PersonList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-amber-200"
+              className="border-[#D4A574]"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
@@ -360,7 +360,7 @@ export function PersonList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-amber-200"
+              className="border-[#D4A574]"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

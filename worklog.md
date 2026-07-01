@@ -265,3 +265,107 @@ Stage Summary:
 - SVG export: one-click download of full tree as tarombo-hariandja.svg
 - Dashboard: 6 stat cards + gender pie chart + marital status bar chart + latest member card
 - Password change: strength indicator, show/hide toggles, client-side validation, TanStack Query mutation
+
+---
+Task ID: 3
+Agent: Theme Agent
+Task: Implement global Batak Toba theme in globals.css and core layout files
+
+Work Log:
+- Replaced all CSS variables in `:root` with Batak Toba color palette (oklch values): maroon primary, gold secondary/accent, cream backgrounds, brown foreground text, tan borders
+- Updated `.dark` mode variables to deeper Batak tones: dark brown-black backgrounds, gold as primary, muted warm tones
+- Updated chart colors to Batak palette (maroon, gold, dark brown, ochre, sienna) in both light and dark modes
+- Added 5 Batak Toba custom utility classes at end of globals.css:
+  - `.batak-gorga-border`: repeating gorga-pattern border-image (maroon/gold/brown stripes)
+  - `.batak-sidebar-bg`: dark carved-wood background (#1C1410)
+  - `.batak-ulos-stripe`: repeating ulos-cloth stripe pattern
+  - `.batak-card-traditional`: warm cream card with gold-top gorga accent bar
+  - `.gorga-divider`: decorative gorga-pattern divider bar
+- Updated `page.tsx` styling:
+  - Loading state: changed gradient to Batak cream tones (`#FDF6E3`/`#F5E6D3`/`#FFF8F0`)
+  - Loading spinner: changed to tan border with maroon top (`#D4A574`/`#7F1D1D`)
+  - Loading text: changed to maroon (`#7F1D1D`)
+  - TreeView background: changed to Batak cream gradient
+  - MainLayout background: changed to Batak cream gradient
+  - Footer: replaced with gorga-divider + dark brown-black bg (#1C1410) + gold text (#DAA520)
+- Ran ESLint: 0 errors
+
+Stage Summary:
+- 2 files modified: globals.css, page.tsx
+- Complete Batak Toba color system applied globally via CSS custom properties (light + dark mode)
+- 5 custom Batak utility classes available for component-level use
+- All shadcn/ui components automatically inherit Batak theming via CSS variables
+- No component logic changed — purely visual/styling updates
+
+---
+Task ID: 4
+Agent: full-stack-developer
+Task: Restyle sidebar and auth pages with Batak Toba theme
+
+Work Log:
+- Updated AppSidebar with dark Batak carved-wood theme
+- Updated LoginForm with Batak Toba traditional styling
+- Updated RegisterForm with Batak Toba traditional styling
+
+Stage Summary:
+- Sidebar: Dark maroon/brown bg (#1C1410), gold text (#DAA520), gorga pattern header
+- Auth pages: Cream backgrounds, maroon buttons, gold accents, gorga card headers
+
+---
+Task ID: 5-7
+Agent: Main
+Task: Restyle ALL tarombo components and TreeVisualization with Batak Toba traditional theme
+
+Work Log:
+- Restyled TreeVisualization.tsx: D3 tree link stroke (#D4A574), male/female node fills (#FFF8F0), male node stroke (#7F1D1D), female node stroke (#991B1B), gender icon colors, name text (#3E2723), birth place text (#B8860B), generation badge (#B8860B), spouse connection line (#991B1B), heart symbol (#991B1B), highlight stroke (#DAA520), highlight drop-shadow (rgba(218,165,32,0.5)), loading spinner/text (#7F1D1D), empty state icon (#D4A574), empty state title (#3E2723), toolbar hover (#F5E6D3), legend (male swatch border #7F1D1D bg #F5E6D3, female swatch border #991B1B bg #F5E6D3), search input border (#D4A574), search result hover (#F5E6D3), node popup border/names, popup button (#7F1D1D/#991B1B), SVG export bg (#FDF6E3), "Tambah Anggota Pertama" button
+- Restyled PersonList.tsx: All text-amber-900→#3E2723, text-amber-800→#3E2723, text-amber-700→#795548, text-amber-600→#795548, text-amber-300→#D4A574, bg-amber-100→#F5E6D3, border-amber-200→#D4A574, hover:bg-amber-50/50→#F5E6D3/50, bg-amber-700→#7F1D1D, hover:bg-amber-800→#991B1B, loading spinner #7F1D1D. Kept pink for female gender.
+- Restyled PersonDetail.tsx: Same color replacements. Back link #7F1D1D/#991B1B. Photo border/bg/icon. All bg-amber-50/50→#F5E6D3/50, hover:bg-amber-50→#F5E6D3. Kept red-50 for deceased sections.
+- Restyled PersonForm.tsx: Same color replacements. Back link #7F1D1D/#991B1B. All input/select/textarea borders →#D4A574. Submit button #7F1D1D/#991B1B. Loading spinner #7F1D1D. Section headers #3E2723.
+- Restyled MarriageList.tsx: Same color replacements. Card/table borders. Add/save buttons. Loading spinner. Empty state icon. Kept pink for wife names.
+- Restyled DashboardStats.tsx: CHART_COLORS→["#7F1D1D","#DAA520","#3E2723","#B8860B","#A0522D"]. BarChart grid/tick/axisline/tooltip colors. Stat card borders. Latest member link #7F1D1D/#991B1B. Icon colors #795548.
+- Restyled BackupRestore.tsx: Warning box bg/border/text. Warning icon #B8860B. Export/import buttons. Confirmation dialog. All card borders.
+- Restyled AuditLogViewer.tsx: Table header text, row hover, loading spinner, empty state icon, badge borders, pagination buttons.
+- Restyled UserManagement.tsx: RBAC info cards (Editor→#F5E6D3/#D4A574/#3E2723/#795548). roleColors EDITOR entry updated. Table/buttons/loading. Kept admin red and viewer gray.
+- Restyled PasswordChange.tsx: Heading, card border, labels, input borders, submit button. Kept password strength colors (red/green/amber) as they are semantic.
+- Ran ESLint: 0 errors
+
+Stage Summary:
+- 10 files modified: TreeVisualization, PersonList, PersonDetail, PersonForm, MarriageList, DashboardStats, BackupRestore, AuditLogViewer, UserManagement, PasswordChange
+- All amber/x color classes replaced with Batak Toba traditional palette (maroon, gold, dark brown, cream, tan)
+- No component logic, event handlers, state management, or imports changed
+- All functionality preserved — purely visual/styling updates
+---
+Task ID: 8
+Agent: Main
+Task: Restyle entire Tarombo app with traditional Batak Toba theme
+
+Work Log:
+- Generated 3 Batak Toba decorative images using AI: gorga-border.png (carved pattern), rumah-bolon.png (traditional house), ulos-pattern.png (woven textile)
+- Completely rewrote globals.css CSS variables with Batak Toba color palette (maroon #7F1D1D, gold #DAA520, dark brown #3E2723, cream #FDF6E3, dark wood #1C1410)
+- Added custom CSS utility classes: .batak-gorga-border, .batak-sidebar-bg, .batak-ulos-stripe, .batak-card-traditional, .gorga-divider
+- Updated dark mode theme to deeper Batak tones
+- Changed chart colors to Batak palette (maroon, gold, brown, ochre, sienna)
+- Restyled page.tsx layout: cream gradient backgrounds, gorga divider above footer, dark maroon footer with gold text
+- Restyled AppSidebar.tsx: dark carved-wood background (#1C1410), gold text/accent (#DAA520), gorga pattern image header, gold active states
+- Restyled LoginForm.tsx & RegisterForm.tsx: cream gradient backgrounds, maroon primary buttons, gorga stripe on card top, tan borders
+- Restyled TreeVisualization.tsx: D3 node colors (male #7F1D1D, female #991B1D), link stroke #D4A574, gold highlights #DAA520, cream export bg
+- Restyled PersonList.tsx: all amber → brown/tan/maroon, maroon primary buttons
+- Restyled PersonDetail.tsx: info cards, parent/child sections, photo placeholder
+- Restyled PersonForm.tsx: form inputs, section headers, submit buttons
+- Restyled MarriageList.tsx: table, borders, buttons
+- Restyled DashboardStats.tsx: CHART_COLORS, chart grid/ticks/tooltip, stat cards
+- Restyled BackupRestore.tsx: warning box, buttons
+- Restyled AuditLogViewer.tsx: table, badges, pagination
+- Restyled UserManagement.tsx: RBAC cards, table, buttons
+- Restyled PasswordChange.tsx: card, labels, buttons
+- Restyled ErrorBoundary.tsx: icon, text, button
+- Restyled LanguageToggle.tsx: active item background
+- Verified 0 ESLint errors
+- Verified via browser screenshots and VLM analysis: dark carved-wood sidebar, gold accents, gorga pattern header, maroon/gold charts, cream backgrounds, culturally cohesive Batak Toba aesthetic
+
+Stage Summary:
+- Complete Batak Toba traditional theme applied to all 16+ components
+- Color system: Maroon primary, Gold accent, Dark Brown text, Cream background, Dark Wood sidebar
+- Decorative elements: AI-generated gorga pattern in sidebar, gorga gradient stripe on auth cards, gorga divider on footer
+- All amber references replaced with Batak palette (except semantic password strength indicator)
+- Browser-verified: Login, Tree View, Dashboard, Person List all render correctly with Batak theme

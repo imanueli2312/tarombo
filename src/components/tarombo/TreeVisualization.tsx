@@ -213,7 +213,7 @@ export function TreeVisualization() {
         .append("path")
         .attr("class", "link")
         .attr("fill", "none")
-        .attr("stroke", "#d4a373")
+        .attr("stroke", "#D4A574")
         .attr("stroke-width", 2)
         .attr("stroke-opacity", 0.6)
         .attr("d", (d) => {
@@ -247,8 +247,8 @@ export function TreeVisualization() {
         .attr("height", NODE_HEIGHT)
         .attr("rx", 10)
         .attr("ry", 10)
-        .attr("fill", (d) => (d.data.gender === "MALE" ? "#fffbeb" : "#fdf2f8"))
-        .attr("stroke", (d) => (d.data.gender === "MALE" ? "#d97706" : "#db2777"))
+        .attr("fill", (d) => (d.data.gender === "MALE" ? "#FFF8F0" : "#FFF8F0"))
+        .attr("stroke", (d) => (d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B"))
         .attr("stroke-width", 2)
         .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.1))");
 
@@ -259,7 +259,7 @@ export function TreeVisualization() {
         .attr("y", 20)
         .attr("font-size", "12px")
         .text((d) => (d.data.gender === "MALE" ? "♂" : "♀"))
-        .attr("fill", (d) => (d.data.gender === "MALE" ? "#d97706" : "#db2777"));
+        .attr("fill", (d) => (d.data.gender === "MALE" ? "#7F1D1D" : "#991B1B"));
 
       // Name
       nodes
@@ -268,7 +268,7 @@ export function TreeVisualization() {
         .attr("y", 20)
         .attr("font-size", "11px")
         .attr("font-weight", "600")
-        .attr("fill", (d) => (d.data.isDeceased ? "#9ca3af" : "#1f2937"))
+        .attr("fill", (d) => (d.data.isDeceased ? "#9ca3af" : "#3E2723"))
         .text((d) => truncate(d.data.fullName, 18))
         .append("title")
         .text((d) => d.data.fullName);
@@ -304,7 +304,7 @@ export function TreeVisualization() {
         .attr("x", 12)
         .attr("y", 62)
         .attr("font-size", "8px")
-        .attr("fill", "#b45309")
+        .attr("fill", "#B8860B")
         .text((d) => `📍 ${d.data.birthPlace}`);
 
       // Deceased indicator
@@ -337,7 +337,7 @@ export function TreeVisualization() {
         .attr("y", 64)
         .attr("text-anchor", "end")
         .attr("font-size", "7px")
-        .attr("fill", "#d97706")
+        .attr("fill", "#B8860B")
         .attr("font-weight", "600")
         .text((d) => getGenerationLabel(d.depth, !!isVirtualRoot));
 
@@ -356,7 +356,7 @@ export function TreeVisualization() {
             .attr("y1", NODE_HEIGHT / 2)
             .attr("x2", spouseX)
             .attr("y2", NODE_HEIGHT / 2)
-            .attr("stroke", "#e11d48")
+            .attr("stroke", "#991B1B")
             .attr("stroke-width", 2)
             .attr("stroke-dasharray", "4,2");
 
@@ -368,7 +368,7 @@ export function TreeVisualization() {
             .attr("text-anchor", "middle")
             .attr("font-size", "10px")
             .text("♥")
-            .attr("fill", "#e11d48");
+            .attr("fill", "#991B1B");
 
           // Spouse card
           node
@@ -378,8 +378,8 @@ export function TreeVisualization() {
             .attr("height", NODE_HEIGHT)
             .attr("rx", 10)
             .attr("ry", 10)
-            .attr("fill", spouse.gender === "FEMALE" ? "#fdf2f8" : "#fffbeb")
-            .attr("stroke", spouse.gender === "FEMALE" ? "#db2777" : "#d97706")
+            .attr("fill", spouse.gender === "FEMALE" ? "#FFF8F0" : "#FFF8F0")
+            .attr("stroke", spouse.gender === "FEMALE" ? "#991B1B" : "#7F1D1D")
             .attr("stroke-width", 2)
             .attr("stroke-dasharray", "6,3")
             .style("filter", "drop-shadow(0 1px 2px rgba(0,0,0,0.08))");
@@ -391,7 +391,7 @@ export function TreeVisualization() {
             .attr("y", 20)
             .attr("font-size", "12px")
             .text(spouse.gender === "FEMALE" ? "♀" : "♂")
-            .attr("fill", spouse.gender === "FEMALE" ? "#db2777" : "#d97706");
+            .attr("fill", spouse.gender === "FEMALE" ? "#991B1B" : "#7F1D1D");
 
           // Spouse name
           node
@@ -438,9 +438,9 @@ export function TreeVisualization() {
         .attr("height", NODE_HEIGHT + 8)
         .attr("rx", 12)
         .attr("fill", "none")
-        .attr("stroke", "#f59e0b")
+        .attr("stroke", "#DAA520")
         .attr("stroke-width", 3)
-        .style("filter", "drop-shadow(0 0 6px rgba(245, 158, 11, 0.5))");
+        .style("filter", "drop-shadow(0 0 6px rgba(218, 165, 32, 0.5))");
 
       // Initial zoom to fit
       const svgEl = svgRef.current;
@@ -514,7 +514,7 @@ export function TreeVisualization() {
     clone.setAttribute("height", String(height));
     clone.setAttribute("viewBox", `${bounds.x - 20} ${bounds.y - 20} ${width} ${height}`);
 
-    clone.style.backgroundColor = "white";
+    clone.style.backgroundColor = "#FDF6E3";
 
     const svgData = new XMLSerializer().serializeToString(clone);
     const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
@@ -535,8 +535,8 @@ export function TreeVisualization() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto mb-3" />
-          <p className="text-amber-700">Memuat pohon keluarga...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D] mx-auto mb-3" />
+          <p className="text-[#7F1D1D]">Memuat pohon keluarga...</p>
         </div>
       </div>
     );
@@ -562,8 +562,8 @@ export function TreeVisualization() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
-          <TreePine className="w-16 h-16 text-amber-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-amber-900 mb-2">
+          <TreePine className="w-16 h-16 text-[#D4A574] mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-[#3E2723] mb-2">
             Belum Ada Data Pohon Keluarga
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -573,7 +573,7 @@ export function TreeVisualization() {
           {canCreate() && (
             <Button
               onClick={() => setActiveView("person-form")}
-              className="bg-amber-700 hover:bg-amber-800"
+              className="bg-[#7F1D1D] hover:bg-[#991B1B]"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Tambah Anggota Pertama
@@ -591,7 +591,7 @@ export function TreeVisualization() {
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 shadow-md hover:bg-amber-50"
+          className="bg-white/90 shadow-md hover:bg-[#F5E6D3]"
           onClick={handleExportImage}
           title="Ekspor SVG"
         >
@@ -600,7 +600,7 @@ export function TreeVisualization() {
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 shadow-md hover:bg-amber-50"
+          className="bg-white/90 shadow-md hover:bg-[#F5E6D3]"
           onClick={handleZoomIn}
         >
           <ZoomIn className="w-4 h-4" />
@@ -608,7 +608,7 @@ export function TreeVisualization() {
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 shadow-md hover:bg-amber-50"
+          className="bg-white/90 shadow-md hover:bg-[#F5E6D3]"
           onClick={handleZoomOut}
         >
           <ZoomOut className="w-4 h-4" />
@@ -616,7 +616,7 @@ export function TreeVisualization() {
         <Button
           variant="outline"
           size="icon"
-          className="bg-white/90 shadow-md hover:bg-amber-50"
+          className="bg-white/90 shadow-md hover:bg-[#F5E6D3]"
           onClick={handleFit}
         >
           <Maximize2 className="w-4 h-4" />
@@ -625,18 +625,18 @@ export function TreeVisualization() {
 
       {/* Legend */}
       <div className="absolute top-3 left-3 z-10 bg-white/90 rounded-lg shadow-md p-3 text-xs">
-        <p className="font-semibold text-amber-900 mb-1.5">Keterangan:</p>
+        <p className="font-semibold text-[#3E2723] mb-1.5">Keterangan:</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-amber-600 bg-amber-50" />
+            <div className="w-4 h-3 rounded-sm border-2 border-[#7F1D1D] bg-[#F5E6D3]" />
             <span className="text-muted-foreground">Laki-laki</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-pink-600 bg-pink-50" />
+            <div className="w-4 h-3 rounded-sm border-2 border-[#991B1B] bg-[#F5E6D3]" />
             <span className="text-muted-foreground">Perempuan</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded-sm border-2 border-dashed border-pink-600 bg-pink-50" />
+            <div className="w-4 h-3 rounded-sm border-2 border-dashed border-[#991B1B] bg-[#F5E6D3]" />
             <span className="text-muted-foreground">Pasangan (Boru)</span>
           </div>
           <div className="flex items-center gap-2">
@@ -655,15 +655,15 @@ export function TreeVisualization() {
               placeholder="Cari anggota..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 h-8 text-xs border-amber-200"
+              className="pl-8 h-8 text-xs border-[#D4A574]"
             />
           </div>
           {searchResults.length > 0 && (
-            <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded-md border border-amber-200 shadow-sm">
+            <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded-md border border-[#D4A574] shadow-sm">
               {searchResults.map((r) => (
                 <button
                   key={r.id}
-                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-amber-50 transition-colors flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-[#F5E6D3] transition-colors flex items-center gap-2"
                   onClick={() => zoomToNode(r.id)}
                 >
                   <span>{r.gender === "MALE" ? "♂" : "♀"}</span>
@@ -680,12 +680,12 @@ export function TreeVisualization() {
 
       {/* Node Detail Popup */}
       {selectedNode && selectedNode.id !== "virtual-root" && (
-        <div className="absolute bottom-4 right-4 z-10 w-80 bg-white rounded-xl shadow-xl border border-amber-200/50 p-4">
+        <div className="absolute bottom-4 right-4 z-10 w-80 bg-white rounded-xl shadow-xl border border-[#D4A574]/50 p-4">
           <div className="flex items-start justify-between mb-2">
             <div>
-              <h3 className="font-bold text-amber-900">{selectedNode.fullName}</h3>
+              <h3 className="font-bold text-[#3E2723]">{selectedNode.fullName}</h3>
               {selectedNode.nickname && (
-                <p className="text-sm text-amber-600">&quot;{selectedNode.nickname}&quot;</p>
+                <p className="text-sm text-[#795548]">&quot;{selectedNode.nickname}&quot;</p>
               )}
             </div>
             <button
@@ -722,7 +722,7 @@ export function TreeVisualization() {
             )}
           </div>
           <Button
-            className="w-full mt-3 bg-amber-700 hover:bg-amber-800"
+            className="w-full mt-3 bg-[#7F1D1D] hover:bg-[#991B1B]"
             size="sm"
             onClick={() => handleNodeClick(selectedNode.id)}
           >

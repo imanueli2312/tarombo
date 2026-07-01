@@ -183,7 +183,7 @@ export function MarriageList() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-amber-900">Data Pernikahan</h2>
+          <h2 className="text-xl font-bold text-[#3E2723]">Data Pernikahan</h2>
           <p className="text-sm text-muted-foreground">
             Daftar pernikahan dalam Marga Hariandja
           </p>
@@ -197,7 +197,7 @@ export function MarriageList() {
             }}
           >
             <DialogTrigger asChild>
-              <Button className="bg-amber-700 hover:bg-amber-800 text-white">
+              <Button className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Tambah Pernikahan
               </Button>
@@ -269,7 +269,7 @@ export function MarriageList() {
                     })
                   }
                   disabled={!husbandId || !wifeId || createMutation.isPending}
-                  className="bg-amber-700 hover:bg-amber-800"
+                  className="bg-[#7F1D1D] hover:bg-[#991B1B]"
                 >
                   {createMutation.isPending && (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -282,29 +282,29 @@ export function MarriageList() {
         )}
       </div>
 
-      <Card className="border-amber-200/50">
+      <Card className="border-[#D4A574]/50">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
             </div>
           ) : marriages.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Heart className="w-12 h-12 mx-auto mb-3 text-amber-300" />
+              <Heart className="w-12 h-12 mx-auto mb-3 text-[#D4A574]" />
               <p>Belum ada data pernikahan</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-amber-50/50">
-                    <TableHead className="text-amber-800">Suami</TableHead>
-                    <TableHead className="text-amber-800">Istri</TableHead>
-                    <TableHead className="text-amber-800">
+                  <TableRow className="hover:bg-[#F5E6D3]/50">
+                    <TableHead className="text-[#3E2723]">Suami</TableHead>
+                    <TableHead className="text-[#3E2723]">Istri</TableHead>
+                    <TableHead className="text-[#3E2723]">
                       Tgl. Pernikahan
                     </TableHead>
-                    <TableHead className="text-amber-800">Status</TableHead>
-                    <TableHead className="text-amber-800 text-right">
+                    <TableHead className="text-[#3E2723]">Status</TableHead>
+                    <TableHead className="text-[#3E2723] text-right">
                       Aksi
                     </TableHead>
                   </TableRow>
@@ -313,10 +313,10 @@ export function MarriageList() {
                   {marriages.map((marriage) => (
                     <TableRow
                       key={marriage.id}
-                      className="hover:bg-amber-50/50"
+                      className="hover:bg-[#F5E6D3]/50"
                     >
                       <TableCell>
-                        <p className="font-medium text-amber-900">
+                        <p className="font-medium text-[#3E2723]">
                           {marriage.husband.fullName}
                         </p>
                         {marriage.husband.nickname && (
@@ -403,7 +403,7 @@ export function MarriageList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-amber-200"
+              className="border-[#D4A574]"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
@@ -413,7 +413,7 @@ export function MarriageList() {
             <Button
               variant="outline"
               size="sm"
-              className="border-amber-200"
+              className="border-[#D4A574]"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >

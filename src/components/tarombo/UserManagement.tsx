@@ -52,7 +52,7 @@ interface User {
 
 const roleColors: Record<string, string> = {
   ADMIN: "bg-red-100 text-red-800",
-  EDITOR: "bg-amber-100 text-amber-800",
+  EDITOR: "bg-[#F5E6D3] text-[#3E2723]",
   VIEWER: "bg-gray-100 text-gray-800",
 };
 
@@ -152,14 +152,14 @@ export function UserManagement() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-amber-900">Kelola Pengguna</h2>
+          <h2 className="text-xl font-bold text-[#3E2723]">Kelola Pengguna</h2>
           <p className="text-sm text-muted-foreground">
             Manajemen akun pengguna dan hak akses (RBAC)
           </p>
         </div>
         <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="bg-amber-700 hover:bg-amber-800 text-white">
+            <Button className="bg-[#7F1D1D] hover:bg-[#991B1B] text-white">
               <Plus className="w-4 h-4 mr-2" />
               Tambah Pengguna
             </Button>
@@ -205,7 +205,7 @@ export function UserManagement() {
               <Button
                 onClick={() => addMutation.mutate({ name: formName, email: formEmail, password: formPassword, role: formRole })}
                 disabled={!formName || !formEmail || !formPassword || addMutation.isPending}
-                className="bg-amber-700 hover:bg-amber-800"
+                className="bg-[#7F1D1D] hover:bg-[#991B1B]"
               >
                 {addMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Simpan
@@ -221,9 +221,9 @@ export function UserManagement() {
           <p className="font-semibold text-red-800 text-sm">Administrator</p>
           <p className="text-xs text-red-600 mt-1">Akses penuh: Tambah, Edit, Hapus data dan kelola pengguna</p>
         </div>
-        <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-          <p className="font-semibold text-amber-800 text-sm">Editor</p>
-          <p className="text-xs text-amber-600 mt-1">Tambah dan edit data anggota & pernikahan</p>
+        <div className="p-3 bg-[#F5E6D3] rounded-lg border border-[#D4A574]">
+          <p className="font-semibold text-[#3E2723] text-sm">Editor</p>
+          <p className="text-xs text-[#795548] mt-1">Tambah dan edit data anggota & pernikahan</p>
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
           <p className="font-semibold text-gray-800 text-sm">Pengamat</p>
@@ -231,28 +231,28 @@ export function UserManagement() {
         </div>
       </div>
 
-      <Card className="border-amber-200/50">
+      <Card className="border-[#D4A574]/50">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-amber-50/50">
-                    <TableHead className="text-amber-800">Nama</TableHead>
-                    <TableHead className="text-amber-800">Email</TableHead>
-                    <TableHead className="text-amber-800">Role</TableHead>
-                    <TableHead className="text-amber-800">Status</TableHead>
-                    <TableHead className="text-amber-800 text-right">Aksi</TableHead>
+                  <TableRow className="hover:bg-[#F5E6D3]/50">
+                    <TableHead className="text-[#3E2723]">Nama</TableHead>
+                    <TableHead className="text-[#3E2723]">Email</TableHead>
+                    <TableHead className="text-[#3E2723]">Role</TableHead>
+                    <TableHead className="text-[#3E2723]">Status</TableHead>
+                    <TableHead className="text-[#3E2723] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.id} className="hover:bg-amber-50/50">
-                      <TableCell className="font-medium text-amber-900">{user.name}</TableCell>
+                    <TableRow key={user.id} className="hover:bg-[#F5E6D3]/50">
+                      <TableCell className="font-medium text-[#3E2723]">{user.name}</TableCell>
                       <TableCell className="text-sm">{user.email}</TableCell>
                       <TableCell>
                         <Badge className={roleColors[user.role] || ""}>{user.role}</Badge>
@@ -343,7 +343,7 @@ export function UserManagement() {
             <Button
               onClick={handleEditSave}
               disabled={updateMutation.isPending}
-              className="bg-amber-700 hover:bg-amber-800"
+              className="bg-[#7F1D1D] hover:bg-[#991B1B]"
             >
               {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Simpan

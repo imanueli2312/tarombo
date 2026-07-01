@@ -140,7 +140,7 @@ export function PersonDetail() {
   if (isLoading || !person) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#7F1D1D]" />
       </div>
     );
   }
@@ -184,7 +184,7 @@ export function PersonDetail() {
           setSelectedPersonId(null);
           setActiveView("persons");
         }}
-        className="flex items-center gap-2 text-sm text-amber-700 hover:text-amber-800 mb-4"
+        className="flex items-center gap-2 text-sm text-[#7F1D1D] hover:text-[#991B1B] mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
         Kembali ke Daftar
@@ -192,12 +192,12 @@ export function PersonDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
-        <Card className="lg:col-span-2 border-amber-200/50">
+        <Card className="lg:col-span-2 border-[#D4A574]/50">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold text-amber-900">
+                  <h1 className="text-2xl font-bold text-[#3E2723]">
                     {person.fullName}
                   </h1>
                   {person.isDeceased && (
@@ -207,7 +207,7 @@ export function PersonDetail() {
                   )}
                 </div>
                 {person.nickname && (
-                  <p className="text-amber-600">
+                  <p className="text-[#795548]">
                     &quot;{person.nickname}&quot;
                   </p>
                 )}
@@ -217,7 +217,7 @@ export function PersonDetail() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-amber-200"
+                    className="border-[#D4A574]"
                     onClick={() => {
                       setEditingPersonId(person.id);
                       setActiveView("person-form");
@@ -267,8 +267,8 @@ export function PersonDetail() {
           <CardContent className="space-y-6">
             {/* Basic Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <User className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <User className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Jenis Kelamin</p>
                   <p className="text-sm font-medium">
@@ -276,8 +276,8 @@ export function PersonDetail() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <Heart className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <Heart className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">
                     Status Pernikahan
@@ -288,8 +288,8 @@ export function PersonDetail() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <Calendar className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <Calendar className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Tanggal Lahir</p>
                   <p className="text-sm font-medium">
@@ -302,8 +302,8 @@ export function PersonDetail() {
                   )}
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <MapPin className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <MapPin className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Tempat Lahir</p>
                   <p className="text-sm font-medium">
@@ -337,8 +337,8 @@ export function PersonDetail() {
                   </div>
                 </>
               )}
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <Calendar className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <Calendar className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">
                     Urutan Kelahiran
@@ -348,8 +348,8 @@ export function PersonDetail() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <Users className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <Users className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Agama</p>
                   <p className="text-sm font-medium">
@@ -357,8 +357,8 @@ export function PersonDetail() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <Phone className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <Phone className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Telepon</p>
                   <p className="text-sm font-medium">
@@ -370,8 +370,8 @@ export function PersonDetail() {
 
             {/* Address */}
             {person.address && (
-              <div className="flex items-start gap-3 p-3 bg-amber-50/50 rounded-lg">
-                <MapPin className="w-5 h-5 text-amber-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#F5E6D3]/50 rounded-lg">
+                <MapPin className="w-5 h-5 text-[#795548] mt-0.5" />
                 <div>
                   <p className="text-xs text-muted-foreground">Alamat</p>
                   <p className="text-sm font-medium">{person.address}</p>
@@ -384,18 +384,18 @@ export function PersonDetail() {
         {/* Side Info */}
         <div className="space-y-4">
           {/* Photo */}
-          <Card className="border-amber-200/50">
+          <Card className="border-[#D4A574]/50">
             <CardContent className="p-4">
               <div className="flex justify-center">
                 {person.photoPath ? (
                   <img
                     src={person.photoPath}
                     alt={person.fullName}
-                    className="w-32 h-32 object-cover rounded-xl border-2 border-amber-200"
+                    className="w-32 h-32 object-cover rounded-xl border-2 border-[#D4A574]"
                   />
                 ) : (
-                  <div className="w-32 h-32 bg-amber-100 rounded-xl flex items-center justify-center border-2 border-amber-200 border-dashed">
-                    <User className="w-12 h-12 text-amber-300" />
+                  <div className="w-32 h-32 bg-[#F5E6D3] rounded-xl flex items-center justify-center border-2 border-[#D4A574] border-dashed">
+                    <User className="w-12 h-12 text-[#D4A574]" />
                   </div>
                 )}
               </div>
@@ -403,9 +403,9 @@ export function PersonDetail() {
           </Card>
 
           {/* Parents */}
-          <Card className="border-amber-200/50">
+          <Card className="border-[#D4A574]/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-amber-800">
+              <CardTitle className="text-sm font-semibold text-[#3E2723]">
                 Orang Tua
               </CardTitle>
             </CardHeader>
@@ -415,10 +415,10 @@ export function PersonDetail() {
                   onClick={() => {
                     setSelectedPersonId(person.father!.id);
                   }}
-                  className="w-full text-left p-2 rounded-lg hover:bg-amber-50 transition-colors"
+                  className="w-full text-left p-2 rounded-lg hover:bg-[#F5E6D3] transition-colors"
                 >
                   <p className="text-xs text-muted-foreground">Ayah</p>
-                  <p className="text-sm font-medium text-amber-900">
+                  <p className="text-sm font-medium text-[#3E2723]">
                     {person.father.fullName}
                   </p>
                 </button>
@@ -433,10 +433,10 @@ export function PersonDetail() {
                   onClick={() => {
                     setSelectedPersonId(person.mother!.id);
                   }}
-                  className="w-full text-left p-2 rounded-lg hover:bg-amber-50 transition-colors"
+                  className="w-full text-left p-2 rounded-lg hover:bg-[#F5E6D3] transition-colors"
                 >
                   <p className="text-xs text-muted-foreground">Ibu</p>
-                  <p className="text-sm font-medium text-amber-900">
+                  <p className="text-sm font-medium text-[#3E2723]">
                     {person.mother.fullName}
                   </p>
                 </button>
@@ -450,9 +450,9 @@ export function PersonDetail() {
 
           {/* Spouses */}
           {allMarriages.length > 0 && (
-            <Card className="border-amber-200/50">
+            <Card className="border-[#D4A574]/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-amber-800">
+                <CardTitle className="text-sm font-semibold text-[#3E2723]">
                   Pernikahan
                 </CardTitle>
               </CardHeader>
@@ -460,7 +460,7 @@ export function PersonDetail() {
                 {allMarriages.map((m) => (
                   <div
                     key={m.id}
-                    className="p-2 rounded-lg bg-amber-50/50"
+                    className="p-2 rounded-lg bg-[#F5E6D3]/50"
                   >
                     <button
                       onClick={() => setSelectedPersonId(m.spouse.id)}
@@ -469,7 +469,7 @@ export function PersonDetail() {
                       <p className="text-xs text-muted-foreground">
                         {m.role} dari
                       </p>
-                      <p className="text-sm font-medium text-amber-900">
+                      <p className="text-sm font-medium text-[#3E2723]">
                         {m.spouse.fullName}
                       </p>
                     </button>
@@ -496,9 +496,9 @@ export function PersonDetail() {
 
           {/* Children */}
           {person.allChildren && person.allChildren.length > 0 && (
-            <Card className="border-amber-200/50">
+            <Card className="border-[#D4A574]/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-amber-800">
+                <CardTitle className="text-sm font-semibold text-[#3E2723]">
                   Anak ({person.allChildren.length})
                 </CardTitle>
               </CardHeader>
@@ -508,19 +508,19 @@ export function PersonDetail() {
                     <button
                       key={child.id}
                       onClick={() => setSelectedPersonId(child.id)}
-                      className="w-full text-left p-2 rounded-lg hover:bg-amber-50 transition-colors flex items-center gap-2"
+                      className="w-full text-left p-2 rounded-lg hover:bg-[#F5E6D3] transition-colors flex items-center gap-2"
                     >
                       <span className="text-xs">
                         {child.gender === "MALE" ? "♂" : "♀"}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-amber-900 truncate">
+                        <p className="text-sm font-medium text-[#3E2723] truncate">
                           {child.fullName}
                           {child.isDeceased && " ✝"}
                         </p>
                       </div>
                       {child.birthOrder && (
-                        <span className="text-xs text-muted-foreground bg-amber-100 px-1.5 py-0.5 rounded">
+                        <span className="text-xs text-muted-foreground bg-[#F5E6D3] px-1.5 py-0.5 rounded">
                           #{child.birthOrder}
                         </span>
                       )}

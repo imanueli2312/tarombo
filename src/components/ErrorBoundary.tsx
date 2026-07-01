@@ -41,8 +41,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="min-h-[400px] flex items-center justify-center p-4">
           <div className="text-center max-w-md">
-            <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-amber-900 mb-2">
+            <AlertTriangle className="w-12 h-12 text-[#B8860B] mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-[#3E2723] mb-2">
               Terjadi Kesalahan
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
@@ -51,7 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <Button
               onClick={this.handleReset}
               variant="outline"
-              className="border-amber-200"
+              className="border-[#D4A574]"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Coba Lagi

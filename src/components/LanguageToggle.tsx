@@ -25,7 +25,7 @@ export function LanguageToggle() {
           <DropdownMenuItem
             key={l.value}
             onClick={() => setLocale(l.value)}
-            className={locale === l.value ? "bg-amber-50" : ""}
+            className={locale === l.value ? "bg-[#F5E6D3]" : ""}
           >
             {l.label}
           </DropdownMenuItem>
