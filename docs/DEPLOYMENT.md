@@ -34,7 +34,7 @@ Create a `.env` file in the project root with the following variables:
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | SQLite connection string. Default: `file:./db/tarombo.db` |
+| `DATABASE_URL` | Yes | SQLite connection string. Default: `file:../db/tarombo.db` |
 | `NEXTAUTH_SECRET` | Yes | Secret used by NextAuth for signing tokens. Generate with: |
 
 ```bash
@@ -44,7 +44,7 @@ openssl rand -base64 32
 ### Example `.env` file
 
 ```env
-DATABASE_URL="file:./db/tarombo.db"
+DATABASE_URL="file:../db/tarombo.db"
 NEXTAUTH_SECRET="your-generated-secret-here"
 ```
 
@@ -168,7 +168,7 @@ docker run -d \
   --restart unless-stopped \
   -p 3000:3000 \
   -e NEXTAUTH_SECRET="$(openssl rand -base64 32)" \
-  -e DATABASE_URL="file:./db/tarombo.db" \
+  -e DATABASE_URL="file:../db/tarombo.db" \
   -v tarombo-db:/app/db \
   -v tarombo-uploads:/app/public/uploads/persons \
   tarombo
@@ -196,7 +196,7 @@ Type=simple
 User=tarombo
 WorkingDirectory=/opt/tarombo
 Environment=NODE_ENV=production
-Environment=DATABASE_URL=file:./db/tarombo.db
+Environment=DATABASE_URL=file:../db/tarombo.db
 Environment=NEXTAUTH_SECRET=your-secret-here
 ExecStart=/usr/local/bin/bun run .next/standalone/server.js
 Restart=on-failure
@@ -466,7 +466,7 @@ notepad .env
 Edit `.env`:
 
 ```env
-DATABASE_URL="file:./db/tarombo.db"
+DATABASE_URL="file:../db/tarombo.db"
 NEXTAUTH_SECRET="generate-a-random-secret-here"
 ```
 
@@ -531,7 +531,7 @@ nssm install Tarombo
    - **Path**: `C:\Users\<you>\.bun\bin\bun.exe`
    - **Arguments**: `run start`
    - **Startup directory**: `C:\path\to\tarombo`
-   - **Environment** tab: add `NODE_ENV=production`, `DATABASE_URL=file:./db/tarombo.db`, `NEXTAUTH_SECRET=your-secret`
+   - **Environment** tab: add `NODE_ENV=production`, `DATABASE_URL=file:../db/tarombo.db`, `NEXTAUTH_SECRET=your-secret`
 
 4. Start the service:
 
