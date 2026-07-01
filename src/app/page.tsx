@@ -14,6 +14,8 @@ import { MarriageList } from "@/components/tarombo/MarriageList";
 import { UserManagement } from "@/components/tarombo/UserManagement";
 import { BackupRestore } from "@/components/tarombo/BackupRestore";
 import { AuditLogViewer } from "@/components/tarombo/AuditLogViewer";
+import { DashboardStats } from "@/components/tarombo/DashboardStats";
+import { PasswordChange } from "@/components/tarombo/PasswordChange";
 
 function AppContent() {
   const activeView = useAppStore((s) => s.activeView);
@@ -28,6 +30,8 @@ function AppContent() {
   if (activeView === "users") return <MainLayout><UserManagement /></MainLayout>;
   if (activeView === "backup") return <MainLayout><BackupRestore /></MainLayout>;
   if (activeView === "audit-logs") return <MainLayout><AuditLogViewer /></MainLayout>;
+  if (activeView === "dashboard") return <MainLayout><DashboardStats /></MainLayout>;
+  if (activeView === "password") return <MainLayout><PasswordChange /></MainLayout>;
 
   return <LoginForm />;
 }

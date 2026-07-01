@@ -132,6 +132,34 @@ export async function PUT(
     const body = await request.json();
     const validated = personUpdateSchema.parse(body);
 
+    // Validate logical date constraints for updated dates
+    // Use the new value if provided, otherwise fall back to existing value
+    const effectiveBirthDate = validated.birthDate !== undefined ? validated.birthDate : existing.birthDate?.toISOString();
+    const effectiveDeathDate = validated.deathDate !== undefined ? validated.deathDate : existing.deathDate?.toISOString();
+
+    if (effectiveBirthDate && effectiveDeathDate) {
+      if (new Date(effectiveDeathDate) < new Date(effectiveBirthDate)) {
+        return NextResponse.json(
+          { error: "Tanggal meninggal tidak boleh sebelum tanggal lahir" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (effectiveDeathDate && new Date(effectiveDeathDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal meninggal tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
+    if (effectiveBirthDate && new Date(effectiveBirthDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal lahir tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
     // Prevent circular references (full ancestor chain check)
     if (validated.fatherId && validated.fatherId !== id) {
       const circularError = await checkCircularReference(id, validated.fatherId, "father");

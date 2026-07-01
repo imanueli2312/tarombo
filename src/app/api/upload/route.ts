@@ -6,6 +6,7 @@ import type { Role } from "@/lib/rbac";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import path from "path";
 import crypto from "crypto";
+import sharp from "sharp";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "persons");
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -68,16 +69,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename with sanitized extension
-    const SAFE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"];
-    const rawExt = (file.name.split(".").pop() || "").toLowerCase();
-    const ext = SAFE_EXTENSIONS.includes(rawExt) ? rawExt : "jpg";
-    const filename = `${crypto.randomBytes(16).toString("hex")}.${ext}`;
+    // Generate unique filename (always .jpg since sharp converts to JPEG)
+    const filename = `${crypto.randomBytes(16).toString("hex")}.jpg`;
     const filePath = path.join(UPLOAD_DIR, filename);
 
     // Write file to disk
     const bytes = await file.arrayBuffer();
     writeFileSync(filePath, Buffer.from(bytes));
+
+    // Compress/resize image for web display
+    try {
+      const MAX_DIMENSION = 800;
+      const QUALITY = 80;
+
+      await sharp(filePath)
+        .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: QUALITY })
+        .toFile(filePath);
+    } catch (compressErr) {
+      // If compression fails, the original file is still saved
+      console.error("Image compression failed, keeping original:", compressErr);
+    }
 
     const photoPath = `/uploads/persons/${filename}`;
 

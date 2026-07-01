@@ -100,6 +100,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = marriageSchema.parse(body);
 
+    // Validate marriage date is not in the future
+    if (validated.marriageDate && new Date(validated.marriageDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal pernikahan tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
     // Validate husband exists and is male
     const husband = await db.person.findUnique({
       where: { id: validated.husbandId },

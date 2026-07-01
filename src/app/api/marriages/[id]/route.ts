@@ -86,6 +86,24 @@ export async function PUT(
     const body = await request.json();
     const validated = marriageUpdateSchema.parse(body);
 
+    // Validate marriage date is not in the future
+    if (validated.marriageDate && new Date(validated.marriageDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal pernikahan tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
+    // Validate divorce date is after marriage date
+    if (validated.divorceDate && existing.marriageDate) {
+      if (new Date(validated.divorceDate) < new Date(existing.marriageDate)) {
+        return NextResponse.json(
+          { error: "Tanggal perceraian tidak boleh sebelum tanggal pernikahan" },
+          { status: 400 }
+        );
+      }
+    }
+
     const marriage = await db.marriage.update({
       where: { id },
       data: {

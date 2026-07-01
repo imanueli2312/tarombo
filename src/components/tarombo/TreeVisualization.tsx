@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as d3 from "d3";
 import { useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   ZoomIn,
   ZoomOut,
@@ -12,7 +13,10 @@ import {
   Loader2,
   UserPlus,
   TreePine,
+  Search,
+  Camera,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface TreeNode {
   id: string;
@@ -44,10 +48,19 @@ interface D3Node extends d3.HierarchyPointNode<TreeNode> {
   data: TreeNode;
 }
 
+interface SearchMatch {
+  id: string;
+  fullName: string;
+  nickname: string | null;
+  gender: "MALE" | "FEMALE";
+}
+
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 70;
 const SPOUSE_GAP = 10;
 const COUPLE_WIDTH = NODE_WIDTH * 2 + SPOUSE_GAP;
+
+const ROMAN_NUMERALS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -67,11 +80,30 @@ function truncate(str: string, maxLen: number): string {
   return str.length > maxLen ? str.substring(0, maxLen) + "..." : str;
 }
 
+function getGenerationLabel(depth: number, isVirtualRoot: boolean): string {
+  const gen = isVirtualRoot ? depth : depth + 1;
+  return gen <= 10 ? `Gen ${ROMAN_NUMERALS[gen]}` : `Gen ${gen}`;
+}
+
+function collectAllNodes(node: TreeNode): TreeNode[] {
+  const result: TreeNode[] = [node];
+  if (node.children) {
+    for (const child of node.children) {
+      result.push(...collectAllNodes(child));
+    }
+  }
+  return result;
+}
+
 export function TreeVisualization() {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const nodePositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchMatch[]>([]);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedPersonId = useAppStore((s) => s.setSelectedPersonId);
   const canCreate = useAppStore((s) => s.canCreate);
@@ -83,6 +115,60 @@ export function TreeVisualization() {
       return r.json();
     }),
   });
+
+  const isVirtualRoot = treeData?.id === "virtual-root";
+
+  // Build a flat list of all nodes for search
+  const allNodes = useMemo(() => {
+    if (!treeData) return [];
+    return collectAllNodes(treeData).filter((n) => n.id !== "virtual-root");
+  }, [treeData]);
+
+  // Search handler
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const term = searchTerm.toLowerCase().trim();
+    const matches = allNodes
+      .filter(
+        (n) =>
+          n.fullName.toLowerCase().includes(term) ||
+          (n.nickname && n.nickname.toLowerCase().includes(term))
+      )
+      .slice(0, 5)
+      .map((n) => ({
+        id: n.id,
+        fullName: n.fullName,
+        nickname: n.nickname,
+        gender: n.gender,
+      }));
+    setSearchResults(matches);
+  }, [searchTerm, allNodes]);
+
+  const zoomToNode = useCallback((personId: string) => {
+    if (!svgRef.current || !zoomRef.current || !treeData) return;
+    const pos = nodePositionsRef.current.get(personId);
+    if (!pos) return;
+
+    const width = containerRef.current?.clientWidth || 800;
+    const height = containerRef.current?.clientHeight || 600;
+
+    d3.select(svgRef.current)
+      .transition()
+      .duration(750)
+      .call(
+        zoomRef.current.transform,
+        d3.zoomIdentity
+          .translate(width / 2 - pos.x * 1.5, height / 2 - pos.y * 1.5)
+          .scale(1.5)
+      );
+
+    setHighlightedNodeId(personId);
+    setSearchResults([]);
+    setSearchTerm("");
+  }, [treeData]);
 
   const drawTree = useCallback(() => {
     if (!svgRef.current || !containerRef.current || !treeData) return;
@@ -112,6 +198,13 @@ export function TreeVisualization() {
 
       const treeLayout = d3.tree<TreeNode>().nodeSize([COUPLE_WIDTH + 30, 120]);
       treeLayout(root);
+
+      // Store node positions for search
+      const positions = new Map<string, { x: number; y: number }>();
+      root.descendants().forEach((d) => {
+        positions.set(d.data.id, { x: d.x, y: d.y });
+      });
+      nodePositionsRef.current = positions;
 
       // Draw links
       g.selectAll<SVGPathElement, d3.HierarchyPointLink<TreeNode>>(".link")
@@ -236,6 +329,18 @@ export function TreeVisualization() {
         .attr("font-weight", "600")
         .text("✝");
 
+      // Generation badge (Task 7)
+      nodes
+        .filter((d) => d.data.id !== "virtual-root")
+        .append("text")
+        .attr("x", NODE_WIDTH - 8)
+        .attr("y", 64)
+        .attr("text-anchor", "end")
+        .attr("font-size", "7px")
+        .attr("fill", "#d97706")
+        .attr("font-weight", "600")
+        .text((d) => getGenerationLabel(d.depth, !!isVirtualRoot));
+
       // Draw spouse
       nodes
         .filter((d) => d.data.spouse)
@@ -323,6 +428,20 @@ export function TreeVisualization() {
             });
         });
 
+      // Highlight effect for searched node (Task 5)
+      nodes
+        .filter((d) => highlightedNodeId && d.data.id === highlightedNodeId)
+        .append("rect")
+        .attr("x", -4)
+        .attr("y", -4)
+        .attr("width", COUPLE_WIDTH + 8)
+        .attr("height", NODE_HEIGHT + 8)
+        .attr("rx", 12)
+        .attr("fill", "none")
+        .attr("stroke", "#f59e0b")
+        .attr("stroke-width", 3)
+        .style("filter", "drop-shadow(0 0 6px rgba(245, 158, 11, 0.5))");
+
       // Initial zoom to fit
       const svgEl = svgRef.current;
       const bounds = (g.node() as SVGGElement)?.getBBox();
@@ -345,7 +464,7 @@ export function TreeVisualization() {
     } catch (err) {
       console.error("Error drawing tree:", err);
     }
-  }, [treeData]);
+  }, [treeData, highlightedNodeId, isVirtualRoot]);
 
   useEffect(() => {
     drawTree();
@@ -379,6 +498,37 @@ export function TreeVisualization() {
   const handleNodeClick = (personId: string) => {
     setSelectedPersonId(personId);
     setActiveView("person-detail");
+  };
+
+  const handleExportImage = () => {
+    if (!svgRef.current) return;
+
+    const svg = svgRef.current;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+
+    const bounds = svg.getBBox();
+    const width = bounds.width + bounds.x * 2 + 40;
+    const height = bounds.height + bounds.y * 2 + 40;
+
+    clone.setAttribute("width", String(width));
+    clone.setAttribute("height", String(height));
+    clone.setAttribute("viewBox", `${bounds.x - 20} ${bounds.y - 20} ${width} ${height}`);
+
+    clone.style.backgroundColor = "white";
+
+    const svgData = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tarombo-hariandja.svg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success("Pohon keluarga berhasil diekspor sebagai SVG");
   };
 
   if (isLoading) {
@@ -442,6 +592,15 @@ export function TreeVisualization() {
           variant="outline"
           size="icon"
           className="bg-white/90 shadow-md hover:bg-amber-50"
+          onClick={handleExportImage}
+          title="Ekspor SVG"
+        >
+          <Camera className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="bg-white/90 shadow-md hover:bg-amber-50"
           onClick={handleZoomIn}
         >
           <ZoomIn className="w-4 h-4" />
@@ -484,6 +643,35 @@ export function TreeVisualization() {
             <div className="w-4 h-3 rounded-sm bg-red-500 text-white text-[7px] flex items-center justify-center font-bold">✝</div>
             <span className="text-muted-foreground">Telah Meninggal</span>
           </div>
+        </div>
+      </div>
+
+      {/* Search in Tree - below legend */}
+      <div className="absolute top-[180px] left-3 z-10 w-56">
+        <div className="bg-white/90 rounded-lg shadow-md p-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Cari anggota..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 h-8 text-xs border-amber-200"
+            />
+          </div>
+          {searchResults.length > 0 && (
+            <div className="mt-1 max-h-40 overflow-y-auto bg-white rounded-md border border-amber-200 shadow-sm">
+              {searchResults.map((r) => (
+                <button
+                  key={r.id}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-amber-50 transition-colors flex items-center gap-2"
+                  onClick={() => zoomToNode(r.id)}
+                >
+                  <span>{r.gender === "MALE" ? "♂" : "♀"}</span>
+                  <span className="truncate">{r.fullName}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

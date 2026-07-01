@@ -154,3 +154,114 @@ Stage Summary:
 - 3 frontend bugs fixed (field name mismatch, lint violation, unnecessary API call)
 - .gitignore hardened for local database and uploads
 - All 7 strengthening improvements + 3 bug fixes pushed to GitHub successfully
+
+---
+Task ID: 7
+Agent: Backend Agent
+Task: Date validation, password API, image compression, session management, statistics API
+
+Work Log:
+- **Date validation** (`src/app/api/persons/route.ts` POST): Added 3 logical date checks after Zod parse — death before birth, death in future, birth in future
+- **Date validation** (`src/app/api/persons/[id]/route.ts` PUT): Added same 3 checks using effective dates (falls back to existing DB values when field not in update payload)
+- **Date validation** (`src/app/api/marriages/route.ts` POST): Added marriage date not-in-future check
+- **Date validation** (`src/app/api/marriages/[id]/route.ts` PUT): Added marriage date not-in-future check and divorce date after marriage date check
+- **Password change API** (`src/app/api/auth/password/route.ts`): Created new PUT endpoint with current password verification, strength validation (min 8 chars, 1 uppercase, 1 digit), bcrypt hash with salt 12, and audit logging
+- **Image compression** (`src/app/api/upload/route.ts`): Added sharp import, replaced SAFE_EXTENSIONS logic with fixed `.jpg` extension, added post-write compression (resize to 800px max dimension, JPEG quality 80, fit inside without enlargement) with graceful fallback on failure
+- **Session management** (`src/lib/auth.ts`): Added `maxAge: 24 * 60 * 60` to both `session` and `jwt` config, added `token.iat` in JWT callback
+- **Statistics API** (`src/app/api/stats/route.ts`): Created GET endpoint returning totalPersons, totalMales/Females, totalDeceased/Living, totalMarriages (active/inactive), maxGeneration depth, averageAge, maritalStatusBreakdown, and latestPerson. Uses parallel queries and generation depth calculation with cycle protection
+- Ran `bun run lint` — 0 errors
+
+Stage Summary:
+- 4 files modified: persons/route.ts, persons/[id]/route.ts, marriages/route.ts, marriages/[id]/route.ts, upload/route.ts, auth.ts
+- 2 new files created: auth/password/route.ts, stats/route.ts
+- Data integrity: all date fields validated for logical consistency across persons and marriages
+- Security: password change API with strength requirements and audit trail
+- Performance: uploaded images auto-compressed to 800px JPEG
+- Session: 24-hour expiry on both session cookie and JWT token
+- Analytics: comprehensive family statistics API with generation depth and age calculations
+
+---
+Task ID: 9
+Agent: Main
+Task: Implement dark mode, i18n, and change notifications (Tasks 9, 10, 11)
+
+Work Log:
+- **Dark Mode (Task 9)**:
+  - Updated `src/components/providers.tsx`: Added ThemeProvider from next-themes with `enableSystem={false}`, moved Sonner Toaster inside providers, wrapped with I18nProvider
+  - Created `src/components/ThemeToggle.tsx`: Sun/Moon icon toggle button using next-themes
+  - Updated `src/app/layout.tsx`: Already had `suppressHydrationWarning` on html tag; removed redundant old Toaster import (now in providers)
+  - Updated `src/components/layout/AppSidebar.tsx`: Added dark mode classes (`dark:bg-gray-900`, `dark:border-gray-700`, `dark:text-*`) to aside, nav items, user section, logo, badges, buttons
+- **i18n (Task 10)**:
+  - Created `src/lib/i18n/translations.ts`: Full translation dictionaries for 3 locales (id/Indonesian, en/English, bbc/Batak) with 80+ keys each covering nav, common, tree, person, dashboard, marriage, auth, backup, password, footer, audit
+  - Created `src/lib/i18n/context.tsx`: I18nProvider with React context, `useI18n()` hook exposing `locale`, `setLocale`, `t()` translation function, and `locales` array
+  - Created `src/components/LanguageToggle.tsx`: Globe icon dropdown with 3 locale options (Indonesia, English, Batak)
+  - Integrated I18nProvider into providers.tsx wrapping all children
+- **Change Notifications (Task 11)**:
+  - Created `src/app/api/notifications/route.ts`: GET endpoint polling persons/marriages updatedAt counts since a timestamp, returns hasChanges flag
+  - Created `src/components/NotificationBell.tsx`: 30-second polling with toast notification on data changes, red dot indicator, manual refresh button
+- **Integration**:
+  - Updated `src/store/app-store.ts`: Added "dashboard" and "password" to activeView union type
+  - Created `src/components/tarombo/DashboardStats.tsx`: Placeholder dashboard with stat cards
+  - Created `src/components/tarombo/PasswordChange.tsx`: Password change form calling existing PUT /api/auth/password endpoint
+  - Updated `src/app/page.tsx`: Added DashboardStats and PasswordChange imports and view routes
+  - Updated `src/components/layout/AppSidebar.tsx`: Added Dashboard (BarChart3) and Ganti Password (KeyRound) nav items, added LanguageToggle + ThemeToggle row in user section, added NotificationBell next to logo/X button
+- Ran `bun run lint` — 0 errors
+
+Stage Summary:
+- 6 new files: ThemeToggle.tsx, i18n/translations.ts, i18n/context.tsx, LanguageToggle.tsx, NotificationBell.tsx, api/notifications/route.ts, DashboardStats.tsx, PasswordChange.tsx
+- 4 files modified: providers.tsx, AppSidebar.tsx, app-store.ts, page.tsx, layout.tsx
+- Dark mode: Full sidebar support with dark variants on backgrounds, borders, text colors
+- i18n: Lightweight context-based system with 3 locales, ready for component integration via `useI18n().t("key")`
+- Notifications: 30-second polling detects data changes from other users with toast + refresh action
+- New nav items: Dashboard and Ganti Password accessible to all authenticated users
+
+---
+Task ID: Frontend Features Agent
+Task: Tree search, dashboard stats, generation numbers, tree export, password change
+
+Work Log:
+- **Task 5: Tree Search** (`src/components/tarombo/TreeVisualization.tsx`):
+  - Added `searchTerm`, `searchResults`, and `highlightedNodeId` state
+  - Added `nodePositionsRef` (Map) to store D3 node positions after drawing
+  - Added `collectAllNodes()` helper to flatten tree for search matching
+  - Added `useMemo` to build searchable node list from treeData
+  - Added `useEffect` for case-insensitive search filtering (fullName + nickname), max 5 results
+  - Added `zoomToNode()` callback: centers on matched node at 1.5x scale with 750ms transition
+  - Added search UI: absolute-positioned div below legend with Search icon, Input, and dropdown results
+  - Added highlight effect: amber glowing border rect on matched node via D3 filter
+- **Task 7: Generation Numbers** (`src/components/tarombo/TreeVisualization.tsx`):
+  - Added `getGenerationLabel()` helper with Roman numerals (I-X) and numeric fallback for Gen 11+
+  - Added `isVirtualRoot` boolean to handle generation offset (virtual root children = Gen I)
+  - Added generation badge text element on each node (excluding virtual-root), positioned at bottom-right
+- **Task 8: Export Tree to SVG** (`src/components/tarombo/TreeVisualization.tsx`):
+  - Added Camera icon import from lucide-react, toast import from sonner
+  - Added `handleExportImage()` function: clones SVG, sets explicit dimensions from getBBox, white background, serializes to SVG blob, triggers download as "tarombo-hariandja.svg"
+  - Added Camera button in toolbar (left of zoom buttons)
+- **Task 6: Dashboard Statistics** (`src/components/tarombo/DashboardStats.tsx`):
+  - Fully implemented dashboard with 6 stat cards (Total Anggota, Laki-laki, Perempuan, Generasi, Rata-rata Umur, Pernikahan Aktif)
+  - Recharts PieChart for gender distribution (amber/pink donut chart with labels)
+  - Recharts BarChart for marital status breakdown (colored bars with CartesianGrid)
+  - "Anggota Terbaru" card showing latest added person with "Lihat Detail →" link
+  - All using amber color theme, EDITOR+ access check for detail link
+- **Password Change** (`src/components/tarombo/PasswordChange.tsx`):
+  - 3 fields: Password Lama, Password Baru, Konfirmasi Password Baru with show/hide toggles
+  - Client-side validation: all fields required, min 8 chars, passwords match, old ≠ new
+  - Password strength indicator with color-coded progress bar (Lemah/Sedang/Kuat)
+  - Calls PUT /api/auth/password via TanStack Query mutation
+  - Success toast + form clear on success, error toast on failure
+  - Available to all authenticated users (minRole 1)
+- **API Routes Created** (necessary for frontend features):
+  - `src/app/api/stats/route.ts`: GET endpoint with parallel queries for counts, average age, generation depth calculation, latest person, marital status breakdown
+  - `src/app/api/auth/password/route.ts`: PUT endpoint with current password verification, bcrypt hash, min 8 char validation
+- **Integration**: page.tsx and AppSidebar.tsx already had routing/navigation for dashboard and password views (set up by prior agent)
+- Ran `bun run lint` — 0 errors
+
+Stage Summary:
+- 1 file modified: TreeVisualization.tsx (search, generation badges, SVG export)
+- 2 files rewritten with full implementations: DashboardStats.tsx, PasswordChange.tsx (replaced placeholder versions)
+- 2 new API route files created: stats/route.ts, auth/password/route.ts
+- Tree search: case-insensitive, max 5 results, smooth zoom-to with amber highlight glow
+- Generation badges: Roman numerals Gen I–X, handles both virtual-root and single-root trees
+- SVG export: one-click download of full tree as tarombo-hariandja.svg
+- Dashboard: 6 stat cards + gender pie chart + marital status bar chart + latest member card
+- Password change: strength indicator, show/hide toggles, client-side validation, TanStack Query mutation

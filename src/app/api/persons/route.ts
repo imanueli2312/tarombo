@@ -185,6 +185,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = personSchema.parse(body);
 
+    // Validate logical date constraints
+    if (validated.birthDate && validated.deathDate) {
+      if (new Date(validated.deathDate) < new Date(validated.birthDate)) {
+        return NextResponse.json(
+          { error: "Tanggal meninggal tidak boleh sebelum tanggal lahir" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate death date is not in the future
+    if (validated.deathDate && new Date(validated.deathDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal meninggal tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
+    // Validate birth date is not in the future (allow up to today)
+    if (validated.birthDate && new Date(validated.birthDate) > new Date()) {
+      return NextResponse.json(
+        { error: "Tanggal lahir tidak boleh di masa depan" },
+        { status: 400 }
+      );
+    }
+
     // Circular reference check: father cannot be a descendant of this person
     // (new person has no descendants yet, so this check is only needed
     // when fatherId/motherId would create a cycle with existing data)
