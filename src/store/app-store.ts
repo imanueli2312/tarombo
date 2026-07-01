@@ -8,6 +8,7 @@ interface AppState {
   activeView:
     | "login"
     | "register"
+    | "home"
     | "tree"
     | "persons"
     | "person-detail"
@@ -87,7 +88,7 @@ export function useSessionSync() {
 
     if (session && role) {
       if (activeView === "login" || activeView === "register") {
-        setActiveView("tree");
+        setActiveView("home");
       }
     } else if (!session) {
       if (activeView !== "login" && activeView !== "register") {

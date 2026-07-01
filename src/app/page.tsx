@@ -16,12 +16,14 @@ import { BackupRestore } from "@/components/tarombo/BackupRestore";
 import { AuditLogViewer } from "@/components/tarombo/AuditLogViewer";
 import { DashboardStats } from "@/components/tarombo/DashboardStats";
 import { PasswordChange } from "@/components/tarombo/PasswordChange";
+import { FamilySearch } from "@/components/tarombo/FamilySearch";
 
 function AppContent() {
   const activeView = useAppStore((s) => s.activeView);
 
   if (activeView === "login") return <LoginForm />;
   if (activeView === "register") return <RegisterForm />;
+  if (activeView === "home") return <MainLayout><FamilySearch /></MainLayout>;
   if (activeView === "tree") return <TreeView />;
   if (activeView === "persons") return <MainLayout><PersonList /></MainLayout>;
   if (activeView === "person-detail") return <MainLayout><PersonDetail /></MainLayout>;

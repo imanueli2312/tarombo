@@ -18,6 +18,7 @@ import {
   FileText,
   BarChart3,
   KeyRound,
+  Search,
 } from "lucide-react";
 import { getRoleLabel } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -26,13 +27,14 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useState } from "react";
 
 interface NavItem {
-  id: "tree" | "persons" | "marriages" | "users" | "backup" | "audit-logs" | "dashboard" | "password";
+  id: "home" | "tree" | "persons" | "marriages" | "users" | "backup" | "audit-logs" | "dashboard" | "password";
   label: string;
   icon: React.ReactNode;
   minRole: number;
 }
 
 const navItems: NavItem[] = [
+  { id: "home", label: "Cari Keluarga", icon: <Search className="w-5 h-5" />, minRole: 1 },
   { id: "dashboard", label: "Dashboard", icon: <BarChart3 className="w-5 h-5" />, minRole: 1 },
   { id: "tree", label: "Pohon Tarombo", icon: <TreePine className="w-5 h-5" />, minRole: 1 },
   { id: "persons", label: "Data Anggota", icon: <Users className="w-5 h-5" />, minRole: 1 },
