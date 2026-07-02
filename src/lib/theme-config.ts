@@ -2,7 +2,7 @@
 // Each theme defines the same set of CSS custom properties
 
 export type AppTheme = "batak-toba" | "modern" | "hijau" | "gelap" | "emas";
-export type TreeLayoutType = "vertical" | "horizontal" | "radial";
+export type TreeLayoutType = "vertical" | "horizontal" | "custom";
 
 export interface ThemeColors {
   name: string;

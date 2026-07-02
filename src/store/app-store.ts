@@ -51,7 +51,9 @@ function getStoredTheme(): AppTheme {
 
 function getStoredLayout(): TreeLayoutType {
   if (typeof window === "undefined") return "vertical";
-  return (localStorage.getItem("tarombo-layout") as TreeLayoutType) || "vertical";
+  const stored = localStorage.getItem("tarombo-layout");
+  if (stored === "vertical" || stored === "horizontal" || stored === "custom") return stored;
+  return "vertical";
 }
 
 export const useAppStore = create<AppState>((set, get) => ({

@@ -19,8 +19,10 @@ import {
   ChevronDown,
   ArrowDownUp,
   ArrowRightLeft,
-  CircleDot,
+  Settings2,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { toPng, toSvg } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -117,8 +119,22 @@ type PdfSize = "normal" | "besar" | "multiple";
 const layoutOptions: { key: TreeLayoutType; label: string; icon: React.ReactNode }[] = [
   { key: "vertical", label: "Vertikal", icon: <ArrowDownUp className="w-3.5 h-3.5" /> },
   { key: "horizontal", label: "Horizontal", icon: <ArrowRightLeft className="w-3.5 h-3.5" /> },
-  { key: "radial", label: "Radial", icon: <CircleDot className="w-3.5 h-3.5" /> },
+  { key: "custom", label: "Custom", icon: <Settings2 className="w-3.5 h-3.5" /> },
 ];
+
+interface CustomLayoutConfig {
+  hGap: number;
+  vGap: number;
+}
+
+function getStoredCustomConfig(): CustomLayoutConfig {
+  if (typeof window === "undefined") return { hGap: 30, vGap: 130 };
+  try {
+    const raw = localStorage.getItem("tarombo-custom-layout");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { hGap: 30, vGap: 130 };
+}
 
 export function TreeVisualization() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -132,6 +148,8 @@ export function TreeVisualization() {
   const [showPdfMenu, setShowPdfMenu] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [customConfig, setCustomConfig] = useState<CustomLayoutConfig>(getStoredCustomConfig);
+  const [showCustomPanel, setShowCustomPanel] = useState(false);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedPersonId = useAppStore((s) => s.setSelectedPersonId);
   const canCreate = useAppStore((s) => s.canCreate);
@@ -233,24 +251,19 @@ export function TreeVisualization() {
       const cAccent = tc("--t-accent", "#B8860B");
       const cHighlight = tc("--t-highlight", "#DAA520");
 
-      if (treeLayout === "radial") {
-        // === RADIAL LAYOUT ===
-        const radius = 300;
-        const treeLayoutR = d3.tree<TreeNode>().size([2 * Math.PI, radius]);
-        treeLayoutR(root);
+      if (treeLayout === "custom") {
+        // === CUSTOM LAYOUT (user-adjustable horizontal) ===
+        const ccfg = useAppStore.getState().treeLayout === "custom" ? customConfig : { hGap: 30, vGap: 130 };
+        const treeLayoutC = d3.tree<TreeNode>().nodeSize([CARD_HEIGHT + ccfg.hGap, CARD_WIDTH + ccfg.vGap]);
+        treeLayoutC(root);
 
-        // Store positions
         const positions = new Map<string, { x: number; y: number }>();
         root.descendants().forEach((d) => {
-          const angle = d.x - Math.PI / 2;
-          positions.set(d.data.id, {
-            x: Math.cos(angle) * d.y,
-            y: Math.sin(angle) * d.y,
-          });
+          positions.set(d.data.id, { x: d.y, y: d.x });
         });
         nodePositionsRef.current = positions;
 
-        // Links
+        // Links (left to right)
         g.selectAll<SVGPathElement, d3.HierarchyPointLink<TreeNode>>(".link")
           .data(root.links())
           .enter()
@@ -258,20 +271,17 @@ export function TreeVisualization() {
           .attr("class", "link")
           .attr("fill", "none")
           .attr("stroke", cLink)
-          .attr("stroke-width", 1.5)
+          .attr("stroke-width", 2)
           .attr("stroke-opacity", cLinkOpacity)
           .attr("d", (d) => {
-            const sx = Math.cos(d.source.x - Math.PI / 2) * d.source.y;
-            const sy = Math.sin(d.source.x - Math.PI / 2) * d.source.y;
-            const tx = Math.cos(d.target.x - Math.PI / 2) * d.target.y;
-            const ty = Math.sin(d.target.x - Math.PI / 2) * d.target.y;
-            const midR = (d.source.y + d.target.y) / 2;
-            const mx = Math.cos(d.source.x - Math.PI / 2) * midR;
-            const my = Math.sin(d.source.x - Math.PI / 2) * midR;
-            return `M ${sx} ${sy} Q ${mx} ${my}, ${tx} ${ty}`;
+            const sy = d.source.y;
+            const sx = d.source.x + (CARD_WIDTH + ccfg.vGap) / 2;
+            const ty = d.target.y;
+            const tx = d.target.x - (CARD_WIDTH + ccfg.vGap) / 2;
+            const midX = (sx + tx) / 2;
+            return `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`;
           });
 
-        // Nodes
         const nodes = g
           .selectAll<SVGGElement, D3Node>(".node")
           .data(root.descendants() as D3Node[])
@@ -288,8 +298,6 @@ export function TreeVisualization() {
           });
 
         drawCards(nodes, cPrimary, cFemale, cText, cCard, cAccent, isVirtualRoot);
-
-        // Highlight
         drawHighlight(nodes, cHighlight);
 
       } else if (treeLayout === "horizontal") {
@@ -410,7 +418,7 @@ export function TreeVisualization() {
     } catch (err) {
       console.error("Error drawing tree:", err);
     }
-  }, [treeData, highlightedNodeId, isVirtualRoot, treeLayout]);
+  }, [treeData, highlightedNodeId, isVirtualRoot, treeLayout, customConfig]);
 
   // Draw card content for each node (shared across all layouts)
   function drawCards(
@@ -774,7 +782,7 @@ export function TreeVisualization() {
           >
             {treeLayout === "vertical" && <ArrowDownUp className="w-4 h-4" />}
             {treeLayout === "horizontal" && <ArrowRightLeft className="w-4 h-4" />}
-            {treeLayout === "radial" && <CircleDot className="w-4 h-4" />}
+            {treeLayout === "custom" && <Settings2 className="w-4 h-4" />}
             <span className="hidden sm:inline text-xs capitalize">{treeLayout}</span>
             <ChevronDown className="w-3 h-3" />
           </Button>
@@ -839,8 +847,62 @@ export function TreeVisualization() {
         </Button>
       </div>
 
+      {/* Custom Layout Settings Panel */}
+      {treeLayout === "custom" && showCustomPanel && (
+        <div className="absolute top-3 left-3 z-20 bg-white rounded-lg shadow-xl border border-[var(--t-border)]/50 p-4 w-60">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-sm text-[var(--t-text)]">Pengaturan Custom</p>
+            <button onClick={() => setShowCustomPanel(false)} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Jarak Vertikal: {customConfig.hGap}px</Label>
+              <Slider
+                value={[customConfig.hGap]}
+                onValueChange={([v]) => {
+                  const next = { ...customConfig, hGap: v };
+                  setCustomConfig(next);
+                  localStorage.setItem("tarombo-custom-layout", JSON.stringify(next));
+                }}
+                min={10}
+                max={120}
+                step={5}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Jarak Horizontal: {customConfig.vGap}px</Label>
+              <Slider
+                value={[customConfig.vGap]}
+                onValueChange={([v]) => {
+                  const next = { ...customConfig, vGap: v };
+                  setCustomConfig(next);
+                  localStorage.setItem("tarombo-custom-layout", JSON.stringify(next));
+                }}
+                min={10}
+                max={100}
+                step={5}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {treeLayout === "custom" && !showCustomPanel && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute top-3 left-3 z-10 bg-white/90 shadow-md hover:bg-[var(--t-bg-warm)]"
+          onClick={() => setShowCustomPanel(true)}
+          title="Pengaturan Custom"
+        >
+          <Settings2 className="w-4 h-4" />
+        </Button>
+      )}
+
       {/* Legend */}
-      <div className="absolute top-3 left-3 z-10 bg-white/90 rounded-lg shadow-md p-3 text-xs">
+      {treeLayout !== "custom" && !showCustomPanel && (
+        <div className="absolute top-3 left-3 z-10 bg-white/90 rounded-lg shadow-md p-3 text-xs">
         <p className="font-semibold text-[var(--t-text)] mb-1.5">Keterangan:</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -860,7 +922,8 @@ export function TreeVisualization() {
             <span className="text-muted-foreground">Generasi</span>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="absolute top-[200px] left-3 z-10 w-56">
