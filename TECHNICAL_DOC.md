@@ -4,6 +4,8 @@
 **Audience:** Developers and maintainers
 **Last updated:** 7 August 2026
 
+> **Language:** **English** (this file) · [Indonesia](./TECHNICAL_DOC.id.md)
+
 ---
 
 ## Table of Contents

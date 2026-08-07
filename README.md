@@ -4,6 +4,8 @@
 
 ![Stack](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Database](https://img.shields.io/badge/SQLite-better--sqlite3-green) ![License](https://img.shields.io/badge/license-MIT-brightgreen)
 
+> **Language:** **English** (this file) · [Indonesia](./README.id.md)
+
 ---
 
 ## Table of Contents
@@ -374,14 +376,14 @@ NEXTAUTH_SECRET= hariandja-tarombo-secret-dev-key-2024   # optional; has a dev d
 
 ## Documentation
 
-Detailed documents are provided alongside the code:
+Detailed documents are provided in **two languages** — English and Indonesian:
 
-| Document | Purpose |
-|----------|---------|
-| [`README.md`](./README.md) | This file — project overview |
-| [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) | Current development status, test results, roadmap |
-| [`TECHNICAL_DOC.md`](./TECHNICAL_DOC.md) | Architecture, API reference, data flow |
-| [`USER_MANUAL.md`](./USER_MANUAL.md) | End-user guide for Viewers, Editors, and Admins |
+| Document | English | Indonesian |
+|----------|---------|------------|
+| Project overview | [README.md](./README.md) | [README.id.md](./README.id.md) |
+| Status report | [PROJECT_STATUS.md](./PROJECT_STATUS.md) | [PROJECT_STATUS.id.md](./PROJECT_STATUS.id.md) |
+| Technical docs | [TECHNICAL_DOC.md](./TECHNICAL_DOC.md) | [TECHNICAL_DOC.id.md](./TECHNICAL_DOC.id.md) |
+| User manual | [USER_MANUAL.md](./USER_MANUAL.md) | [USER_MANUAL.id.md](./USER_MANUAL.id.md) |
 
 ---
 

@@ -6,6 +6,8 @@
 **Version:** 0.2.1
 **Status:** ✅ **Functional — ready for clan review**
 
+> **Language:** **English** (this file) · [Indonesia](./PROJECT_STATUS.id.md)
+
 ---
 
 ## 1. Executive Summary

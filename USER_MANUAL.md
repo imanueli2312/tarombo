@@ -4,6 +4,8 @@
 
 *Horas!* Welcome to the Hariandja clan family-tree application. This guide explains how to use the site as a Viewer, Editor, or Admin.
 
+> **Language:** **English** (this file) · [Indonesia](./USER_MANUAL.id.md)
+
 ---
 
 ## Table of Contents
