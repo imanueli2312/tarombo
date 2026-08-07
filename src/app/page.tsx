@@ -61,7 +61,9 @@ export default function Home() {
             </div>
           ) : (
             <div className="mx-auto h-[calc(100vh-4rem-3rem)] max-w-7xl animate-soft-fade">
-              {effectiveView === "search" && <SearchView />}
+              {effectiveView === "search" && (
+                <SearchView canEdit={permissions.actions.managePersons} />
+              )}
               {effectiveView === "familyTree" && (
                 <FamilyTreeView
                   canEdit={permissions.actions.managePersons}

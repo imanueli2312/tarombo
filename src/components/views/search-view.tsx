@@ -22,7 +22,11 @@ import type { TreeData, TreeNode } from "@/lib/types-tree";
 type GenderFilter = "all" | "male" | "female";
 type StatusFilter = "all" | "living" | "deceased";
 
-export function SearchView() {
+interface SearchViewProps {
+  canEdit: boolean;
+}
+
+export function SearchView({ canEdit }: SearchViewProps) {
   const { t, lang } = useLanguage();
   const [data, setData] = useState<TreeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -208,7 +212,7 @@ export function SearchView() {
         onOpenChange={setDialogOpen}
         person={selected}
         allPersons={data?.persons ?? []}
-        canEdit={false}
+        canEdit={canEdit}
         onSaved={load}
         onDeleted={load}
       />
