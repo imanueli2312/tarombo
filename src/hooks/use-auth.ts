@@ -21,6 +21,7 @@ interface AuthState {
 
 const VIEWER_PERMISSIONS: Permissions = {
   pages: {
+    search: true,
     familyTree: true,
     familyChart: false,
     birthdays: false,

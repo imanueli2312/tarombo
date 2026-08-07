@@ -38,6 +38,7 @@ export function GET() {
 function normalizePermissions(input: any): Permissions {
   return {
     pages: {
+      search: input?.pages?.search !== undefined ? Boolean(input.pages.search) : true,
       familyTree: Boolean(input?.pages?.familyTree),
       familyChart: Boolean(input?.pages?.familyChart),
       birthdays: Boolean(input?.pages?.birthdays),

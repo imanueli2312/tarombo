@@ -41,6 +41,7 @@ interface UserRow {
 }
 
 const PAGE_LABELS: Record<keyof Permissions["pages"], string> = {
+  search: "perm.page.search",
   familyTree: "perm.page.familyTree",
   familyChart: "perm.page.familyChart",
   birthdays: "perm.page.birthdays",

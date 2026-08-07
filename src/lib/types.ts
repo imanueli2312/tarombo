@@ -74,6 +74,7 @@ export interface SafeUser extends Omit<User, never> {
 
 export interface Permissions {
   pages: {
+    search: boolean;
     familyTree: boolean;
     familyChart: boolean;
     birthdays: boolean;
@@ -95,6 +96,7 @@ export type ActionKey = keyof Permissions["actions"];
 // Default permission sets for built-in roles
 export const VIEWER_PERMISSIONS: Permissions = {
   pages: {
+    search: true,
     familyTree: true,
     familyChart: false,
     birthdays: false,
@@ -112,6 +114,7 @@ export const VIEWER_PERMISSIONS: Permissions = {
 
 export const EDITOR_PERMISSIONS: Permissions = {
   pages: {
+    search: true,
     familyTree: true,
     familyChart: true,
     birthdays: true,
@@ -129,6 +132,7 @@ export const EDITOR_PERMISSIONS: Permissions = {
 
 export const ADMIN_PERMISSIONS: Permissions = {
   pages: {
+    search: true,
     familyTree: true,
     familyChart: true,
     birthdays: true,
@@ -145,6 +149,7 @@ export const ADMIN_PERMISSIONS: Permissions = {
 };
 
 export const ALL_PAGE_KEYS: PageKey[] = [
+  "search",
   "familyTree",
   "familyChart",
   "birthdays",

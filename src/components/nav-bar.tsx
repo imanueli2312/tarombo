@@ -16,6 +16,7 @@ import { LoginDialog } from "@/components/login-dialog";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useLanguage } from "@/hooks/use-language";
 import {
+  Search as SearchIcon,
   TreePine,
   Network,
   Cake,
@@ -30,6 +31,7 @@ import {
 import type { Permissions } from "@/lib/types";
 
 export type ViewKey =
+  | "search"
   | "familyTree"
   | "familyChart"
   | "birthdays"
@@ -57,6 +59,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { key: "search", labelKey: "nav.search", icon: <SearchIcon className="h-4 w-4" /> },
   { key: "familyTree", labelKey: "nav.familyTree", icon: <TreePine className="h-4 w-4" /> },
   {
     key: "familyChart",
@@ -110,7 +113,7 @@ export function NavBar(props: NavBarProps) {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
           {/* Logo + title */}
           <button
-            onClick={() => handleNav("familyTree")}
+            onClick={() => handleNav("search")}
             className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
           >
             <img

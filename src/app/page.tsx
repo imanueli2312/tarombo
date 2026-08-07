@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NavBar, type ViewKey } from "@/components/nav-bar";
+import { SearchView } from "@/components/views/search-view";
 import { FamilyTreeView } from "@/components/views/family-tree-view";
 import { FamilyChartView } from "@/components/views/family-chart-view";
 import { BirthdaysView } from "@/components/views/birthdays-view";
@@ -13,19 +14,20 @@ import { useLanguage } from "@/hooks/use-language";
 import { Loader2 } from "lucide-react";
 
 const VIEWER_PERMISSIONS = {
-  pages: { familyTree: true, familyChart: false, birthdays: false, weddings: false, profile: false },
+  pages: { search: true, familyTree: true, familyChart: false, birthdays: false, weddings: false, profile: false },
   actions: { managePersons: false, manageSpouses: false, manageUsers: false, manageRoles: false, exportData: false },
 };
 
 export default function Home() {
   const auth = useAuth();
   const { t } = useLanguage();
-  const [view, setView] = useState<ViewKey>("familyTree");
+  const [view, setView] = useState<ViewKey>("search");
 
   const permissions = auth.permissions ?? VIEWER_PERMISSIONS;
 
-  // Derive the effective view: if the selected view is inaccessible, fall back to familyTree.
+  // Derive the effective view: if the selected view is inaccessible, fall back to search.
   const viewAccessible: Record<ViewKey, boolean> = {
+    search: true,
     familyTree: true,
     familyChart: permissions.pages.familyChart,
     birthdays: permissions.pages.birthdays,
@@ -33,7 +35,7 @@ export default function Home() {
     profile: permissions.pages.profile,
     admin: permissions.actions.manageUsers || permissions.actions.manageRoles,
   };
-  const effectiveView: ViewKey = viewAccessible[view] ? view : "familyTree";
+  const effectiveView: ViewKey = viewAccessible[view] ? view : "search";
 
   return (
     <div className="tarombo-bg relative flex min-h-screen flex-col">
@@ -59,6 +61,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="mx-auto h-[calc(100vh-4rem-3rem)] max-w-7xl animate-soft-fade">
+              {effectiveView === "search" && <SearchView />}
               {effectiveView === "familyTree" && (
                 <FamilyTreeView
                   canEdit={permissions.actions.managePersons}

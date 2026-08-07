@@ -19,6 +19,7 @@ function parseRole(row: any): Role {
 function normalizePermissions(input: any) {
   return {
     pages: {
+      search: input?.pages?.search !== undefined ? Boolean(input.pages.search) : true,
       familyTree: Boolean(input?.pages?.familyTree),
       familyChart: Boolean(input?.pages?.familyChart),
       birthdays: Boolean(input?.pages?.birthdays),

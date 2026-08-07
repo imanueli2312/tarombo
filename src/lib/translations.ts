@@ -15,6 +15,7 @@ export const translations: Record<Language, Dict> = {
     // ---- Navigation ----
     "nav.appTitle": "Tarombo Hariandja",
     "nav.appSubtitle": "Marga Hariandja Clan",
+    "nav.search": "Search",
     "nav.familyTree": "Family Tree",
     "nav.familyChart": "Family Chart",
     "nav.birthdays": "Birthdays",
@@ -68,6 +69,24 @@ export const translations: Record<Language, Dict> = {
     "tree.genLabel": "Gen: {n}",
     "tree.spouseLabel": "Spouse: {name}",
     "tree.deceasedMark": "✝",
+
+    // ---- Search view ----
+    "search.title": "Search",
+    "search.subtitle": "Find any person in the Hariandja clan by name, nickname, or place of birth.",
+    "search.placeholder": "Search by name, nickname, or birthplace...",
+    "search.noResults": "No matching persons found.",
+    "search.resultsCount": "{count} result(s)",
+    "search.filterAll": "All",
+    "search.filterMale": "Male",
+    "search.filterFemale": "Female",
+    "search.filterLiving": "Living",
+    "search.filterDeceased": "Deceased",
+    "search.gen": "Gen {n}",
+    "search.born": "Born",
+    "search.died": "Died",
+    "search.spouse": "Spouse",
+    "search.noSpouse": "—",
+    "search.loadFailed": "Failed to load data",
 
     // ---- Family Chart view ----
     "chart.title": "Family Chart",
@@ -186,6 +205,7 @@ export const translations: Record<Language, Dict> = {
     "admin.cannotDeleteSystem": "Built-in system roles cannot be deleted.",
 
     // Permission labels
+    "perm.page.search": "Search",
     "perm.page.familyTree": "Family Tree",
     "perm.page.familyChart": "Family Chart",
     "perm.page.birthdays": "Birthdays",
@@ -315,6 +335,7 @@ export const translations: Record<Language, Dict> = {
     // ---- Navigation ----
     "nav.appTitle": "Tarombo Hariandja",
     "nav.appSubtitle": "Marga Hariandja",
+    "nav.search": "Cari",
     "nav.familyTree": "Pohon Keluarga",
     "nav.familyChart": "Bagan Keluarga",
     "nav.birthdays": "Ulang Tahun",
@@ -368,6 +389,24 @@ export const translations: Record<Language, Dict> = {
     "tree.genLabel": "Gen: {n}",
     "tree.spouseLabel": "Pasangan: {name}",
     "tree.deceasedMark": "✝",
+
+    // ---- Search view ----
+    "search.title": "Cari",
+    "search.subtitle": "Cari siapa pun di marga Hariandja berdasarkan nama, nama panggilan, atau tempat lahir.",
+    "search.placeholder": "Cari berdasarkan nama, nama panggilan, atau tempat lahir...",
+    "search.noResults": "Tidak ada orang yang cocok ditemukan.",
+    "search.resultsCount": "{count} hasil",
+    "search.filterAll": "Semua",
+    "search.filterMale": "Laki-laki",
+    "search.filterFemale": "Perempuan",
+    "search.filterLiving": "Hidup",
+    "search.filterDeceased": "Almarhum",
+    "search.gen": "Gen {n}",
+    "search.born": "Lahir",
+    "search.died": "Wafat",
+    "search.spouse": "Pasangan",
+    "search.noSpouse": "—",
+    "search.loadFailed": "Gagal memuat data",
 
     // ---- Family Chart view ----
     "chart.title": "Bagan Keluarga",
@@ -486,6 +525,7 @@ export const translations: Record<Language, Dict> = {
     "admin.cannotDeleteSystem": "Peran sistem bawaan tidak dapat dihapus.",
 
     // Permission labels
+    "perm.page.search": "Cari",
     "perm.page.familyTree": "Pohon Keluarga",
     "perm.page.familyChart": "Bagan Keluarga",
     "perm.page.birthdays": "Ulang Tahun",
