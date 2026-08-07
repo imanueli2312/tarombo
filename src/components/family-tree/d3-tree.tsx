@@ -38,7 +38,8 @@ function buildLayout(roots: TreeNode[]): { width: number; height: number; allNod
       childLayouts.reduce((a, b) => a + b.width, 0) +
       Math.max(0, (children.length - 1) * 40);
 
-    const selfWidth = node.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
+    // Only one card per node (spouse info shown as text, not a separate card)
+    const selfWidth = NODE_W;
     const unitWidth = Math.max(selfWidth, childrenWidth);
 
     let childCursor = -unitWidth / 2;
@@ -78,10 +79,9 @@ function buildLayout(roots: TreeNode[]): { width: number; height: number; allNod
     minY = Infinity,
     maxY = -Infinity;
   for (const n of allNodes) {
-    // Cards are centered on n.x, so left edge = n.x - unitW/2, right edge = n.x + unitW/2
-    const unitW = n.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
-    minX = Math.min(minX, n.x - unitW / 2);
-    maxX = Math.max(maxX, n.x + unitW / 2);
+    // Single card centered on n.x
+    minX = Math.min(minX, n.x - NODE_W / 2);
+    maxX = Math.max(maxX, n.x + NODE_W / 2);
     minY = Math.min(minY, n.y);
     maxY = Math.max(maxY, n.y + NODE_H);
   }
@@ -174,34 +174,22 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .attr("stroke", "oklch(0.7 0.03 60)")
           .attr("stroke-width", 1.4);
       }
-      // marriage line: from right edge of primary card to left edge of spouse card
-      if (node.spouse) {
-        const isActive = (node.person as any).spouse_relation?.is_active !== 0;
-        linkGroup
-          .append("line")
-          .attr("x1", node.x - SPOUSE_GAP / 2)
-          .attr("y1", node.y + NODE_H / 2)
-          .attr("x2", node.x + SPOUSE_GAP / 2)
-          .attr("y2", node.y + NODE_H / 2)
-          .attr("stroke", "oklch(0.65 0.05 60)")
-          .attr("stroke-width", 1.4)
-          .attr("stroke-dasharray", isActive ? "none" : "4 3");
-      }
     }
 
-    // Nodes
+    // Nodes — one card per person (no separate spouse card)
     const nodeGroup = root.append("g").attr("class", "nodes");
     for (const node of allNodes) {
-      // Center the unit on node.x: offset by -unitWidth/2
-      const unitW = node.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
+      // Center the single card on node.x
       const g = nodeGroup
         .append("g")
         .attr("class", "node-group")
-        .attr("transform", `translate(${node.x - unitW / 2}, ${node.y})`)
+        .attr("transform", `translate(${node.x - NODE_W / 2}, ${node.y})`)
         .style("cursor", "pointer");
 
-      // Primary card: spouse name is the spouse's name
-      const primarySpouseName = node.spouse?.name ?? null;
+      // Build spouse info: name + deceased status
+      const spouseInfo = node.spouse
+        ? { name: node.spouse.name, isDeceased: !!node.spouse.date_of_death }
+        : null;
       drawPersonCard(
         g,
         node.person,
@@ -209,20 +197,8 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         false,
         selectedId === node.person.id,
         () => onSelect?.(node.person.id),
-        primarySpouseName
+        spouseInfo
       );
-      // Spouse card: spouse name is the primary person's name
-      if (node.spouse) {
-        drawPersonCard(
-          g,
-          node.spouse,
-          NODE_W + SPOUSE_GAP,
-          true,
-          selectedId === node.spouse.id,
-          () => onSelect?.(node.spouse!.id),
-          node.person.name
-        );
-      }
     }
 
     function drawPersonCard(
@@ -232,7 +208,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       isSpouse: boolean,
       selected: boolean,
       onClick: () => void,
-      spouseName: string | null
+      spouseInfo: { name: string; isDeceased: boolean } | null
     ) {
       const card = parent
         .append("g")
@@ -348,8 +324,13 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       }
 
       // ---- Spouse label (replaces birth/death years) ----
-      if (spouseName) {
-        const spouseText = t("tree.spouseLabel", { name: truncate(spouseName, 18) });
+      // Includes ✝ death indicator if the spouse is deceased
+      if (spouseInfo) {
+        const deceasedMark = t("tree.deceasedMark");
+        const spouseNameWithMark = spouseInfo.isDeceased
+          ? `${truncate(spouseInfo.name, 16)} ${deceasedMark}`
+          : truncate(spouseInfo.name, 18);
+        const spouseText = t("tree.spouseLabel", { name: spouseNameWithMark });
         card
           .append("text")
           .attr("x", 50)
