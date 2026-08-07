@@ -14,9 +14,10 @@ export function getTreeData(): TreeData {
   }
 
   // For each couple, determine the "primary" (the one positioned in the tree)
-  // and the "attached" spouse (rendered as a card next to the primary).
-  // Convention (patrilineal): husband is primary, EXCEPT when the wife has a
-  // parent_id (bloodline) and the husband does not — then the wife is primary.
+  // and the "attached" spouse (shown as text on the primary's card, not as a
+  // separate node). Convention (patrilineal): husband is primary, EXCEPT when
+  // the wife has a parent_id (bloodline) and the husband does not — then the
+  // wife is primary.
   const attachedSpouseIds = new Set<string>();
   // primaryId -> { spouse, relation }
   const spouseOf = new Map<string, { spouse: Person; relation: Spouse }>();

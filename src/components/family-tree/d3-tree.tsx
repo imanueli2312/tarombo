@@ -14,8 +14,10 @@ interface D3TreeProps {
 
 const NODE_W = 200;
 const NODE_H = 76;
-const SPOUSE_GAP = 16;
 const LEVEL_GAP = 120;
+const SIBLING_GAP = 40;
+const ROOT_GAP = 80;
+const PADDING = 60;
 
 interface LayoutNode {
   id: string;
@@ -26,29 +28,42 @@ interface LayoutNode {
   children: LayoutNode[];
 }
 
-// Compute a vertical tree layout manually so we can render couples side by side.
+// Compute a vertical tree layout. Each person gets a single card;
+// spouse info is shown as text on the card, not as a separate node.
 function buildLayout(roots: TreeNode[]): { width: number; height: number; allNodes: LayoutNode[] } {
   const allNodes: LayoutNode[] = [];
 
+  // Recursively lay out a subtree. Returns the layout node and its total width.
   function layoutUnit(node: TreeNode, depth: number): { root: LayoutNode; width: number } {
     const children = node.children || [];
     const childLayouts = children.map((c) => layoutUnit(c, depth + 1));
 
+    // Position each child's subtree left-to-right.
+    // Use shiftSubtree so descendants move with the child.
+    let cursor = 0;
+    for (const cl of childLayouts) {
+      const childX = cursor + cl.width / 2;
+      cl.root.y = (depth + 1) * LEVEL_GAP;
+      shiftSubtree(cl.root, childX); // shifts child + all descendants
+      cursor += cl.width + SIBLING_GAP;
+    }
+
+    // Shift all children so their midpoint (avg of first & last) is at x=0,
+    // directly under the parent. This keeps the parent centered above its
+    // children even when subtrees have different widths.
+    if (childLayouts.length > 0) {
+      const firstX = childLayouts[0].root.x;
+      const lastX = childLayouts[childLayouts.length - 1].root.x;
+      const midpoint = (firstX + lastX) / 2;
+      for (const cl of childLayouts) {
+        shiftSubtree(cl.root, -midpoint);
+      }
+    }
+
     const childrenWidth =
       childLayouts.reduce((a, b) => a + b.width, 0) +
-      Math.max(0, (children.length - 1) * 40);
-
-    // Only one card per node (spouse info shown as text, not a separate card)
-    const selfWidth = NODE_W;
-    const unitWidth = Math.max(selfWidth, childrenWidth);
-
-    let childCursor = -unitWidth / 2;
-    for (const cl of childLayouts) {
-      const centerX = childCursor + cl.width / 2;
-      cl.root.x = centerX;
-      cl.root.y = (depth + 1) * LEVEL_GAP;
-      childCursor += cl.width + 40;
-    }
+      Math.max(0, (children.length - 1) * SIBLING_GAP);
+    const unitWidth = Math.max(NODE_W, childrenWidth);
 
     const layoutNode: LayoutNode = {
       id: node.id,
@@ -63,33 +78,33 @@ function buildLayout(roots: TreeNode[]): { width: number; height: number; allNod
     return { root: layoutNode, width: unitWidth };
   }
 
-  const laid: LayoutNode[] = [];
+  // Lay out each root tree, stacking them horizontally
   let xOffset = 0;
   for (const root of roots) {
     const res = layoutUnit(root, 0);
     const shift = xOffset + res.width / 2;
-    res.root.x = shift;
+    // Shift the entire subtree so the root is centered at `shift`
     shiftSubtree(res.root, shift);
-    laid.push(res.root);
-    xOffset += res.width + 80;
+    xOffset += res.width + ROOT_GAP;
   }
 
+  // Compute bounds
   let minX = Infinity,
     maxX = -Infinity,
     minY = Infinity,
     maxY = -Infinity;
   for (const n of allNodes) {
-    // Single card centered on n.x
     minX = Math.min(minX, n.x - NODE_W / 2);
     maxX = Math.max(maxX, n.x + NODE_W / 2);
     minY = Math.min(minY, n.y);
     maxY = Math.max(maxY, n.y + NODE_H);
   }
-  const width = maxX - minX + 120;
-  const height = maxY - minY + 120;
+  const width = maxX - minX + PADDING * 2;
+  const height = maxY - minY + PADDING * 2;
 
-  const dx = 60 - minX;
-  const dy = 60 - minY;
+  // Normalize so minX = PADDING, minY = PADDING
+  const dx = PADDING - minX;
+  const dy = PADDING - minY;
   for (const n of allNodes) {
     n.x += dx;
     n.y += dy;
@@ -131,8 +146,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
     const { width, height, allNodes } = buildLayout(data.roots);
 
-    // Set the SVG to the container dimensions (not the tree dimensions)
-    // so that D3 zoom handles ALL scaling — no viewBox double-scaling.
+    // Set the SVG to the container dimensions so D3 zoom handles all scaling
     const cw = size.width;
     const ch = size.height;
     svgEl.setAttribute("width", String(cw));
@@ -154,14 +168,13 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
     const root = svg.append("g").attr("class", "tree-content");
     const defs = svg.append("defs");
 
-    // Links (parent -> child)
+    // Links (parent → child) drawn as Bézier curves
     const linkGroup = root.append("g").attr("class", "links");
     for (const node of allNodes) {
-      // node.x is the CENTER of the unit (primary + spouse cards)
       for (const child of node.children) {
-        const parentBottomX = node.x; // center of the unit
+        const parentBottomX = node.x;
         const parentBottomY = node.y + NODE_H;
-        const childTopX = child.x; // center of child's unit
+        const childTopX = child.x;
         const childTopY = child.y;
         const midY = (parentBottomY + childTopY) / 2;
         linkGroup
@@ -176,17 +189,15 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       }
     }
 
-    // Nodes — one card per person (no separate spouse card)
+    // Nodes — one card per person
     const nodeGroup = root.append("g").attr("class", "nodes");
     for (const node of allNodes) {
-      // Center the single card on node.x
       const g = nodeGroup
         .append("g")
         .attr("class", "node-group")
         .attr("transform", `translate(${node.x - NODE_W / 2}, ${node.y})`)
         .style("cursor", "pointer");
 
-      // Build spouse info: name + deceased status
       const spouseInfo = node.spouse
         ? { name: node.spouse.name, isDeceased: !!node.spouse.date_of_death }
         : null;
@@ -194,7 +205,6 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         g,
         node.person,
         0,
-        false,
         selectedId === node.person.id,
         () => onSelect?.(node.person.id),
         spouseInfo
@@ -205,7 +215,6 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       parent: d3.Selection<SVGGElement, unknown, null, undefined>,
       person: TreeNode,
       offsetX: number,
-      isSpouse: boolean,
       selected: boolean,
       onClick: () => void,
       spouseInfo: { name: string; isDeceased: boolean } | null
@@ -221,6 +230,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
       const isDeceased = !!person.date_of_death;
       const isMale = person.gender === "male";
+      const deceasedMark = t("tree.deceasedMark");
       const fillColor = isDeceased ? "oklch(0.96 0.008 70)" : "oklch(1 0.004 75)";
       const strokeColor = selected
         ? "oklch(0.48 0.11 38)"
@@ -228,6 +238,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         ? "oklch(0.72 0.05 50)"
         : "oklch(0.75 0.06 25)";
 
+      // Card background
       card
         .append("rect")
         .attr("x", 0)
@@ -241,7 +252,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         .attr("stroke-width", selected ? 2.2 : 1.2)
         .style("filter", "drop-shadow(0 1px 2px oklch(0.3 0.02 50 / 0.06))");
 
-      // gender stripe
+      // Gender stripe (left edge)
       card
         .append("rect")
         .attr("x", 0)
@@ -252,7 +263,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         .attr("fill", isMale ? "oklch(0.6 0.08 200)" : "oklch(0.65 0.12 25)")
         .attr("opacity", isDeceased ? 0.5 : 0.85);
 
-      // avatar circle
+      // Avatar circle
       card
         .append("circle")
         .attr("cx", 26)
@@ -263,7 +274,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         .attr("stroke-width", 1);
 
       if (person.photo) {
-        const clipId = `clip-${person.id}-${isSpouse ? "s" : "p"}`;
+        const clipId = `clip-${person.id}`;
         defs
           .append("clipPath")
           .attr("id", clipId)
@@ -298,8 +309,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .text(initials);
       }
 
-      // ---- Name with deceased indicator (✝) next to it ----
-      const deceasedMark = t("tree.deceasedMark");
+      // Name with ✝ deceased indicator
       const displayName = isDeceased
         ? `${truncate(person.name, 20)} ${deceasedMark}`
         : truncate(person.name, 22);
@@ -312,7 +322,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         .attr("fill", "oklch(0.25 0.02 50)")
         .text(displayName);
 
-      // ---- Nickname ----
+      // Nickname
       if (person.nickname) {
         card
           .append("text")
@@ -323,10 +333,8 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .text(`"${truncate(person.nickname, 20)}"`);
       }
 
-      // ---- Spouse label (replaces birth/death years) ----
-      // Includes ✝ death indicator if the spouse is deceased
+      // Spouse label with ✝ if spouse is deceased
       if (spouseInfo) {
-        const deceasedMark = t("tree.deceasedMark");
         const spouseNameWithMark = spouseInfo.isDeceased
           ? `${truncate(spouseInfo.name, 16)} ${deceasedMark}`
           : truncate(spouseInfo.name, 18);
@@ -340,7 +348,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .text(spouseText);
       }
 
-      // ---- Generation number in top-right corner (replaces old ✝ marker) ----
+      // Generation number in top-right corner
       const genText = t("tree.genLabel", { n: person.generation });
       card
         .append("text")
@@ -363,12 +371,10 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
     svg.call(zoom as any);
 
-    // ---- Center and scale to fit the screen ----
-    // Remove the scale cap of 1 so even small trees fill the viewport.
-    // Cap at 2.5 to avoid over-zooming on tiny trees.
-    const padding = 40;
-    const availW = Math.max(size.width - padding * 2, 100);
-    const availH = Math.max(size.height - padding * 2, 100);
+    // Center and scale to fit the viewport
+    const fitPadding = 40;
+    const availW = Math.max(size.width - fitPadding * 2, 100);
+    const availH = Math.max(size.height - fitPadding * 2, 100);
     const scale = Math.min(availW / width, availH / height, 2.5);
     const tx = (size.width - width * scale) / 2;
     const ty = (size.height - height * scale) / 2;
@@ -380,7 +386,6 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
     }
 
     onReady?.(svgEl, width, height);
-     
   }, [data, selectedId, size.width, size.height, t]);
 
   return (
