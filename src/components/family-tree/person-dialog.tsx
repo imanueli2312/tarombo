@@ -72,6 +72,25 @@ export function PersonDialog({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const { t } = useLanguage();
 
+  // Independently verify edit permission from the server.
+  // This ensures the Edit tab is correctly enabled/disabled even if the
+  // parent component's canEdit prop is stale (e.g., due to timing or cache).
+  const [canEditVerified, setCanEditVerified] = useState(canEdit);
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        setCanEditVerified(data?.permissions?.actions?.managePersons === true);
+      })
+      .catch(() => {
+        // If the fetch fails, fall back to the prop
+        setCanEditVerified(canEdit);
+      });
+  }, [open, canEdit]);
+
+  const effectiveCanEdit = canEdit || canEditVerified;
+
   useEffect(() => {
     if (person) {
       setForm({ ...person });
@@ -185,8 +204,8 @@ export function PersonDialog({
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="detail">{t("person.tabDetail")}</TabsTrigger>
-            <TabsTrigger value="edit" disabled={!canEdit}>
-              {canEdit ? t("person.tabEdit") : t("person.tabEditLocked")}
+            <TabsTrigger value="edit" disabled={!effectiveCanEdit}>
+              {effectiveCanEdit ? t("person.tabEdit") : t("person.tabEditLocked")}
             </TabsTrigger>
           </TabsList>
 
@@ -288,7 +307,7 @@ export function PersonDialog({
           </TabsContent>
 
           {/* EDIT VIEW */}
-          {canEdit && (
+          {effectiveCanEdit && (
             <TabsContent value="edit" className="space-y-4 pt-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -460,14 +479,14 @@ export function PersonDialog({
         </Tabs>
 
         <DialogFooter className="gap-2">
-          {canEdit && (
+          {effectiveCanEdit && (
             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting} className="mr-auto">
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               {t("person.delete")}
             </Button>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t("person.close")}</Button>
-          {canEdit && (
+          {effectiveCanEdit && (
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {t("person.save")}
