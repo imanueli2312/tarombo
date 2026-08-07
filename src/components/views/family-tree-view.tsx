@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Download, Plus, ZoomIn, ZoomOut, Maximize2, UserPlus, Heart, Loader2, TreePine, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 import type { Person, Spouse } from "@/lib/types";
 import type { TreeData, TreeNode } from "@/lib/types-tree";
 
@@ -25,6 +26,7 @@ interface FamilyTreeViewProps {
 }
 
 export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
+  const { t } = useLanguage();
   const [data, setData] = useState<TreeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<TreeNode | Person | null>(null);
@@ -42,15 +44,15 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
     setLoading(true);
     try {
       const res = await fetch("/api/tree");
-      if (!res.ok) throw new Error("Failed to load tree");
+      if (!res.ok) throw new Error(t("tree.loadFailed"));
       const json = await res.json();
       setData(json);
     } catch (e: any) {
-      toast.error(e?.message || "Failed to load family tree");
+      toast.error(e?.message || t("tree.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -60,7 +62,6 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
     if (!data) return;
     const person = data.persons.find((p) => p.id === personId) || null;
     if (person) {
-      // find the tree node version (with spouse/children)
       const node = findNode(data.roots, personId);
       setSelected(node ?? person);
       setPersonDialogOpen(true);
@@ -89,29 +90,19 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
     setSpouseDialogOpen(true);
   }
 
-  function handleEditSpouseFor(husbandId?: string, wifeId?: string) {
-    setEditingSpouse(null);
-    setDefaultHusband(husbandId);
-    setDefaultWife(wifeId);
-    setSpouseDialogOpen(true);
-  }
-
   function zoomBy(factor: number) {
     const svg = svgEl;
     if (!svg) return;
-    // simulate wheel zoom
     const event = new WheelEvent("wheel", { deltaY: factor, bubbles: true });
     svg.dispatchEvent(event);
   }
 
   function fitView() {
-    // re-trigger D3 fit by reloading? Simpler: dispatch a resize.
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event("resize"));
     }
   }
 
-  // search highlight: when typing, find matching person and select
   useEffect(() => {
     if (!search || !data) return;
     const q = search.toLowerCase();
@@ -130,9 +121,9 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
       <div className="flex flex-wrap items-center gap-2 border-b bg-card/60 px-4 py-2.5 backdrop-blur">
         <div className="flex items-center gap-2">
           <TreePine className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Family Tree</span>
+          <span className="text-sm font-medium">{t("tree.title")}</span>
           <span className="hidden text-xs text-muted-foreground sm:inline">
-            · {totalPeople} people · {totalGenerations} generations
+            {t("tree.stats", { people: totalPeople, generations: totalGenerations })}
           </span>
         </div>
 
@@ -141,19 +132,19 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name..."
+            placeholder={t("tree.searchPlaceholder")}
             className="h-8 w-44 rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" title="Zoom out" onClick={() => zoomBy(100)}>
+          <Button variant="ghost" size="icon" title={t("tree.zoomOut")} onClick={() => zoomBy(100)}>
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" title="Zoom in" onClick={() => zoomBy(-100)}>
+          <Button variant="ghost" size="icon" title={t("tree.zoomIn")} onClick={() => zoomBy(-100)}>
             <ZoomIn className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" title="Fit to screen" onClick={fitView}>
+          <Button variant="ghost" size="icon" title={t("tree.fitScreen")} onClick={fitView}>
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
@@ -161,7 +152,7 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
         {canExport && (
           <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
             <Download className="mr-2 h-4 w-4" />
-            Export
+            {t("tree.export")}
           </Button>
         )}
 
@@ -170,17 +161,17 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
             <DropdownMenuTrigger asChild>
               <Button size="sm">
                 <Plus className="mr-2 h-4 w-4" />
-                Add
+                {t("tree.add")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>New record</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("tree.newRecord")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleAddPerson}>
-                <UserPlus className="mr-2 h-4 w-4" /> Person
+                <UserPlus className="mr-2 h-4 w-4" /> {t("tree.person")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleAddSpouse}>
-                <Heart className="mr-2 h-4 w-4" /> Marriage
+                <Heart className="mr-2 h-4 w-4" /> {t("tree.marriage")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -198,10 +189,10 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <TreePine className="mx-auto mb-3 h-12 w-12 opacity-40" />
-              <p>The family tree is empty.</p>
+              <p>{t("tree.empty")}</p>
               {canEdit && (
                 <Button className="mt-3" size="sm" onClick={handleAddPerson}>
-                  <Plus className="mr-2 h-4 w-4" /> Add the first ancestor
+                  <Plus className="mr-2 h-4 w-4" /> {t("tree.addFirstAncestor")}
                 </Button>
               )}
             </div>
@@ -224,25 +215,25 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-card/60 px-4 py-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-1 rounded" style={{ background: "oklch(0.6 0.08 200)" }} />
-          Male
+          {t("tree.legendMale")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-1 rounded" style={{ background: "oklch(0.65 0.12 25)" }} />
-          Female
+          {t("tree.legendFemale")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded border bg-[oklch(0.96_0.008_70)]" />
-          Deceased (almarhum)
+          {t("tree.legendDeceased")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4" style={{ background: "oklch(0.65 0.05 60)" }} />
-          Marriage
+          {t("tree.legendMarriage")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 border-t-2 border-dashed" style={{ borderColor: "oklch(0.65 0.05 60)" }} />
-          Inactive / ended
+          {t("tree.legendInactive")}
         </span>
-        <span className="ml-auto hidden md:inline">Drag to pan · scroll to zoom · click a card for details</span>
+        <span className="ml-auto hidden md:inline">{t("tree.legendHint")}</span>
       </div>
 
       {/* dialogs */}

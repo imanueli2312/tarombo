@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, FileText, Files, FileImage, ImageDown, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { exportTree, type ExportFormat } from "@/lib/export";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ExportDialogProps {
   open: boolean;
@@ -35,32 +36,32 @@ interface Option {
 const OPTIONS: Option[] = [
   {
     format: "pdf",
-    label: "PDF (single page)",
-    desc: "Fit the whole tree onto one A4 landscape page.",
+    label: "export.pdfSingle",
+    desc: "export.pdfSingleDesc",
     icon: <FileText className="h-5 w-5" />,
   },
   {
     format: "pdf-multi",
-    label: "Multiple PDFs (paginated)",
-    desc: "Tile the tree across several A4 pages for printing.",
+    label: "export.pdfMulti",
+    desc: "export.pdfMultiDesc",
     icon: <Files className="h-5 w-5" />,
   },
   {
     format: "pdf-large",
-    label: "Large-format PDF",
-    desc: "One oversized PDF page that fits the entire tree at high resolution.",
+    label: "export.pdfLarge",
+    desc: "export.pdfLargeDesc",
     icon: <FileImage className="h-5 w-5" />,
   },
   {
     format: "png",
-    label: "PNG image",
-    desc: "High-resolution raster image with transparency-free background.",
+    label: "export.png",
+    desc: "export.pngDesc",
     icon: <ImageIcon className="h-5 w-5" />,
   },
   {
     format: "jpg",
-    label: "JPG image",
-    desc: "Compressed raster image, ideal for sharing.",
+    label: "export.jpg",
+    desc: "export.jpgDesc",
     icon: <ImageDown className="h-5 w-5" />,
   },
 ];
@@ -70,10 +71,11 @@ export function ExportDialog({ open, onOpenChange, svg, width, height }: ExportD
   const [includeWatermark, setIncludeWatermark] = useState(true);
   const [includeBackground, setIncludeBackground] = useState(true);
   const [busy, setBusy] = useState(false);
+  const { t } = useLanguage();
 
   async function handleExport(format: ExportFormat) {
     if (!svg) {
-      toast.error("Tree is not ready yet.");
+      toast.error(t("export.notReady"));
       return;
     }
     setBusy(true);
@@ -84,9 +86,9 @@ export function ExportDialog({ open, onOpenChange, svg, width, height }: ExportD
         includeBackground,
         title: title || "Tarombo Hariandja",
       });
-      toast.success("Export ready — check your downloads.");
+      toast.success(t("export.ready"));
     } catch (e: any) {
-      toast.error(e?.message || "Export failed");
+      toast.error(e?.message || t("export.failed"));
     } finally {
       setBusy(false);
     }
@@ -96,26 +98,23 @@ export function ExportDialog({ open, onOpenChange, svg, width, height }: ExportD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Export tarombo</DialogTitle>
-          <DialogDescription>
-            Choose an export format. The Hariandja clan emblem is applied as a centered watermark,
-            sized to the file dimensions.
-          </DialogDescription>
+          <DialogTitle>{t("export.title")}</DialogTitle>
+          <DialogDescription>{t("export.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Document title</Label>
+            <Label>{t("export.documentTitle")}</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           <div className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Watermark (emblem)</Label>
+              <Label className="text-sm">{t("export.watermark")}</Label>
               <Switch checked={includeWatermark} onCheckedChange={setIncludeWatermark} />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Background texture</Label>
+              <Label className="text-sm">{t("export.background")}</Label>
               <Switch checked={includeBackground} onCheckedChange={setIncludeBackground} />
             </div>
           </div>
@@ -130,8 +129,8 @@ export function ExportDialog({ open, onOpenChange, svg, width, height }: ExportD
               >
                 <span className="mt-0.5 text-primary">{opt.icon}</span>
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{opt.label}</div>
-                  <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                  <div className="text-sm font-medium">{t(opt.label)}</div>
+                  <div className="text-xs text-muted-foreground">{t(opt.desc)}</div>
                 </div>
                 {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               </button>
@@ -140,7 +139,7 @@ export function ExportDialog({ open, onOpenChange, svg, width, height }: ExportD
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("export.close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

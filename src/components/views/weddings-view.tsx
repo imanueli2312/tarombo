@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Heart, CalendarHeart, Church } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 
 interface WeddingRow {
   id: string;
@@ -22,6 +23,7 @@ interface WeddingRow {
 }
 
 export function WeddingsView() {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<WeddingRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +34,7 @@ export function WeddingsView() {
         if (!res.ok) throw new Error("Failed");
         setRows(await res.json());
       } catch (e: any) {
-        toast.error(e?.message || "Failed to load weddings");
+        toast.error(e?.message || t("weddings.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -56,17 +58,17 @@ export function WeddingsView() {
         <header>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
             <Heart className="h-6 w-6 text-primary" />
-            Weddings
+            {t("weddings.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Wedding anniversaries of Hariandja clan couples, sorted by next occurrence.
+            {t("weddings.subtitle")}
           </p>
         </header>
 
         {rows.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              No wedding records available.
+              {t("weddings.empty")}
             </CardContent>
           </Card>
         )}
@@ -74,7 +76,7 @@ export function WeddingsView() {
         {upcoming.length > 0 && (
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Upcoming anniversaries
+              {t("weddings.upcoming")}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {upcoming.map((r) => (
@@ -87,7 +89,7 @@ export function WeddingsView() {
         {later.length > 0 && (
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Later this year
+              {t("weddings.later")}
             </h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {later.map((r) => (
@@ -102,16 +104,17 @@ export function WeddingsView() {
 }
 
 function WeddingCard({ row, compact }: { row: WeddingRow; compact?: boolean }) {
+  const { t, lang } = useLanguage();
   const md = row.marriage_date ? new Date(row.marriage_date) : null;
   const mdStr = md
-    ? md.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+    ? md.toLocaleDateString(lang === "id" ? "id-ID" : "en-US", { day: "numeric", month: "long", year: "numeric" })
     : "";
   const mdShort = md
-    ? md.toLocaleDateString("id-ID", { day: "numeric", month: "short" })
+    ? md.toLocaleDateString(lang === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short" })
     : "";
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + row.days_until);
-  const nextStr = nextDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
+  const nextStr = nextDate.toLocaleDateString(lang === "id" ? "id-ID" : "en-US", { weekday: "long", day: "numeric", month: "long" });
   const isActive = row.is_active === 1;
 
   return (
@@ -136,28 +139,28 @@ function WeddingCard({ row, compact }: { row: WeddingRow; compact?: boolean }) {
                 </span>
               )}
               {!isActive && row.divorce_date && (
-                <Badge variant="outline" className="text-[10px]">ended</Badge>
+                <Badge variant="outline" className="text-[10px]">{t("weddings.ended")}</Badge>
               )}
             </div>
           </div>
           <div className="shrink-0 text-right">
             {row.days_until === 0 ? (
-              <Badge className="bg-primary text-primary-foreground">Today!</Badge>
+              <Badge className="bg-primary text-primary-foreground">{t("weddings.todayExclaim")}</Badge>
             ) : (
               <div className="text-xs">
-                <div className="font-semibold text-foreground">in {row.days_until}d</div>
+                <div className="font-semibold text-foreground">{t("birthdays.inDays", { days: row.days_until })}</div>
                 {!compact && <div className="text-muted-foreground">{nextStr}</div>}
               </div>
             )}
             <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
               <Church className="h-3 w-3" />
-              {row.years_anniversary} yr
+              {t("weddings.years", { n: row.years_anniversary })}
             </div>
           </div>
         </div>
         {!compact && mdStr && (
           <div className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-            Married on {mdStr}
+            {t("weddings.marriedOn", { date: mdStr })}
           </div>
         )}
       </CardContent>

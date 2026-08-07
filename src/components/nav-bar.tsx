@@ -13,6 +13,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { LoginDialog } from "@/components/login-dialog";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/hooks/use-language";
 import {
   TreePine,
   Network,
@@ -49,46 +51,47 @@ interface NavBarProps {
 
 interface NavItem {
   key: ViewKey;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
   requires?: (p: Permissions) => boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: "familyTree", label: "Family Tree", icon: <TreePine className="h-4 w-4" /> },
+  { key: "familyTree", labelKey: "nav.familyTree", icon: <TreePine className="h-4 w-4" /> },
   {
     key: "familyChart",
-    label: "Family Chart",
+    labelKey: "nav.familyChart",
     icon: <Network className="h-4 w-4" />,
     requires: (p) => p.pages.familyChart,
   },
   {
     key: "birthdays",
-    label: "Birthdays",
+    labelKey: "nav.birthdays",
     icon: <Cake className="h-4 w-4" />,
     requires: (p) => p.pages.birthdays,
   },
   {
     key: "weddings",
-    label: "Weddings",
+    labelKey: "nav.weddings",
     icon: <Heart className="h-4 w-4" />,
     requires: (p) => p.pages.weddings,
   },
   {
     key: "profile",
-    label: "Profile",
+    labelKey: "nav.profile",
     icon: <User className="h-4 w-4" />,
     requires: (p) => p.pages.profile,
   },
   {
     key: "admin",
-    label: "Admin",
+    labelKey: "nav.admin",
     icon: <Shield className="h-4 w-4" />,
     requires: (p) => p.actions.manageUsers || p.actions.manageRoles,
   },
 ];
 
 export function NavBar(props: NavBarProps) {
+  const { t } = useLanguage();
   const [loginOpen, setLoginOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -110,15 +113,14 @@ export function NavBar(props: NavBarProps) {
             onClick={() => handleNav("familyTree")}
             className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
           >
-            { }
             <img
               src="/tarombo-ikon02.png"
               alt="Marga Hariandja emblem"
               className="h-9 w-9 rounded-lg object-contain"
             />
             <div className="hidden flex-col leading-none sm:flex">
-              <span className="text-sm font-semibold tracking-tight">Tarombo Hariandja</span>
-              <span className="text-[10px] text-muted-foreground">Marga Hariandja Clan</span>
+              <span className="text-sm font-semibold tracking-tight">{t("nav.appTitle")}</span>
+              <span className="text-[10px] text-muted-foreground">{t("nav.appSubtitle")}</span>
             </div>
           </button>
 
@@ -133,25 +135,27 @@ export function NavBar(props: NavBarProps) {
                 className="gap-2"
               >
                 {item.icon}
-                {item.label}
+                {t(item.labelKey)}
               </Button>
             ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Language toggle */}
+            <LanguageToggle />
+
             {/* Mobile menu */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
                   <Menu className="h-5 w-5" />
-                  <span className="sr-only">Open menu</span>
+                  <span className="sr-only">{t("nav.openMenu")}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72">
                 <SheetTitle className="mb-2 flex items-center gap-2 px-1">
-                  { }
                   <img src="/tarombo-ikon02.png" alt="" className="h-7 w-7 object-contain" />
-                  Tarombo Hariandja
+                  {t("nav.appTitle")}
                 </SheetTitle>
                 <nav className="flex flex-col gap-1">
                   {visibleItems.map((item) => (
@@ -162,7 +166,7 @@ export function NavBar(props: NavBarProps) {
                       className="justify-start gap-3"
                     >
                       {item.icon}
-                      {item.label}
+                      {t(item.labelKey)}
                     </Button>
                   ))}
                 </nav>
@@ -198,19 +202,19 @@ export function NavBar(props: NavBarProps) {
                   <DropdownMenuSeparator />
                   {props.permissions?.pages.profile && (
                     <DropdownMenuItem onClick={() => handleNav("profile")}>
-                      <User className="mr-2 h-4 w-4" /> Profile
+                      <User className="mr-2 h-4 w-4" /> {t("nav.profile")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={props.onLogout}>
-                    <LogOut className="mr-2 h-4 w-4" /> Sign out
+                    <LogOut className="mr-2 h-4 w-4" /> {t("nav.signOut")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <Button size="sm" onClick={() => setLoginOpen(true)} className="gap-2">
                 <LogIn className="h-4 w-4" />
-                <span className="hidden sm:inline">Editor / Admin login</span>
-                <span className="sm:hidden">Login</span>
+                <span className="hidden sm:inline">{t("nav.login")}</span>
+                <span className="sm:hidden">{t("nav.loginShort")}</span>
               </Button>
             )}
           </div>

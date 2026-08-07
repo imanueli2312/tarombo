@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PersonDialog } from "@/components/family-tree/person-dialog";
 import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 import type { Person } from "@/lib/types";
 import type { TreeData, TreeNode } from "@/lib/types-tree";
 
@@ -13,6 +14,7 @@ interface FamilyChartViewProps {
 }
 
 export function FamilyChartView({ canEdit }: FamilyChartViewProps) {
+  const { t } = useLanguage();
   const [data, setData] = useState<TreeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<TreeNode | Person | null>(null);
@@ -25,7 +27,7 @@ export function FamilyChartView({ canEdit }: FamilyChartViewProps) {
         const json = await res.json();
         setData(json);
       } catch (e: any) {
-        toast.error(e?.message || "Failed to load chart");
+        toast.error(e?.message || t("chart.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -63,7 +65,7 @@ export function FamilyChartView({ canEdit }: FamilyChartViewProps) {
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <div className="text-center">
           <Network className="mx-auto mb-3 h-12 w-12 opacity-40" />
-          <p>No chart data yet.</p>
+          <p>{t("chart.empty")}</p>
         </div>
       </div>
     );
@@ -74,9 +76,9 @@ export function FamilyChartView({ canEdit }: FamilyChartViewProps) {
       <div className="border-b bg-card/60 px-4 py-2.5 backdrop-blur">
         <div className="flex items-center gap-2">
           <Network className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Family Chart</span>
+          <span className="text-sm font-medium">{t("chart.title")}</span>
           <span className="text-xs text-muted-foreground">
-            · indented hierarchy with spouse details
+            {t("chart.subtitle")}
           </span>
         </div>
       </div>
@@ -126,6 +128,7 @@ function ChartNode({
   depth: number;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   const isMale = node.gender === "male";
   const isDeceased = !!node.date_of_death;
   const year = (d: string | null) =>
@@ -174,14 +177,14 @@ function ChartNode({
               {(year(node.date_of_birth) || year(node.date_of_death)) && (
                 <span>
                   {" · "}
-                  {year(node.date_of_birth) || "?"} – {year(node.date_of_death) || (isDeceased ? "?" : "kini")}
+                  {year(node.date_of_birth) || "?"} – {year(node.date_of_death) || (isDeceased ? "?" : t("chart.kini"))}
                 </span>
               )}
               {node.place_of_birth && <span> · {node.place_of_birth}</span>}
             </div>
           </div>
           <span className="hidden text-xs text-muted-foreground sm:inline">
-            {node.children.length} child{node.children.length === 1 ? "" : "ren"}
+            {node.children.length} {node.children.length === 1 ? t("chart.child") : t("chart.children")}
           </span>
         </button>
 
@@ -201,7 +204,7 @@ function ChartNode({
               <div className="text-[10px] text-muted-foreground">
                 {node.spouse_relation?.marriage_date
                   ? `m. ${new Date(node.spouse_relation.marriage_date).getFullYear()}`
-                  : "spouse"}
+                  : t("chart.spouse")}
               </div>
             </div>
           </button>

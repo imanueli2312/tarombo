@@ -9,6 +9,7 @@ import { WeddingsView } from "@/components/views/weddings-view";
 import { ProfileView } from "@/components/views/profile-view";
 import { AdminView } from "@/components/views/admin-view";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
 import { Loader2 } from "lucide-react";
 
 const VIEWER_PERMISSIONS = {
@@ -18,6 +19,7 @@ const VIEWER_PERMISSIONS = {
 
 export default function Home() {
   const auth = useAuth();
+  const { t } = useLanguage();
   const [view, setView] = useState<ViewKey>("familyTree");
 
   const permissions = auth.permissions ?? VIEWER_PERMISSIONS;
@@ -87,17 +89,17 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <img src="/tarombo-ikon02.png" alt="" className="h-5 w-5 object-contain opacity-70" />
               <span>
-                <span className="font-medium text-foreground">Tarombo Hariandja</span> · Marga Hariandja Clan
+                <span className="font-medium text-foreground">{t("nav.appTitle")}</span> · {t("nav.appSubtitle")}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <span>
                 {auth.isLoggedIn
-                  ? `Signed in as ${auth.user?.role_name}`
-                  : "Viewing as guest (Viewer)"}
+                  ? t("footer.signedInAs", { role: auth.user?.role_name ?? "" })
+                  : t("footer.guest")}
               </span>
               <span className="hidden sm:inline">·</span>
-              <span className="hidden sm:inline">Preserving our lineage, generation to generation.</span>
+              <span className="hidden sm:inline">{t("footer.tagline")}</span>
             </div>
           </div>
         </footer>

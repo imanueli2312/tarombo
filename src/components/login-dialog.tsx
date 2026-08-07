@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 
 interface LoginDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps) {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +32,7 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) {
-      toast.error("Please enter your email and password.");
+      toast.error(t("login.errorEmpty"));
       return;
     }
     setLoading(true);
@@ -41,17 +43,17 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
         redirect: false,
       });
       if (!res || res.error) {
-        toast.error("Login failed. Check your email and password.");
+        toast.error(t("login.errorFailed"));
         setLoading(false);
         return;
       }
-      toast.success("Welcome back!");
+      toast.success(t("login.success"));
       onOpenChange(false);
       setEmail("");
       setPassword("");
       onSuccess?.();
     } catch (e: any) {
-      toast.error(e?.message ?? "Login failed");
+      toast.error(e?.message ?? t("login.errorFailed"));
     } finally {
       setLoading(false);
     }
@@ -63,16 +65,13 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LogIn className="h-5 w-5 text-primary" />
-            Sign in to Tarombo Hariandja
+            {t("login.title")}
           </DialogTitle>
-          <DialogDescription>
-            Viewers don&apos;t need an account. Sign in only if you are an
-            Editor or Admin of the Hariandja clan records.
-          </DialogDescription>
+          <DialogDescription>{t("login.description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("login.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -84,7 +83,7 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("login.password")}</Label>
             <Input
               id="password"
               type="password"
@@ -101,16 +100,16 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
               onClick={() => onOpenChange(false)}
               disabled={loading}
             >
-              Cancel
+              {t("login.cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign in
+              {t("login.signIn")}
             </Button>
           </DialogFooter>
         </form>
         <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">Demo accounts</p>
+          <p className="font-medium text-foreground">{t("login.demoAccounts")}</p>
           <p className="mt-1">
             Admin: <span className="font-mono">admin@hariandja.id</span> /{" "}
             <span className="font-mono">admin123</span>

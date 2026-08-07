@@ -27,3 +27,48 @@ Stage Summary:
 - 40 seeded Hariandja clan members across 8 generations with full genealogy data
 - All exports include centered watermark; lint passes clean; verified via Agent Browser + VLM
 - Demo accounts: admin@hariandja.id/admin123, editor@hariandja.id/editor123
+
+---
+Task ID: 9
+Agent: general-purpose (i18n views update)
+Task: Update birthdays, weddings, and family-chart views with translation calls
+
+Work Log:
+- Updated birthdays-view.tsx with useLanguage() and t() calls
+- Updated weddings-view.tsx with useLanguage() and t() calls
+- Updated family-chart-view.tsx with useLanguage() and t() calls
+- Changed locale strings from hardcoded "id-ID" to dynamic based on lang
+
+Stage Summary:
+- All 3 view components now support EN/ID language toggle
+- Used shared translation keys from src/lib/translations.ts
+
+---
+Task ID: 10
+Agent: general-purpose (i18n profile/admin views)
+Task: Update profile-view.tsx and admin-view.tsx with translation calls
+
+Work Log:
+- Updated profile-view.tsx with useLanguage() and t() calls for all UI strings
+- Updated admin-view.tsx with useLanguage() and t() calls for all UI strings
+- Changed PAGE_LABELS and ACTION_LABELS to use translation keys, wrapped with t() in JSX
+- Permission badges now use translated labels
+
+Stage Summary:
+- Profile and Admin views now support EN/ID language toggle
+- All form labels, buttons, toasts, and table headers are translated
+
+---
+Task ID: 11
+Agent: general-purpose (i18n dialogs update)
+Task: Update person-dialog, spouse-dialog, and export-dialog with translation calls
+
+Work Log:
+- Updated person-dialog.tsx with useLanguage() and t() calls for all UI strings
+- Updated spouse-dialog.tsx with useLanguage() and t() calls
+- Updated export-dialog.tsx with useLanguage() and t() calls
+- Changed OPTIONS array in export-dialog to use translation keys
+
+Stage Summary:
+- All 3 dialog components now support EN/ID language toggle
+- All form labels, buttons, toasts, and descriptions are translated

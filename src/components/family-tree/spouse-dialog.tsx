@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Person, Spouse } from "@/lib/types";
+import { useLanguage } from "@/hooks/use-language";
 
 interface SpouseDialogProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function SpouseDialog({
   const [form, setForm] = useState<Partial<Spouse>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (spouse) {
@@ -77,7 +79,7 @@ export function SpouseDialog({
 
   async function handleSave() {
     if (!form.husband_id || !form.wife_id) {
-      toast.error("Both husband and wife are required.");
+      toast.error(t("spouse.errorBothRequired"));
       return;
     }
     setSaving(true);
@@ -92,13 +94,13 @@ export function SpouseDialog({
       });
       if (!res.ok) {
         const e = await res.json();
-        throw new Error(e.error || "Save failed");
+        throw new Error(e.error || t("spouse.saveFailed"));
       }
-      toast.success(isExisting ? "Marriage record updated." : "Marriage record created.");
+      toast.success(isExisting ? t("spouse.marriageUpdated") : t("spouse.marriageCreated"));
       onSaved?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e?.message || "Save failed");
+      toast.error(e?.message || t("spouse.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -106,19 +108,19 @@ export function SpouseDialog({
 
   async function handleDelete() {
     if (!spouse) return;
-    if (!confirm("Delete this marriage record?")) return;
+    if (!confirm(t("spouse.confirmDelete"))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/spouses/${spouse.id}`, { method: "DELETE" });
       if (!res.ok) {
         const e = await res.json();
-        throw new Error(e.error || "Delete failed");
+        throw new Error(e.error || t("spouse.deleteFailed"));
       }
-      toast.success("Marriage record deleted.");
+      toast.success(t("spouse.marriageDeleted"));
       onDeleted?.();
       onOpenChange(false);
     } catch (e: any) {
-      toast.error(e?.message || "Delete failed");
+      toast.error(e?.message || t("spouse.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -128,20 +130,17 @@ export function SpouseDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{spouse ? "Edit marriage record" : "Add marriage record"}</DialogTitle>
-          <DialogDescription>
-            A man can have at most one <em>active</em> spouse, and likewise for a woman. If a spouse
-            passes away, the divorce date is set automatically.
-          </DialogDescription>
+          <DialogTitle>{spouse ? t("spouse.editTitle") : t("spouse.addTitle")}</DialogTitle>
+          <DialogDescription>{t("spouse.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Husband</Label>
+            <Label>{t("spouse.husband")}</Label>
             <Select value={form.husband_id ?? "none"} onValueChange={(v) => update("husband_id", v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Select husband..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("spouse.selectHusband")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— None —</SelectItem>
+                <SelectItem value="none">{t("admin.noneOption")}</SelectItem>
                 {males.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -149,11 +148,11 @@ export function SpouseDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Wife</Label>
+            <Label>{t("spouse.wife")}</Label>
             <Select value={form.wife_id ?? "none"} onValueChange={(v) => update("wife_id", v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Select wife..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("spouse.selectWife")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— None —</SelectItem>
+                <SelectItem value="none">{t("admin.noneOption")}</SelectItem>
                 {females.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -162,19 +161,19 @@ export function SpouseDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Marriage date</Label>
+              <Label>{t("spouse.marriageDate")}</Label>
               <Input type="date" value={fmt(form.marriage_date)} onChange={(e) => update("marriage_date", e.target.value || null)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Divorce date</Label>
+              <Label>{t("spouse.divorceDate")}</Label>
               <Input type="date" value={fmt(form.divorce_date)} onChange={(e) => update("divorce_date", e.target.value || null)} />
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <Label className="text-sm font-medium">Active marriage</Label>
+              <Label className="text-sm font-medium">{t("spouse.activeMarriage")}</Label>
               <p className="text-xs text-muted-foreground">
-                Only one active spouse per person is allowed.
+                {t("spouse.activeHint")}
               </p>
             </div>
             <Switch
@@ -188,13 +187,13 @@ export function SpouseDialog({
           {spouse && (
             <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting} className="mr-auto">
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Delete
+              {t("spouse.delete")}
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("spouse.cancel")}</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
+            {t("spouse.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

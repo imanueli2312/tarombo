@@ -26,6 +26,7 @@ import {
 import { Loader2, Users, Shield, Plus, Trash2, Save, Pencil, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { Permissions, Role } from "@/lib/types";
+import { useLanguage } from "@/hooks/use-language";
 
 interface UserRow {
   id: string;
@@ -40,19 +41,19 @@ interface UserRow {
 }
 
 const PAGE_LABELS: Record<keyof Permissions["pages"], string> = {
-  familyTree: "Family Tree",
-  familyChart: "Family Chart",
-  birthdays: "Birthdays",
-  weddings: "Weddings",
-  profile: "Profile",
+  familyTree: "perm.page.familyTree",
+  familyChart: "perm.page.familyChart",
+  birthdays: "perm.page.birthdays",
+  weddings: "perm.page.weddings",
+  profile: "perm.page.profile",
 };
 
 const ACTION_LABELS: Record<keyof Permissions["actions"], string> = {
-  managePersons: "Manage persons",
-  manageSpouses: "Manage marriages",
-  manageUsers: "Manage users",
-  manageRoles: "Manage roles",
-  exportData: "Export data",
+  managePersons: "perm.action.managePersons",
+  manageSpouses: "perm.action.manageSpouses",
+  manageUsers: "perm.action.manageUsers",
+  manageRoles: "perm.action.manageRoles",
+  exportData: "perm.action.exportData",
 };
 
 interface AdminViewProps {
@@ -61,6 +62,7 @@ interface AdminViewProps {
 }
 
 export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
+  const { t } = useLanguage();
   const [tab, setTab] = useState(canManageUsers ? "users" : "roles");
 
   return (
@@ -69,17 +71,17 @@ export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
         <header>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
             <Shield className="h-6 w-6 text-primary" />
-            Administration
+            {t("admin.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage user accounts and customize role-based access control (RBAC) for the Hariandja clan site.
+            {t("admin.subtitle")}
           </p>
         </header>
 
         {!canManageUsers && !canManageRoles && (
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              You do not have administrative permissions.
+              {t("admin.noAccess")}
             </CardContent>
           </Card>
         )}
@@ -87,8 +89,8 @@ export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
         {(canManageUsers || canManageRoles) && (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              {canManageUsers && <TabsTrigger value="users"><Users className="mr-2 h-4 w-4" /> Users</TabsTrigger>}
-              {canManageRoles && <TabsTrigger value="roles"><Shield className="mr-2 h-4 w-4" /> Roles</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="users"><Users className="mr-2 h-4 w-4" /> {t("admin.users")}</TabsTrigger>}
+              {canManageRoles && <TabsTrigger value="roles"><Shield className="mr-2 h-4 w-4" /> {t("admin.roles")}</TabsTrigger>}
             </TabsList>
 
             {canManageUsers && (
@@ -111,6 +113,7 @@ export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
 // ============ USERS PANEL ============
 
 function UsersPanel() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [persons, setPersons] = useState<{ id: string; name: string; gender: string; generation: number }[]>([]);
@@ -130,7 +133,7 @@ function UsersPanel() {
       setRoles(r);
       setPersons(p.map((x: any) => ({ id: x.id, name: x.name, gender: x.gender, generation: x.generation })));
     } catch (e: any) {
-      toast.error(e?.message || "Failed to load users");
+      toast.error(e?.message || t("common.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -147,22 +150,22 @@ function UsersPanel() {
       body: JSON.stringify({ is_active: u.is_active ? 0 : 1 }),
     });
     if (!res.ok) {
-      toast.error("Failed to update");
+      toast.error(t("common.updateFailed"));
       return;
     }
-    toast.success("Updated");
+    toast.success(t("common.updated"));
     load();
   }
 
   async function deleteUser(u: UserRow) {
-    if (!confirm(`Delete user "${u.name}"?`)) return;
+    if (!confirm(t("admin.confirmDeleteUser", { name: u.name }))) return;
     const res = await fetch(`/api/users/${u.id}`, { method: "DELETE" });
     if (!res.ok) {
       const e = await res.json();
-      toast.error(e.error || "Failed");
+      toast.error(e.error || t("common.updateFailed"));
       return;
     }
-    toast.success("User deleted");
+    toast.success(t("admin.userDeleted"));
     load();
   }
 
@@ -177,9 +180,9 @@ function UsersPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{users.length} user accounts</p>
+        <p className="text-sm text-muted-foreground">{t("admin.userCount", { count: users.length })}</p>
         <Button size="sm" onClick={() => { setEditing(null); setDialogOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add user
+          <Plus className="mr-2 h-4 w-4" /> {t("admin.addUser")}
         </Button>
       </div>
 
@@ -189,12 +192,12 @@ function UsersPanel() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="p-3 font-medium">Name</th>
-                  <th className="p-3 font-medium">Email</th>
-                  <th className="p-3 font-medium">Role</th>
-                  <th className="p-3 font-medium">Linked person</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 text-right font-medium">Actions</th>
+                  <th className="p-3 font-medium">{t("admin.colName")}</th>
+                  <th className="p-3 font-medium">{t("admin.colEmail")}</th>
+                  <th className="p-3 font-medium">{t("admin.colRole")}</th>
+                  <th className="p-3 font-medium">{t("admin.colLinkedPerson")}</th>
+                  <th className="p-3 font-medium">{t("admin.colStatus")}</th>
+                  <th className="p-3 text-right font-medium">{t("admin.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,7 +210,7 @@ function UsersPanel() {
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <Switch checked={u.is_active === 1} onCheckedChange={() => toggleActive(u)} />
-                        <span className="text-xs">{u.is_active ? "active" : "disabled"}</span>
+                        <span className="text-xs">{u.is_active ? t("admin.active") : t("admin.disabled")}</span>
                       </div>
                     </td>
                     <td className="p-3 text-right">
@@ -255,6 +258,7 @@ function UserDialog({
   persons: { id: string; name: string; gender: string; generation: number }[];
   onSaved: () => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -283,11 +287,11 @@ function UserDialog({
 
   async function handleSave() {
     if (!name || !email || !roleId) {
-      toast.error("Name, email, and role are required.");
+      toast.error(t("admin.errorNameEmailRole"));
       return;
     }
     if (!editing && !password) {
-      toast.error("Password is required for new users.");
+      toast.error(t("admin.errorPasswordRequired"));
       return;
     }
     setSaving(true);
@@ -303,13 +307,13 @@ function UserDialog({
       });
       if (!res.ok) {
         const e = await res.json();
-        throw new Error(e.error || "Save failed");
+        throw new Error(e.error || t("common.updateFailed"));
       }
-      toast.success(editing ? "User updated." : "User created.");
+      toast.success(editing ? t("admin.userUpdated") : t("admin.userCreated"));
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Save failed");
+      toast.error(e?.message || t("common.updateFailed"));
     } finally {
       setSaving(false);
     }
@@ -319,28 +323,28 @@ function UserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit user" : "Add user"}</DialogTitle>
+          <DialogTitle>{editing ? t("admin.editUser") : t("admin.addUserTitle")}</DialogTitle>
           <DialogDescription>
-            Account data is separate from genealogy records. Optionally link the account to a person.
+            {t("admin.userDialogDesc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Name</Label>
+            <Label>{t("admin.name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label>{t("admin.colEmail")}</Label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>{editing ? "New password (blank to keep)" : "Password"}</Label>
+            <Label>{editing ? t("admin.newPasswordHint") : t("admin.password")}</Label>
             <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Role</Label>
+            <Label>{t("admin.colRole")}</Label>
             <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger><SelectValue placeholder="Select role..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("admin.selectRole")} /></SelectTrigger>
               <SelectContent>
                 {roles.map((r) => (
                   <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
@@ -349,11 +353,11 @@ function UserDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Linked person (optional)</Label>
+            <Label>{t("admin.linkedPersonOptional")}</Label>
             <Select value={personId} onValueChange={setPersonId}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("admin.noneOption")} /></SelectTrigger>
               <SelectContent className="max-h-72">
-                <SelectItem value="none">— None —</SelectItem>
+                <SelectItem value="none">{t("admin.noneOption")}</SelectItem>
                 {persons.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name} (Gen {p.generation})</SelectItem>
                 ))}
@@ -361,15 +365,15 @@ function UserDialog({
             </Select>
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
-            <Label className="text-sm">Active</Label>
+            <Label className="text-sm">{t("admin.activeLabel")}</Label>
             <Switch checked={isActive === 1} onCheckedChange={(v) => setIsActive(v ? 1 : 0)} />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
+            {t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -380,6 +384,7 @@ function UserDialog({
 // ============ ROLES PANEL ============
 
 function RolesPanel() {
+  const { t } = useLanguage();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Role | null>(null);
@@ -391,7 +396,7 @@ function RolesPanel() {
       const res = await fetch("/api/roles");
       setRoles(await res.json());
     } catch (e: any) {
-      toast.error(e?.message || "Failed to load roles");
+      toast.error(e?.message || t("common.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -403,17 +408,17 @@ function RolesPanel() {
 
   async function deleteRole(r: Role) {
     if (r.is_system === 1) {
-      toast.error("Built-in system roles cannot be deleted.");
+      toast.error(t("admin.cannotDeleteSystem"));
       return;
     }
-    if (!confirm(`Delete role "${r.name}"?`)) return;
+    if (!confirm(t("admin.confirmDeleteRole", { name: r.name }))) return;
     const res = await fetch(`/api/roles/${r.id}`, { method: "DELETE" });
     if (!res.ok) {
       const e = await res.json();
-      toast.error(e.error || "Failed");
+      toast.error(e.error || t("common.updateFailed"));
       return;
     }
-    toast.success("Role deleted");
+    toast.success(t("admin.roleDeleted"));
     load();
   }
 
@@ -429,10 +434,10 @@ function RolesPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {roles.length} roles · built-in roles (Viewer, Editor, Admin) can be edited but not deleted
+          {t("admin.rolesCount", { count: roles.length })}
         </p>
         <Button size="sm" onClick={() => { setEditing(null); setDialogOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add role
+          <Plus className="mr-2 h-4 w-4" /> {t("admin.addRole")}
         </Button>
       </div>
 
@@ -445,7 +450,7 @@ function RolesPanel() {
                   {r.name}
                   {r.is_system === 1 && (
                     <Badge variant="outline" className="gap-1 text-[10px]">
-                      <Lock className="h-2.5 w-2.5" /> system
+                      <Lock className="h-2.5 w-2.5" /> {t("admin.system")}
                     </Badge>
                   )}
                 </CardTitle>
@@ -464,7 +469,7 @@ function RolesPanel() {
             </CardHeader>
             <CardContent className="space-y-2 text-xs">
               <div>
-                <p className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">Pages</p>
+                <p className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">{t("admin.pageAccess")}</p>
                 <div className="flex flex-wrap gap-1">
                   {(Object.keys(r.permissions.pages) as (keyof Permissions["pages"])[]).map((k) => (
                     <Badge
@@ -472,13 +477,13 @@ function RolesPanel() {
                       variant={r.permissions.pages[k] ? "default" : "outline"}
                       className="text-[10px]"
                     >
-                      {PAGE_LABELS[k]}
+                      {t(PAGE_LABELS[k])}
                     </Badge>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">Actions</p>
+                <p className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">{t("profile.actions")}</p>
                 <div className="flex flex-wrap gap-1">
                   {(Object.keys(r.permissions.actions) as (keyof Permissions["actions"])[]).map((k) => (
                     <Badge
@@ -486,7 +491,7 @@ function RolesPanel() {
                       variant={r.permissions.actions[k] ? "default" : "outline"}
                       className="text-[10px]"
                     >
-                      {ACTION_LABELS[k]}
+                      {t(ACTION_LABELS[k])}
                     </Badge>
                   ))}
                 </div>
@@ -517,6 +522,7 @@ function RoleDialog({
   editing: Role | null;
   onSaved: () => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [perms, setPerms] = useState<Permissions>({
@@ -549,7 +555,7 @@ function RoleDialog({
 
   async function handleSave() {
     if (!name) {
-      toast.error("Role name is required.");
+      toast.error(t("admin.errorRoleName"));
       return;
     }
     setSaving(true);
@@ -563,13 +569,13 @@ function RoleDialog({
       });
       if (!res.ok) {
         const e = await res.json();
-        throw new Error(e.error || "Save failed");
+        throw new Error(e.error || t("common.updateFailed"));
       }
-      toast.success(editing ? "Role updated." : "Role created.");
+      toast.success(editing ? t("admin.roleUpdated") : t("admin.roleCreated"));
       onOpenChange(false);
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Save failed");
+      toast.error(e?.message || t("common.updateFailed"));
     } finally {
       setSaving(false);
     }
@@ -579,29 +585,29 @@ function RoleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit role" : "Add role"}</DialogTitle>
+          <DialogTitle>{editing ? t("admin.editRole") : t("admin.addRoleTitle")}</DialogTitle>
           <DialogDescription>
-            Customize which pages and actions this role can access.
+            {t("admin.roleDialogDesc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Role name</Label>
+            <Label>{t("admin.roleName")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Description</Label>
+            <Label>{t("admin.description")}</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
           <div className="rounded-lg border p-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Page access
+              {t("admin.pageAccess")}
             </p>
             <div className="space-y-2">
               {(Object.keys(PAGE_LABELS) as (keyof Permissions["pages"])[]).map((k) => (
                 <div key={k} className="flex items-center justify-between">
-                  <Label className="text-sm">{PAGE_LABELS[k]}</Label>
+                  <Label className="text-sm">{t(PAGE_LABELS[k])}</Label>
                   <Switch checked={perms.pages[k]} onCheckedChange={() => togglePage(k)} />
                 </div>
               ))}
@@ -610,12 +616,12 @@ function RoleDialog({
 
           <div className="rounded-lg border p-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Actions
+              {t("profile.actions")}
             </p>
             <div className="space-y-2">
               {(Object.keys(ACTION_LABELS) as (keyof Permissions["actions"])[]).map((k) => (
                 <div key={k} className="flex items-center justify-between">
-                  <Label className="text-sm">{ACTION_LABELS[k]}</Label>
+                  <Label className="text-sm">{t(ACTION_LABELS[k])}</Label>
                   <Switch checked={perms.actions[k]} onCheckedChange={() => toggleAction(k)} />
                 </div>
               ))}
@@ -623,10 +629,10 @@ function RoleDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
+            {t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
