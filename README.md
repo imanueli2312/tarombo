@@ -13,15 +13,17 @@
 1. [Overview](#overview)
 2. [Features](#features)
 3. [Technology Stack](#technology-stack)
-4. [Quick Start](#quick-start)
-5. [Demo Accounts](#demo-accounts)
-6. [Project Structure](#project-structure)
-7. [Data Model](#data-model)
-8. [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
-9. [Exports](#exports)
-10. [Development](#development)
-11. [Documentation](#documentation)
-12. [License](#license)
+4. [Project Dependencies](#project-dependencies)
+5. [Quick Start](#quick-start)
+6. [Deployment on Windows 11](#deployment-on-windows-11)
+7. [Demo Accounts](#demo-accounts)
+8. [Project Structure](#project-structure)
+9. [Data Model](#data-model)
+10. [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
+11. [Exports](#exports)
+12. [Development](#development)
+13. [Documentation](#documentation)
+14. [License](#license)
 
 ---
 
@@ -87,6 +89,73 @@ Cloud services, S3, SaaS, MinIO, GEDCOM, AI, and Prisma ORM are **not** used any
 
 ---
 
+## Project Dependencies
+
+### Runtime dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `next` | ^16.1.1 | Next.js framework (App Router, Turbopack) |
+| `react` / `react-dom` | ^19.0.0 | UI library |
+| `better-sqlite3` | ^13.0.3 | SQLite database driver (native C++ addon) |
+| `next-auth` | ^4.24.11 | Authentication (Credentials provider, JWT) |
+| `bcryptjs` | ^3.0.3 | Password hashing |
+| `d3` | ^7.9.0 | Family tree visualization |
+| `jspdf` | ^4.2.1 | PDF export (single, multi, large-format) |
+| `sharp` | ^0.34.3 | Image processing (native) |
+| `tailwindcss` / `tw-animate-css` | ^4 / ^1.3.5 | CSS framework + animations |
+| `class-variance-authority` / `clsx` / `tailwind-merge` | various | Class name utilities |
+| `lucide-react` | ^0.525.0 | Icon library |
+| `sonner` | ^2.0.6 | Toast notifications |
+| `zod` | ^4.0.2 | Schema validation |
+| `zustand` | ^5.0.6 | Client state management |
+| `@tanstack/react-query` | ^5.82.0 | Server state management |
+| `@tanstack/react-table` | ^8.21.3 | Data tables |
+| `framer-motion` | ^12.23.2 | Animations |
+| `react-hook-form` / `@hookform/resolvers` | various | Form handling |
+| `react-markdown` / `react-syntax-highlighter` | various | Markdown rendering |
+| `uuid` | ^11.1.0 | UUID generation |
+| `date-fns` | ^4.1.0 | Date utilities |
+| `next-themes` | ^0.4.6 | Theme switching |
+| `next-intl` | ^4.3.4 | Internationalization |
+| `recharts` | ^2.15.4 | Charts |
+| `vaul` | ^1.1.2 | Drawer component |
+| `embla-carousel-react` | ^8.6.0 | Carousel |
+| `react-day-picker` | ^9.8.0 | Date picker |
+| `react-resizable-panels` | ^3.0.3 | Resizable panels |
+| `cmdk` | ^1.1.1 | Command palette |
+| `input-otp` | ^1.4.2 | OTP input |
+| `@mdxeditor/editor` | ^3.39.1 | MDX editor |
+| `@dnd-kit/*` (core, sortable, utilities) | various | Drag-and-drop |
+| `@reactuses/core` | ^6.0.5 | React hooks utilities |
+| `@radix-ui/react-*` (30 packages) | various | Headless UI primitives for shadcn/ui |
+| `z-ai-web-dev-sdk` | ^0.0.18 | AI SDK (scaffold, not used in core features) |
+| `prisma` / `@prisma/client` | ^6.11.1 | Legacy ORM (installed but **not used** — DB via better-sqlite3) |
+
+### Dev dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `typescript` | ^5 | TypeScript compiler |
+| `eslint` / `eslint-config-next` | ^9 / ^16.1.1 | Linting |
+| `@tailwindcss/postcss` | ^4 | Tailwind PostCSS plugin |
+| `@types/react` / `@types/react-dom` | ^19 | React type definitions |
+| `@types/better-sqlite3` | ^9.6.0 | better-sqlite3 types |
+| `@types/d3` | ^7.4.3 | D3 types |
+| `@types/bcryptjs` | ^3.0.0 | bcrypt types |
+| `bun-types` | ^1.3.4 | Bun runtime types |
+
+### System requirements
+
+| Requirement | Details |
+|-------------|---------|
+| **Node.js** | v20 LTS or v22 LTS (required for native module compilation) |
+| **Bun** | v1.3+ (recommended runtime, faster than npm) |
+| **C++ Build Tools** | Required for `better-sqlite3` and `sharp` native modules |
+| **Git** | For cloning and version control |
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -125,6 +194,51 @@ The server starts on **http://localhost:3000**. On first run, the database is cr
 bun run build
 bun run start
 ```
+
+---
+
+## Deployment on Windows 11
+
+A complete deployment guide for **Windows 11 using Visual Studio Code** is available:
+
+| Language | Document |
+|----------|----------|
+| English | [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) |
+| Indonesian | [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) |
+
+The guide covers:
+
+- **System requirements** — Windows 11 64-bit, RAM, disk space
+- **Prerequisites installation** — Git, Node.js LTS, Bun, Visual Studio Build Tools 2022 (for C++ native modules), VS Code with recommended extensions
+- **Full dependency list** — every npm package with version and purpose
+- **Step-by-step setup** — clone, install, configure `.env`, run dev server
+- **Native module compilation** — how to compile `better-sqlite3` and `sharp` on Windows
+- **Production build** — Windows-compatible build scripts (replaces Unix `cp`/`tee` commands)
+- **Database management** — view, backup, restore the SQLite database
+- **Troubleshooting** — common Windows issues (path lengths, line endings, port conflicts, locked databases, build errors)
+- **Deployment checklist** — pre-deployment and security hardening checklist
+
+### Quick Windows setup
+
+```powershell
+# 1. Clone
+git clone https://github.com/imanueli2312/tarombo.git
+cd tarombo
+
+# 2. Install dependencies
+bun install
+
+# 3. Trust native modules
+bun pm trust better-sqlite3
+
+# 4. Create .env file
+# (see DEPLOYMENT_WINDOWS.md for details)
+
+# 5. Run dev server
+bun run dev
+```
+
+> ⚠️ On Windows, the `dev` script's `| tee dev.log` may not work in PowerShell. Either use **Git Bash** or remove the `| tee dev.log` portion from the `dev` script in `package.json`.
 
 ---
 
@@ -384,6 +498,7 @@ Detailed documents are provided in **two languages** — English and Indonesian:
 | Status report | [PROJECT_STATUS.md](./PROJECT_STATUS.md) | [PROJECT_STATUS.id.md](./PROJECT_STATUS.id.md) |
 | Technical docs | [TECHNICAL_DOC.md](./TECHNICAL_DOC.md) | [TECHNICAL_DOC.id.md](./TECHNICAL_DOC.id.md) |
 | User manual | [USER_MANUAL.md](./USER_MANUAL.md) | [USER_MANUAL.id.md](./USER_MANUAL.id.md) |
+| Windows deployment | [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) | [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) |
 
 ---
 

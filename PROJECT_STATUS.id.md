@@ -147,13 +147,23 @@ Basis data di-seed otomatis pada jalankan pertama dengan data perwakilan marga H
 - **Gateway:** Caddy di port 81 mem-proxy ke port 3000
 - **Basis data:** `/home/z/my-project/db/hariandja.db` (SQLite, mode WAL)
 
-### Untuk deploy di tempat lain
+### Deployment Windows 11
+
+Panduan deployment lengkap untuk **Windows 11 + Visual Studio Code** tersedia:
+- **Inggris:** [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md)
+- **Indonesia:** [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md)
+
+Panduan ini mencakup persyaratan sistem, instalasi prasyarat (Git, Node.js, Bun, VS Build Tools 2022, VS Code), daftar dependensi proyek lengkap, pengaturan langkah demi langkah, kompilasi modul native (`better-sqlite3`, `sharp`), skrip build kompatibel Windows, manajemen basis data, penyelesaian masalah, dan daftar periksa deployment.
+
+### Untuk deploy di tempat lain (umum)
 1. Kloning repositori.
 2. Jalankan `bun install && bun pm trust better-sqlite3`.
 3. Setel `DATABASE_URL` dan `NEXTAUTH_SECRET` di `.env`.
 4. Jalankan `bun run build && bun run start`, atau gunakan process manager (PM2, systemd).
 5. Pastikan direktori `upload/` dapat ditulis oleh pengguna aplikasi.
 6. **Segera ubah** kata sandi akun demo melalui Admin → Pengguna.
+
+> ⚠️ **Catatan Windows:** Skrip `dev` dan `build` menggunakan perintah Unix (`tee`, `cp`). Di Windows PowerShell, gunakan Git Bash atau modifikasi skrip — lihat panduan deployment untuk detail.
 
 ### Daftar periksa keamanan sebelum produksi
 - [ ] Ubah `NEXTAUTH_SECRET` ke nilai acak yang kuat
@@ -169,9 +179,15 @@ Basis data di-seed otomatis pada jalankan pertama dengan data perwakilan marga H
 
 ```
 Branch:     main
-Terbaru:    6022b0e — docs: add comprehensive project documentation
 Remote:     https://github.com/imanueli2312/tarombo.git
 ```
+
+Commit terbaru:
+- `7fa8c04` — feat: remove spouse card, add death indicator to spouse name in tree
+- `e64074f` — feat: redesign family tree cards and fix centering
+- `64e4721` — feat: add EN/ID language toggle for the entire interface
+- `658626a` — docs: add Indonesian translations of all documentation
+- `6022b0e` — docs: add comprehensive project documentation
 
 ### Gitignored (tidak di repo)
 - `node_modules/`
@@ -184,7 +200,12 @@ Remote:     https://github.com/imanueli2312/tarombo.git
 - Semua kode sumber (`src/`)
 - File konfigurasi (`package.json`, `tsconfig.json`, `tailwind.config.ts`, `next.config.ts`, `Caddyfile`)
 - Aset publik (`tarombo-ikon02.png`, `tarombo-bg01.png`)
-- Dokumentasi (`README.md`, `README.id.md`, `PROJECT_STATUS.md`, `PROJECT_STATUS.id.md`, `TECHNICAL_DOC.md`, `TECHNICAL_DOC.id.md`, `USER_MANUAL.md`, `USER_MANUAL.id.md`)
+- Dokumentasi (Inggris + Indonesia):
+  - `README.md` / `README.id.md`
+  - `PROJECT_STATUS.md` / `PROJECT_STATUS.id.md`
+  - `TECHNICAL_DOC.md` / `TECHNICAL_DOC.id.md`
+  - `USER_MANUAL.md` / `USER_MANUAL.id.md`
+  - `DEPLOYMENT_WINDOWS.md` / `DEPLOYMENT_WINDOWS.id.md`
 - Skrip scaffold (`.zscripts/`, `tests/`, `examples/`)
 
 ---
@@ -198,6 +219,8 @@ Remote:     https://github.com/imanueli2312/tarombo.git
 | Server dev berjalan tanpa error | ✅ |
 | Interaktivitas terverifikasi browser | ✅ |
 | Kode didorong ke GitHub | ✅ |
-| Dokumentasi ditulis (Inggris & Indonesia) | ✅ |
+| Dokumentasi ditulis (Inggris + Indonesia) | ✅ |
+| Toggle bahasa EN/ID | ✅ |
+| Panduan deployment Windows 11 | ✅ |
 
 **Proyek siap untuk ditinjau oleh marga dan menerima umpan balik.**

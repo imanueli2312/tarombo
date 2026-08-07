@@ -13,15 +13,17 @@
 1. [Gambaran Umum](#gambaran-umum)
 2. [Fitur](#fitur)
 3. [Tumpukan Teknologi](#tumpukan-teknologi)
-4. [Mulai Cepat](#mulai-cepat)
-5. [Akun Demo](#akun-demo)
-6. [Struktur Proyek](#struktur-proyek)
-7. [Model Data](#model-data)
-8. [Kendali Akses Berbasis Peran (RBAC)](#kendali-akses-berbasis-peran-rbac)
-9. [Ekspor](#ekspor)
-10. [Pengembangan](#pengembangan)
-11. [Dokumentasi](#dokumentasi)
-12. [Lisensi](#lisensi)
+4. [Dependensi Proyek](#dependensi-proyek)
+5. [Mulai Cepat](#mulai-cepat)
+6. [Deployment di Windows 11](#deployment-di-windows-11)
+7. [Akun Demo](#akun-demo)
+8. [Struktur Proyek](#struktur-proyek)
+9. [Model Data](#model-data)
+10. [Kendali Akses Berbasis Peran (RBAC)](#kendali-akses-berbasis-peran-rbac)
+11. [Ekspor](#ekspor)
+12. [Pengembangan](#pengembangan)
+13. [Dokumentasi](#dokumentasi)
+14. [Lisensi](#lisensi)
 
 ---
 
@@ -87,6 +89,73 @@ Layanan cloud, S3, SaaS, MinIO, GEDCOM, AI, dan Prisma ORM **tidak** digunakan d
 
 ---
 
+## Dependensi Proyek
+
+### Dependensi runtime
+
+| Package | Version | Tujuan |
+|---------|---------|--------|
+| `next` | ^16.1.1 | Framework Next.js (App Router, Turbopack) |
+| `react` / `react-dom` | ^19.0.0 | Pustaka UI |
+| `better-sqlite3` | ^13.0.3 | Driver basis data SQLite (addon native C++) |
+| `next-auth` | ^4.24.11 | Autentikasi (Credentials provider, JWT) |
+| `bcryptjs` | ^3.0.3 | Hashing kata sandi |
+| `d3` | ^7.9.0 | Visualisasi pohon keluarga |
+| `jspdf` | ^4.2.1 | Ekspor PDF (tunggal, multi, format besar) |
+| `sharp` | ^0.34.3 | Pemrosesan gambar (native) |
+| `tailwindcss` / `tw-animate-css` | ^4 / ^1.3.5 | Framework CSS + animasi |
+| `class-variance-authority` / `clsx` / `tailwind-merge` | various | Utilitas nama kelas |
+| `lucide-react` | ^0.525.0 | Pustaka ikon |
+| `sonner` | ^2.0.6 | Notifikasi toast |
+| `zod` | ^4.0.2 | Validasi schema |
+| `zustand` | ^5.0.6 | Manajemen state klien |
+| `@tanstack/react-query` | ^5.82.0 | Manajemen state server |
+| `@tanstack/react-table` | ^8.21.3 | Tabel data |
+| `framer-motion` | ^12.23.2 | Animasi |
+| `react-hook-form` / `@hookform/resolvers` | various | Penanganan form |
+| `react-markdown` / `react-syntax-highlighter` | various | Rendering markdown |
+| `uuid` | ^11.1.0 | Pembuatan UUID |
+| `date-fns` | ^4.1.0 | Utilitas tanggal |
+| `next-themes` | ^0.4.6 | Penggantian tema |
+| `next-intl` | ^4.3.4 | Internasionalisasi |
+| `recharts` | ^2.15.4 | Grafik |
+| `vaul` | ^1.1.2 | Komponen drawer |
+| `embla-carousel-react` | ^8.6.0 | Carousel |
+| `react-day-picker` | ^9.8.0 | Pemilih tanggal |
+| `react-resizable-panels` | ^3.0.3 | Panel yang dapat diubah ukurannya |
+| `cmdk` | ^1.1.1 | Palet perintah |
+| `input-otp` | ^1.4.2 | Input OTP |
+| `@mdxeditor/editor` | ^3.39.1 | Editor MDX |
+| `@dnd-kit/*` (core, sortable, utilities) | various | Seret-dan-lepas |
+| `@reactuses/core` | ^6.0.5 | Utilitas React hooks |
+| `@radix-ui/react-*` (30 packages) | various | Primitif UI headless untuk shadcn/ui |
+| `z-ai-web-dev-sdk` | ^0.0.18 | SDK AI (scaffold, tidak digunakan dalam fitur inti) |
+| `prisma` / `@prisma/client` | ^6.11.1 | ORM lama (terinstal tetapi **tidak digunakan** — DB via better-sqlite3) |
+
+### Dependensi dev
+
+| Package | Version | Tujuan |
+|---------|---------|--------|
+| `typescript` | ^5 | Kompilator TypeScript |
+| `eslint` / `eslint-config-next` | ^9 / ^16.1.1 | Linting |
+| `@tailwindcss/postcss` | ^4 | Plugin PostCSS Tailwind |
+| `@types/react` / `@types/react-dom` | ^19 | Definisi tipe React |
+| `@types/better-sqlite3` | ^9.6.0 | Tipe better-sqlite3 |
+| `@types/d3` | ^7.4.3 | Tipe D3 |
+| `@types/bcryptjs` | ^3.0.0 | Tipe bcrypt |
+| `bun-types` | ^1.3.4 | Tipe runtime Bun |
+
+### Persyaratan sistem
+
+| Persyaratan | Detail |
+|-------------|--------|
+| **Node.js** | v20 LTS atau v22 LTS (diperlukan untuk kompilasi modul native) |
+| **Bun** | v1.3+ (runtime yang disarankan, lebih cepat dari npm) |
+| **C++ Build Tools** | Diperlukan untuk modul native `better-sqlite3` dan `sharp` |
+| **Git** | Untuk kloning dan kontrol versi |
+
+---
+
 ## Mulai Cepat
 
 ### Prasyarat
@@ -125,6 +194,51 @@ Server dimulai di **http://localhost:3000**. Pada jalankan pertama, basis data d
 bun run build
 bun run start
 ```
+
+---
+
+## Deployment di Windows 11
+
+Panduan deployment lengkap untuk **Windows 11 menggunakan Visual Studio Code** tersedia:
+
+| Bahasa | Dokumen |
+|--------|---------|
+| Inggris | [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) |
+| Indonesia | [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) |
+
+Panduan ini mencakup:
+
+- **Persyaratan sistem** — Windows 11 64-bit, RAM, ruang disk
+- **Instalasi prasyarat** — Git, Node.js LTS, Bun, Visual Studio Build Tools 2022 (untuk modul native C++), VS Code dengan ekstensi yang direkomendasikan
+- **Daftar dependensi lengkap** — setiap paket npm dengan versi dan tujuan
+- **Pengaturan langkah demi langkah** — kloning, instal, konfigurasi `.env`, jalankan server dev
+- **Kompilasi modul native** — cara mengkompilasi `better-sqlite3` dan `sharp` di Windows
+- **Build produksi** — skrip build yang kompatibel dengan Windows (menggantikan perintah Unix `cp`/`tee`)
+- **Manajemen basis data** — lihat, cadangkan, pulihkan basis data SQLite
+- **Penyelesaian masalah** — masalah umum Windows (panjang path, akhir baris, konflik port, basis data terkunci, error build)
+- **Daftar periksa deployment** — daftar periksa pre-deployment dan pengerasan keamanan
+
+### Pengaturan cepat Windows
+
+```powershell
+# 1. Kloning
+git clone https://github.com/imanueli2312/tarombo.git
+cd tarombo
+
+# 2. Instal dependensi
+bun install
+
+# 3. Berikan kepercayaan pada modul native
+bun pm trust better-sqlite3
+
+# 4. Buat file .env
+# (lihat DEPLOYMENT_WINDOWS.id.md untuk detail)
+
+# 5. Jalankan server dev
+bun run dev
+```
+
+> ⚠️ Di Windows, `| tee dev.log` pada skrip `dev` mungkin tidak berfungsi di PowerShell. Gunakan **Git Bash** atau hapus bagian `| tee dev.log` dari skrip `dev` di `package.json`.
 
 ---
 
@@ -378,16 +492,13 @@ NEXTAUTH_SECRET=hariandja-tarombo-secret-dev-key-2024   # opsional; memiliki def
 
 Dokumen terperinci disediakan bersama kode:
 
-| Dokumen | Tujuan |
-|---------|--------|
-| [`README.md`](./README.md) | File ini — gambaran umum proyek (Inggris) |
-| [`README.id.md`](./README.id.md) | Gambaran umum proyek (Indonesia) — file ini |
-| [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) | Status pengembangan saat ini, hasil uji, peta jalan (Inggris) |
-| [`PROJECT_STATUS.id.md`](./PROJECT_STATUS.id.md) | Status proyek (Indonesia) |
-| [`TECHNICAL_DOC.md`](./TECHNICAL_DOC.md) | Arsitektur, referensi API, alur data (Inggris) |
-| [`TECHNICAL_DOC.id.md`](./TECHNICAL_DOC.id.md) | Dokumentasi teknis (Indonesia) |
-| [`USER_MANUAL.md`](./USER_MANUAL.md) | Panduan pengguna akhir (Inggris) |
-| [`USER_MANUAL.id.md`](./USER_MANUAL.id.md) | Panduan pengguna (Indonesia) |
+| Dokumen | Inggris | Indonesia |
+|---------|---------|------------|
+| Gambaran umum proyek | [README.md](./README.md) | [README.id.md](./README.id.md) (file ini) |
+| Laporan status | [PROJECT_STATUS.md](./PROJECT_STATUS.md) | [PROJECT_STATUS.id.md](./PROJECT_STATUS.id.md) |
+| Dokumentasi teknis | [TECHNICAL_DOC.md](./TECHNICAL_DOC.md) | [TECHNICAL_DOC.id.md](./TECHNICAL_DOC.id.md) |
+| Panduan pengguna | [USER_MANUAL.md](./USER_MANUAL.md) | [USER_MANUAL.id.md](./USER_MANUAL.id.md) |
+| Deployment Windows | [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) | [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) |
 
 ---
 

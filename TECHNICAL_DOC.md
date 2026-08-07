@@ -566,3 +566,18 @@ If both husband and wife were separate nodes, the tree would show duplicates (a 
 ### Why run auto-divorce-on-death on every spouse query?
 
 This is a lazy-evaluation approach: rather than needing triggers or a cron job, the `applyDeathAutoDivorce()` function runs whenever spouses are fetched or modified. It checks for active marriages where either spouse has a death date and no divorce date, then sets the divorce date to the death date. This keeps the data consistent without additional infrastructure.
+
+### Windows deployment considerations
+
+The project uses two native C++ addons (`better-sqlite3` and `sharp`) that must be compiled for the target platform. On Windows 11:
+
+- **Visual Studio Build Tools 2022** with the "Desktop development with C++" workload is required for compilation.
+- The `dev` and `build` scripts in `package.json` use Unix commands (`tee`, `cp`) that are not available in PowerShell. Use Git Bash or replace them with Windows-compatible equivalents.
+- The database path uses `path.join(process.cwd(), "db", "hariandja.db")` which resolves correctly on Windows without modification.
+- Long path support may need to be enabled in Windows Registry for deep `node_modules` paths.
+
+A complete Windows 11 + VS Code deployment guide is available at [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) (English) and [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) (Indonesian).
+
+### Why a bilingual (EN/ID) interface?
+
+The Hariandja clan spans multiple generations with varying language preferences. A language toggle (`useLanguage()` hook with `useSyncExternalStore` for SSR-safe localStorage persistence) allows each user to switch between English and Indonesian without page reloads. All UI strings are externalized to `src/lib/translations.ts` with ~250 keys covering every component.

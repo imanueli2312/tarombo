@@ -566,3 +566,18 @@ Jika baik suami maupun istri adalah node terpisah, pohon akan menunjukkan duplik
 ### Mengapa menjalankan auto-cerai-saat-meninggal pada setiap query pasangan?
 
 Ini adalah pendekatan evaluasi-lambat (lazy): daripada memerlukan trigger atau cron job, fungsi `applyDeathAutoDivorce()` berjalan setiap kali pasangan diambil atau dimodifikasi. Ia memeriksa pernikahan aktif di mana salah satu pasangan memiliki tanggal kematian dan tidak ada tanggal cerai, lalu menetapkan tanggal cerai ke tanggal kematian. Ini menjaga data konsisten tanpa infrastruktur tambahan.
+
+### Pertimbangan deployment Windows
+
+Proyek ini menggunakan dua addon C++ native (`better-sqlite3` dan `sharp`) yang harus dikompilasi untuk platform target. Di Windows 11:
+
+- **Visual Studio Build Tools 2022** dengan beban kerja "Desktop development with C++" diperlukan untuk kompilasi.
+- Skrip `dev` dan `build` di `package.json` menggunakan perintah Unix (`tee`, `cp`) yang tidak tersedia di PowerShell. Gunakan Git Bash atau ganti dengan setara yang kompatibel dengan Windows.
+- Path basis data menggunakan `path.join(process.cwd(), "db", "hariandja.db")` yang terselesaikan dengan benar di Windows tanpa modifikasi.
+- Dukungan path panjang mungkin perlu diaktifkan di Registry Windows untuk path `node_modules` yang dalam.
+
+Panduan deployment lengkap Windows 11 + VS Code tersedia di [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md) (Indonesia) dan [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md) (Inggris).
+
+### Mengapa antarmuka bilingual (EN/ID)?
+
+Marga Hariandja mencakup beberapa generasi dengan preferensi bahasa yang bervariasi. Toggle bahasa (hook `useLanguage()` dengan `useSyncExternalStore` untuk persistensi localStorage yang aman-SSR) memungkinkan setiap pengguna beralih antara Inggris dan Indonesia tanpa memuat ulang halaman. Semua string UI dieksternalisasi ke `src/lib/translations.ts` dengan ~250 kunci yang mencakup setiap komponen.

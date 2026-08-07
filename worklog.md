@@ -72,3 +72,51 @@ Work Log:
 Stage Summary:
 - All 3 dialog components now support EN/ID language toggle
 - All form labels, buttons, toasts, and descriptions are translated
+
+---
+Task ID: 2
+Agent: general-purpose (Indonesian deployment guide)
+Task: Create DEPLOYMENT_WINDOWS.id.md — Indonesian translation of the Windows deployment guide
+
+Work Log:
+- Read English deployment guide
+- Created complete Indonesian translation with all sections
+- Kept all code blocks, commands, and technical terms in English
+- Added language selector cross-reference
+
+Stage Summary:
+- DEPLOYMENT_WINDOWS.id.md created with full Indonesian translation
+- All 12 sections translated
+- Cross-referenced with English version
+
+---
+Task ID: 3b
+Agent: general-purpose (Indonesian README update)
+Task: Update README.id.md with deployment section and dependency list
+
+Work Log:
+- Updated Table of Contents with new sections
+- Added Dependensi Proyek section with runtime/dev dependency tables
+- Added Deployment di Windows 11 section with quick setup guide
+- Updated Dokumentasi table with Windows deployment row
+
+Stage Summary:
+- README.id.md now mirrors README.md with all new sections
+- All descriptions translated to Indonesian
+- Package names and versions kept in English
+
+---
+Task ID: 4b
+Agent: general-purpose (Indonesian PROJECT_STATUS update)
+Task: Update PROJECT_STATUS.id.md with Windows deployment section and repository state
+
+Work Log:
+- Added Windows 11 deployment subsection with links to deployment guides
+- Added Windows note about Unix commands in scripts
+- Updated repository state with recent commits
+- Updated committed files list with all bilingual documentation
+- Updated sign-off table with new completed items
+
+Stage Summary:
+- PROJECT_STATUS.id.md now mirrors PROJECT_STATUS.md
+- All new sections translated to Indonesian

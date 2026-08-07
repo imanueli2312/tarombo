@@ -147,13 +147,23 @@ The database is seeded automatically on first run with representative Hariandja 
 - **Gateway:** Caddy on port 81 proxies to port 3000
 - **Database:** `/home/z/my-project/db/hariandja.db` (SQLite, WAL mode)
 
-### To deploy elsewhere
+### Windows 11 deployment
+
+A complete deployment guide for **Windows 11 + Visual Studio Code** is available:
+- **English:** [DEPLOYMENT_WINDOWS.md](./DEPLOYMENT_WINDOWS.md)
+- **Indonesian:** [DEPLOYMENT_WINDOWS.id.md](./DEPLOYMENT_WINDOWS.id.md)
+
+The guide covers system requirements, prerequisite installation (Git, Node.js, Bun, VS Build Tools 2022, VS Code), the full project dependency list, step-by-step setup, native module compilation (`better-sqlite3`, `sharp`), Windows-compatible build scripts, database management, troubleshooting, and a deployment checklist.
+
+### To deploy elsewhere (general)
 1. Clone the repository.
 2. Run `bun install && bun pm trust better-sqlite3`.
 3. Set `DATABASE_URL` and `NEXTAUTH_SECRET` in `.env`.
 4. Run `bun run build && bun run start`, or use a process manager (PM2, systemd).
 5. Ensure the `upload/` directory is writable by the application user.
 6. **Immediately change** the demo account passwords via Admin → Users.
+
+> ⚠️ **Windows note:** The `dev` and `build` scripts use Unix commands (`tee`, `cp`). On Windows PowerShell, either use Git Bash or modify the scripts — see the deployment guide for details.
 
 ### Security checklist before production
 - [ ] Change `NEXTAUTH_SECRET` to a strong random value
@@ -169,9 +179,15 @@ The database is seeded automatically on first run with representative Hariandja 
 
 ```
 Branch:     main
-Latest:     8cd1c78 — chore: exclude runtime database and upload files from version control
 Remote:     https://github.com/imanueli2312/tarombo.git
 ```
+
+Recent commits:
+- `7fa8c04` — feat: remove spouse card, add death indicator to spouse name in tree
+- `e64074f` — feat: redesign family tree cards and fix centering
+- `64e4721` — feat: add EN/ID language toggle for the entire interface
+- `658626a` — docs: add Indonesian translations of all documentation
+- `6022b0e` — docs: add comprehensive project documentation
 
 ### Gitignored (not in repo)
 - `node_modules/`
@@ -184,7 +200,12 @@ Remote:     https://github.com/imanueli2312/tarombo.git
 - All source code (`src/`)
 - Configuration files (`package.json`, `tsconfig.json`, `tailwind.config.ts`, `next.config.ts`, `Caddyfile`)
 - Public assets (`tarombo-ikon02.png`, `tarombo-bg01.png`)
-- Documentation (`README.md`, `PROJECT_STATUS.md`, `TECHNICAL_DOC.md`, `USER_MANUAL.md`)
+- Documentation (English + Indonesian):
+  - `README.md` / `README.id.md`
+  - `PROJECT_STATUS.md` / `PROJECT_STATUS.id.md`
+  - `TECHNICAL_DOC.md` / `TECHNICAL_DOC.id.md`
+  - `USER_MANUAL.md` / `USER_MANUAL.id.md`
+  - `DEPLOYMENT_WINDOWS.md` / `DEPLOYMENT_WINDOWS.id.md`
 - Scaffold scripts (`.zscripts/`, `tests/`, `examples/`)
 
 ---
@@ -198,6 +219,8 @@ Remote:     https://github.com/imanueli2312/tarombo.git
 | Dev server runs without errors | ✅ |
 | Browser-verified interactivity | ✅ |
 | Code pushed to GitHub | ✅ |
-| Documentation written | ✅ |
+| Documentation written (English + Indonesian) | ✅ |
+| EN/ID language toggle | ✅ |
+| Windows 11 deployment guide | ✅ |
 
 **The project is ready for clan review and feedback.**
