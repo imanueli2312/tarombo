@@ -34,13 +34,36 @@ async function getBackground(): Promise<HTMLImageElement | null> {
   }
 }
 
-// Serialize an SVG element to a data URL
-export function svgToDataUrl(svg: SVGSVGElement): string {
+// Serialize an SVG element to a data URL.
+// Accepts optional treeWidth/treeHeight to override the SVG's display dimensions
+// (needed when the on-screen SVG is sized to the container but the export should
+// use the tree's natural dimensions). Also removes the D3 zoom transform from
+// the .tree-content group so the full tree is rendered without pan/zoom offset.
+export function svgToDataUrl(
+  svg: SVGSVGElement,
+  treeWidth?: number,
+  treeHeight?: number
+): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
-  // Ensure width/height are set
-  const bbox = svg.getBoundingClientRect();
-  if (!clone.getAttribute("width")) clone.setAttribute("width", String(bbox.width));
-  if (!clone.getAttribute("height")) clone.setAttribute("height", String(bbox.height));
+
+  // Override dimensions if tree dimensions are provided
+  if (treeWidth && treeHeight) {
+    clone.setAttribute("width", String(treeWidth));
+    clone.setAttribute("height", String(treeHeight));
+    clone.setAttribute("viewBox", `0 0 ${treeWidth} ${treeHeight}`);
+  } else {
+    const bbox = svg.getBoundingClientRect();
+    if (!clone.getAttribute("width")) clone.setAttribute("width", String(bbox.width));
+    if (!clone.getAttribute("height")) clone.setAttribute("height", String(bbox.height));
+  }
+
+  // Remove the D3 zoom transform from the tree-content group so the
+  // export shows the full tree at its natural position.
+  const content = clone.querySelector(".tree-content");
+  if (content) {
+    content.removeAttribute("transform");
+  }
+
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
   const xml = new XMLSerializer().serializeToString(clone);
@@ -104,7 +127,9 @@ export async function renderSvgToCanvas(
   }
 
   // 3. Draw the SVG content
-  const dataUrl = svgToDataUrl(svg);
+  // Pass the tree dimensions so the SVG clone uses the full tree size
+  // (not the on-screen container size) and removes the D3 zoom transform.
+  const dataUrl = svgToDataUrl(svg, width, height);
   const svgImg = await loadImage(dataUrl);
   ctx.drawImage(svgImg, 0, 0, width, height);
 

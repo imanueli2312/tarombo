@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import * as d3 from "d3";
 import type { TreeData, TreeNode } from "@/lib/types-tree";
+import { useLanguage } from "@/hooks/use-language";
 
 interface D3TreeProps {
   data: TreeData | null;
@@ -29,7 +30,6 @@ interface LayoutNode {
 function buildLayout(roots: TreeNode[]): { width: number; height: number; allNodes: LayoutNode[] } {
   const allNodes: LayoutNode[] = [];
 
-  // Recursively lay out a subtree, returns the width consumed.
   function layoutUnit(node: TreeNode, depth: number): { root: LayoutNode; width: number } {
     const children = node.children || [];
     const childLayouts = children.map((c) => layoutUnit(c, depth + 1));
@@ -41,7 +41,6 @@ function buildLayout(roots: TreeNode[]): { width: number; height: number; allNod
     const selfWidth = node.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
     const unitWidth = Math.max(selfWidth, childrenWidth);
 
-    // Position children centered under this unit
     let childCursor = -unitWidth / 2;
     for (const cl of childLayouts) {
       const centerX = childCursor + cl.width / 2;
@@ -74,24 +73,21 @@ function buildLayout(roots: TreeNode[]): { width: number; height: number; allNod
     xOffset += res.width + 80;
   }
 
-  // compute bounds
   let minX = Infinity,
     maxX = -Infinity,
     minY = Infinity,
     maxY = -Infinity;
   for (const n of allNodes) {
-    minX = Math.min(minX, n.x - NODE_W / 2);
-    maxX = Math.max(
-      maxX,
-      n.x + (n.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W) - NODE_W / 2
-    );
+    // Cards are centered on n.x, so left edge = n.x - unitW/2, right edge = n.x + unitW/2
+    const unitW = n.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
+    minX = Math.min(minX, n.x - unitW / 2);
+    maxX = Math.max(maxX, n.x + unitW / 2);
     minY = Math.min(minY, n.y);
     maxY = Math.max(maxY, n.y + NODE_H);
   }
   const width = maxX - minX + 120;
   const height = maxY - minY + 120;
 
-  // Normalize so minX becomes 60
   const dx = 60 - minX;
   const dy = 60 - minY;
   for (const n of allNodes) {
@@ -107,18 +103,8 @@ function shiftSubtree(node: LayoutNode, delta: number) {
   for (const c of node.children) shiftSubtree(c, delta);
 }
 
-function yearOf(d: string | null | undefined): string {
-  if (!d) return "";
-  try {
-    const date = new Date(d);
-    if (isNaN(date.getTime())) return "";
-    return String(date.getFullYear());
-  } catch {
-    return "";
-  }
-}
-
 export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const internalSvgRef = useRef<SVGSVGElement | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
@@ -127,7 +113,6 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
     internalSvgRef.current = el;
   }, []);
 
-  // Observe container size
   useEffect(() => {
     if (!containerRef.current) return;
     const el = containerRef.current;
@@ -146,34 +131,37 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
     const { width, height, allNodes } = buildLayout(data.roots);
 
-    svgEl.setAttribute("width", String(width));
-    svgEl.setAttribute("height", String(height));
-    svgEl.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    // Set the SVG to the container dimensions (not the tree dimensions)
+    // so that D3 zoom handles ALL scaling — no viewBox double-scaling.
+    const cw = size.width;
+    const ch = size.height;
+    svgEl.setAttribute("width", String(cw));
+    svgEl.setAttribute("height", String(ch));
+    svgEl.setAttribute("viewBox", `0 0 ${cw} ${ch}`);
 
     const svg = d3.select(svgEl);
     svg.selectAll("*").remove();
 
-    // background rect (transparent so the page bg shows through)
     svg
       .append("rect")
       .attr("class", "tree-bg")
       .attr("x", 0)
       .attr("y", 0)
-      .attr("width", width)
-      .attr("height", height)
+      .attr("width", cw)
+      .attr("height", ch)
       .attr("fill", "transparent");
 
     const root = svg.append("g").attr("class", "tree-content");
-
     const defs = svg.append("defs");
 
-    // Links (parent -> child) drawn as vertical curves
+    // Links (parent -> child)
     const linkGroup = root.append("g").attr("class", "links");
     for (const node of allNodes) {
+      // node.x is the CENTER of the unit (primary + spouse cards)
       for (const child of node.children) {
-        const parentBottomX = node.x + (node.spouse ? (NODE_W * 2 + SPOUSE_GAP) / 2 : 0);
+        const parentBottomX = node.x; // center of the unit
         const parentBottomY = node.y + NODE_H;
-        const childTopX = child.x;
+        const childTopX = child.x; // center of child's unit
         const childTopY = child.y;
         const midY = (parentBottomY + childTopY) / 2;
         linkGroup
@@ -186,14 +174,14 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .attr("stroke", "oklch(0.7 0.03 60)")
           .attr("stroke-width", 1.4);
       }
-      // marriage line between person and spouse
+      // marriage line: from right edge of primary card to left edge of spouse card
       if (node.spouse) {
         const isActive = (node.person as any).spouse_relation?.is_active !== 0;
         linkGroup
           .append("line")
-          .attr("x1", node.x + NODE_W)
+          .attr("x1", node.x - SPOUSE_GAP / 2)
           .attr("y1", node.y + NODE_H / 2)
-          .attr("x2", node.x + NODE_W + SPOUSE_GAP)
+          .attr("x2", node.x + SPOUSE_GAP / 2)
           .attr("y2", node.y + NODE_H / 2)
           .attr("stroke", "oklch(0.65 0.05 60)")
           .attr("stroke-width", 1.4)
@@ -204,18 +192,35 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
     // Nodes
     const nodeGroup = root.append("g").attr("class", "nodes");
     for (const node of allNodes) {
+      // Center the unit on node.x: offset by -unitWidth/2
+      const unitW = node.spouse ? NODE_W * 2 + SPOUSE_GAP : NODE_W;
       const g = nodeGroup
         .append("g")
         .attr("class", "node-group")
-        .attr("transform", `translate(${node.x}, ${node.y})`)
+        .attr("transform", `translate(${node.x - unitW / 2}, ${node.y})`)
         .style("cursor", "pointer");
 
-      drawPersonCard(g, node.person, 0, false, selectedId === node.person.id, () =>
-        onSelect?.(node.person.id)
+      // Primary card: spouse name is the spouse's name
+      const primarySpouseName = node.spouse?.name ?? null;
+      drawPersonCard(
+        g,
+        node.person,
+        0,
+        false,
+        selectedId === node.person.id,
+        () => onSelect?.(node.person.id),
+        primarySpouseName
       );
+      // Spouse card: spouse name is the primary person's name
       if (node.spouse) {
-        drawPersonCard(g, node.spouse, NODE_W + SPOUSE_GAP, true, selectedId === node.spouse.id, () =>
-          onSelect?.(node.spouse!.id)
+        drawPersonCard(
+          g,
+          node.spouse,
+          NODE_W + SPOUSE_GAP,
+          true,
+          selectedId === node.spouse.id,
+          () => onSelect?.(node.spouse!.id),
+          node.person.name
         );
       }
     }
@@ -226,7 +231,8 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       offsetX: number,
       isSpouse: boolean,
       selected: boolean,
-      onClick: () => void
+      onClick: () => void,
+      spouseName: string | null
     ) {
       const card = parent
         .append("g")
@@ -316,7 +322,11 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .text(initials);
       }
 
-      // name
+      // ---- Name with deceased indicator (✝) next to it ----
+      const deceasedMark = t("tree.deceasedMark");
+      const displayName = isDeceased
+        ? `${truncate(person.name, 20)} ${deceasedMark}`
+        : truncate(person.name, 22);
       card
         .append("text")
         .attr("x", 50)
@@ -324,8 +334,9 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         .attr("font-size", 12)
         .attr("font-weight", 600)
         .attr("fill", "oklch(0.25 0.02 50)")
-        .text(truncate(person.name, 22));
+        .text(displayName);
 
+      // ---- Nickname ----
       if (person.nickname) {
         card
           .append("text")
@@ -336,54 +347,48 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
           .text(`"${truncate(person.nickname, 20)}"`);
       }
 
-      const by = yearOf(person.date_of_birth);
-      const dy2 = yearOf(person.date_of_death);
-      const dateStr = by || dy2 ? `${by || "?"} - ${dy2 || (isDeceased ? "?" : "kini")}` : "";
-      if (dateStr) {
+      // ---- Spouse label (replaces birth/death years) ----
+      if (spouseName) {
+        const spouseText = t("tree.spouseLabel", { name: truncate(spouseName, 18) });
         card
           .append("text")
           .attr("x", 50)
-          .attr("y", by && dy2 ? 52 : 48)
+          .attr("y", person.nickname ? 52 : 48)
           .attr("font-size", 9)
           .attr("fill", "oklch(0.55 0.02 55)")
-          .text(dateStr);
+          .text(spouseText);
       }
 
-      if (isDeceased) {
-        card
-          .append("text")
-          .attr("x", NODE_W - 8)
-          .attr("y", 14)
-          .attr("text-anchor", "end")
-          .attr("font-size", 11)
-          .attr("fill", "oklch(0.55 0.05 25)")
-          .text("✝");
-      }
-
-      if (isSpouse) {
-        card
-          .append("text")
-          .attr("x", NODE_W - 8)
-          .attr("y", NODE_H - 6)
-          .attr("text-anchor", "end")
-          .attr("font-size", 8)
-          .attr("fill", "oklch(0.6 0.02 60)")
-          .text("pasangan");
-      }
+      // ---- Generation number in top-right corner (replaces old ✝ marker) ----
+      const genText = t("tree.genLabel", { n: person.generation });
+      card
+        .append("text")
+        .attr("x", NODE_W - 8)
+        .attr("y", 14)
+        .attr("text-anchor", "end")
+        .attr("font-size", 9)
+        .attr("font-weight", 500)
+        .attr("fill", "oklch(0.55 0.02 55)")
+        .text(genText);
     }
 
     // Zoom & pan
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.2, 3])
+      .scaleExtent([0.15, 3])
       .on("zoom", (event) => {
         root.attr("transform", event.transform.toString());
       });
 
     svg.call(zoom as any);
 
-    // Fit to container on first render
-    const scale = Math.min(size.width / width, size.height / height, 1) * 0.95;
+    // ---- Center and scale to fit the screen ----
+    // Remove the scale cap of 1 so even small trees fill the viewport.
+    // Cap at 2.5 to avoid over-zooming on tiny trees.
+    const padding = 40;
+    const availW = Math.max(size.width - padding * 2, 100);
+    const availH = Math.max(size.height - padding * 2, 100);
+    const scale = Math.min(availW / width, availH / height, 2.5);
     const tx = (size.width - width * scale) / 2;
     const ty = (size.height - height * scale) / 2;
     if (scale > 0 && isFinite(scale)) {
@@ -395,7 +400,7 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
     onReady?.(svgEl, width, height);
      
-  }, [data, selectedId, size.width, size.height]);
+  }, [data, selectedId, size.width, size.height, t]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden">

@@ -65,6 +65,9 @@ export const translations: Record<Language, Dict> = {
     "tree.legendInactive": "Inactive / ended",
     "tree.legendHint": "Drag to pan · scroll to zoom · click a card for details",
     "tree.loadFailed": "Failed to load family tree",
+    "tree.genLabel": "Gen: {n}",
+    "tree.spouseLabel": "Spouse: {name}",
+    "tree.deceasedMark": "✝",
 
     // ---- Family Chart view ----
     "chart.title": "Family Chart",
@@ -362,6 +365,9 @@ export const translations: Record<Language, Dict> = {
     "tree.legendInactive": "Tidak aktif / berakhir",
     "tree.legendHint": "Seret untuk menggeser · scroll untuk zoom · klik kartu untuk detail",
     "tree.loadFailed": "Gagal memuat pohon keluarga",
+    "tree.genLabel": "Gen: {n}",
+    "tree.spouseLabel": "Pasangan: {name}",
+    "tree.deceasedMark": "✝",
 
     // ---- Family Chart view ----
     "chart.title": "Bagan Keluarga",
