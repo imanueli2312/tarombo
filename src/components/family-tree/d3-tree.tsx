@@ -13,14 +13,14 @@ interface D3TreeProps {
 }
 
 // Compact card dimensions
-const NODE_W = 168;
-const NODE_H = 56;
-const AVATAR_R = 13;
-const AVATAR_CX = 22;
-const LEVEL_GAP = 86;
-const SIBLING_GAP = 24;
-const ROOT_GAP = 50;
-const PADDING = 40;
+const NODE_W = 148;
+const NODE_H = 48;
+const AVATAR_R = 11;
+const AVATAR_CX = 19;
+const LEVEL_GAP = 68;
+const SIBLING_GAP = 16;
+const ROOT_GAP = 36;
+const PADDING = 30;
 
 interface LayoutNode {
   id: string;
@@ -293,26 +293,26 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
         card
           .append("text")
           .attr("x", AVATAR_CX)
-          .attr("y", NODE_H / 2 + 3.5)
+          .attr("y", NODE_H / 2 + 3)
           .attr("text-anchor", "middle")
-          .attr("font-size", 8)
+          .attr("font-size", 7)
           .attr("font-weight", 600)
           .attr("fill", "oklch(0.5 0.03 50)")
           .text(initials);
       }
 
       // Text X position (right of avatar)
-      const textX = AVATAR_CX + AVATAR_R + 8;
+      const textX = AVATAR_CX + AVATAR_R + 6;
 
       // Name with ✝ deceased indicator
       const displayName = isDeceased
-        ? `${truncate(person.name, 17)} ${deceasedMark}`
-        : truncate(person.name, 19);
+        ? `${truncate(person.name, 15)} ${deceasedMark}`
+        : truncate(person.name, 17);
       card
         .append("text")
         .attr("x", textX)
-        .attr("y", 18)
-        .attr("font-size", 10.5)
+        .attr("y", 16)
+        .attr("font-size", 9.5)
         .attr("font-weight", 600)
         .attr("fill", "oklch(0.25 0.02 50)")
         .text(displayName);
@@ -320,14 +320,14 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       // Spouse label (replaces nickname/years) — concise single line
       if (spouseInfo) {
         const spouseNameWithMark = spouseInfo.isDeceased
-          ? `${truncate(spouseInfo.name, 14)} ${deceasedMark}`
-          : truncate(spouseInfo.name, 16);
+          ? `${truncate(spouseInfo.name, 12)} ${deceasedMark}`
+          : truncate(spouseInfo.name, 14);
         const spouseText = t("tree.spouseLabel", { name: spouseNameWithMark });
         card
           .append("text")
           .attr("x", textX)
-          .attr("y", 33)
-          .attr("font-size", 8)
+          .attr("y", 29)
+          .attr("font-size", 7.5)
           .attr("fill", "oklch(0.55 0.02 55)")
           .text(spouseText);
       }
@@ -336,10 +336,10 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
       const genText = t("tree.genLabel", { n: person.generation });
       card
         .append("text")
-        .attr("x", NODE_W - 6)
-        .attr("y", NODE_H - 5)
+        .attr("x", NODE_W - 5)
+        .attr("y", NODE_H - 4)
         .attr("text-anchor", "end")
-        .attr("font-size", 7.5)
+        .attr("font-size", 7)
         .attr("font-weight", 500)
         .attr("fill", "oklch(0.6 0.02 55)")
         .text(genText);
@@ -355,17 +355,19 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
 
     svg.call(zoom as any);
 
-    // Center and scale to fit the viewport
-    const fitPadding = 30;
-    const availW = Math.max(size.width - fitPadding * 2, 100);
-    const availH = Math.max(size.height - fitPadding * 2, 100);
-    const scale = Math.min(availW / width, availH / height, 2.5);
-    const tx = (size.width - width * scale) / 2;
-    const ty = (size.height - height * scale) / 2;
-    if (scale > 0 && isFinite(scale)) {
+    // Start at a readable scale centered on the root (top-center of the
+    // tree). The tree does not need to fit entirely on screen — the user
+    // can pan and zoom to explore different branches.
+    const initialScale = 1;
+    // Find the root: the node with the smallest y (top of the tree)
+    const rootNode = allNodes.reduce((min, n) => (n.y < min.y ? n : min), allNodes[0]);
+    const rootX = rootNode.x;
+    const tx = size.width / 2 - rootX * initialScale;
+    const ty = PADDING * initialScale;
+    if (isFinite(tx) && isFinite(ty)) {
       svg.call(
         zoom.transform as any,
-        d3.zoomIdentity.translate(tx, ty).scale(scale)
+        d3.zoomIdentity.translate(tx, ty).scale(initialScale)
       );
     }
 
