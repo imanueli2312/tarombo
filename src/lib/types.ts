@@ -80,6 +80,9 @@ export interface Permissions {
     birthdays: boolean;
     weddings: boolean;
     profile: boolean;
+    map: boolean;
+    pedigree: boolean;
+    descendants: boolean;
   };
   actions: {
     managePersons: boolean;
@@ -102,6 +105,9 @@ export const VIEWER_PERMISSIONS: Permissions = {
     birthdays: false,
     weddings: false,
     profile: false,
+    map: true,
+    pedigree: true,
+    descendants: true,
   },
   actions: {
     managePersons: false,
@@ -120,6 +126,9 @@ export const EDITOR_PERMISSIONS: Permissions = {
     birthdays: true,
     weddings: true,
     profile: true,
+    map: true,
+    pedigree: true,
+    descendants: true,
   },
   actions: {
     managePersons: true,
@@ -138,6 +147,9 @@ export const ADMIN_PERMISSIONS: Permissions = {
     birthdays: true,
     weddings: true,
     profile: true,
+    map: true,
+    pedigree: true,
+    descendants: true,
   },
   actions: {
     managePersons: true,
@@ -155,6 +167,9 @@ export const ALL_PAGE_KEYS: PageKey[] = [
   "birthdays",
   "weddings",
   "profile",
+  "map",
+  "pedigree",
+  "descendants",
 ];
 
 export const ALL_ACTION_KEYS: ActionKey[] = [

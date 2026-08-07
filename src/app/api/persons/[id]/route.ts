@@ -4,6 +4,7 @@ import {
   getRequestContext,
   assertAction,
 } from "@/lib/auth";
+import { logAudit, diffChanges } from "@/lib/audit";
 import { validateParentAssignment } from "@/app/api/tree/route";
 import type { Person } from "@/lib/types";
 
@@ -30,7 +31,7 @@ export function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApi(async () => {
-    const { permissions } = await getRequestContext();
+    const { permissions, session } = await getRequestContext();
     assertAction(permissions, "managePersons");
     const { id } = await params;
     const existing = sqlite
@@ -39,6 +40,13 @@ export function PUT(
     if (!existing) return errorResponse(404, "Person not found");
 
     const body = (await req.json()) as Partial<Person>;
+
+    const changes = diffChanges(existing as any, body as any, [
+      "name", "nickname", "place_of_birth", "date_of_birth", "date_of_death",
+      "birth_order", "gender", "residential_address", "religion", "phone_number",
+      "photo", "marital_status", "generation", "father_id", "mother_id", "parent_id",
+      "burial_name", "burial_address", "burial_lat", "burial_lng",
+    ]);
 
     if (body.father_id && body.father_id !== existing.father_id)
       validateParentAssignment(id, body.father_id, "father");
@@ -92,6 +100,15 @@ export function PUT(
     const updated = sqlite
       .prepare("SELECT * FROM persons WHERE id = ?")
       .get(id) as Person;
+    logAudit({
+      user_id: session?.id ?? null,
+      user_name: session?.name ?? null,
+      action: "update",
+      entity_type: "person",
+      entity_id: id,
+      entity_name: updated.name,
+      changes,
+    });
     return json(updated);
   });
 }
@@ -102,12 +119,12 @@ export function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return handleApi(async () => {
-    const { permissions } = await getRequestContext();
+    const { permissions, session } = await getRequestContext();
     assertAction(permissions, "managePersons");
     const { id } = await params;
     const existing = sqlite
       .prepare("SELECT * FROM persons WHERE id = ?")
-      .get(id);
+      .get(id) as Person | undefined;
     if (!existing) return errorResponse(404, "Person not found");
 
     // Clear references from children (set parent_id/father_id/mother_id to NULL)
@@ -130,6 +147,14 @@ export function DELETE(
       .run(id, id);
     // Delete the person
     sqlite.prepare("DELETE FROM persons WHERE id=?").run(id);
+    logAudit({
+      user_id: session?.id ?? null,
+      user_name: session?.name ?? null,
+      action: "delete",
+      entity_type: "person",
+      entity_id: id,
+      entity_name: existing.name,
+    });
     return json({ ok: true });
   });
 }

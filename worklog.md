@@ -120,3 +120,70 @@ Work Log:
 Stage Summary:
 - PROJECT_STATUS.id.md now mirrors PROJECT_STATUS.md
 - All new sections translated to Indonesian
+
+---
+Task ID: 3A
+Agent: general-purpose (admin API routes)
+Task: Create audit-log, backup, csv-import, and validation API routes
+
+Work Log:
+- Created src/app/api/audit-log/route.ts (GET audit log entries)
+- Created src/app/api/backup/route.ts (GET download, POST restore)
+- Created src/app/api/csv-import/route.ts (POST bulk import persons from CSV)
+- Created src/app/api/validation/route.ts (GET data quality issues)
+
+Stage Summary:
+- 4 API routes created for admin features
+- All routes enforce RBAC permissions
+- Audit log entries are created for CSV imports
+
+---
+Task ID: 3B
+Agent: general-purpose (feature API routes)
+Task: Create registration, pedigree, descendants, and burials API routes
+
+Work Log:
+- Created src/app/api/registration/route.ts (POST submit, GET list)
+- Created src/app/api/registration/[id]/route.ts (PUT approve/reject)
+- Created src/app/api/pedigree/route.ts (GET ancestors)
+- Created src/app/api/descendants/route.ts (GET descendants)
+- Created src/app/api/burials/route.ts (GET burial locations)
+
+Stage Summary:
+- 5 API routes created for registration, pedigree, descendants, and burial map
+- Registration creates user accounts on approval with Editor role
+- Pedigree walks parent_id chain; descendants walks children via parent_id
+
+---
+Task ID: 5A
+Agent: general-purpose (map/pedigree/descendants views)
+Task: Create map-view, pedigree-view, and descendants-view components
+
+Work Log:
+- Created src/components/views/map-view.tsx (Leaflet map with burial markers)
+- Created src/components/views/pedigree-view.tsx (ancestor tree with person selector)
+- Created src/components/views/descendants-view.tsx (descendant tree with person selector)
+
+Stage Summary:
+- 3 view components created
+- Map uses OpenStreetMap tiles (no cloud/API key)
+- Pedigree and descendants use indented hierarchy with person search/selector
+- All views support EN/ID translations
+
+---
+Task ID: 3C
+Agent: general-purpose (admin panels)
+Task: Add AuditPanel, BackupPanel, CsvImportPanel, ValidationPanel, RegistrationsPanel to admin-view.tsx
+
+Work Log:
+- Appended 5 new panel components to admin-view.tsx
+- AuditPanel: fetches and displays audit log entries in a table
+- BackupPanel: download backup + restore from file upload
+- CsvImportPanel: upload CSV + download template
+- ValidationPanel: run validation and display issues
+- RegistrationsPanel: list requests, approve (with password dialog) or reject
+
+Stage Summary:
+- 5 admin panel components added
+- All use translations and toast notifications
+- Registration approval creates user accounts with Editor role

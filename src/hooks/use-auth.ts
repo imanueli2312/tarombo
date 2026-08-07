@@ -27,6 +27,9 @@ const VIEWER_PERMISSIONS: Permissions = {
     birthdays: false,
     weddings: false,
     profile: false,
+    map: true,
+    pedigree: true,
+    descendants: true,
   },
   actions: {
     managePersons: false,

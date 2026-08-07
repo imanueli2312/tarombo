@@ -89,6 +89,35 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_spouses_wife ON spouses(wife_id);
   CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
+
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    user_name TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    entity_name TEXT,
+    changes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+  CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+
+  CREATE TABLE IF NOT EXISTS registration_requests (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    person_id TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_reg_requests_status ON registration_requests(status);
 `);
 
 export { sqlite };

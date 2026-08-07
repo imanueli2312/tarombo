@@ -23,7 +23,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Users, Shield, Plus, Trash2, Save, Pencil, Lock } from "lucide-react";
+import { Loader2, Users, Shield, Plus, Trash2, Save, Pencil, Lock, FileText, Database, Upload, AlertTriangle, UserPlus, Download, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Permissions, Role } from "@/lib/types";
 import { useLanguage } from "@/hooks/use-language";
@@ -47,6 +47,9 @@ const PAGE_LABELS: Record<keyof Permissions["pages"], string> = {
   birthdays: "perm.page.birthdays",
   weddings: "perm.page.weddings",
   profile: "perm.page.profile",
+  map: "perm.page.map",
+  pedigree: "perm.page.pedigree",
+  descendants: "perm.page.descendants",
 };
 
 const ACTION_LABELS: Record<keyof Permissions["actions"], string> = {
@@ -89,9 +92,14 @@ export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
 
         {(canManageUsers || canManageRoles) && (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
+            <TabsList className="flex-wrap">
               {canManageUsers && <TabsTrigger value="users"><Users className="mr-2 h-4 w-4" /> {t("admin.users")}</TabsTrigger>}
               {canManageRoles && <TabsTrigger value="roles"><Shield className="mr-2 h-4 w-4" /> {t("admin.roles")}</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="audit"><FileText className="mr-2 h-4 w-4" /> {t("admin.auditLog")}</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="backup"><Database className="mr-2 h-4 w-4" /> {t("admin.backup")}</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="import"><Upload className="mr-2 h-4 w-4" /> {t("admin.csvImport")}</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="validation"><AlertTriangle className="mr-2 h-4 w-4" /> {t("admin.validation")}</TabsTrigger>}
+              {canManageUsers && <TabsTrigger value="registrations"><UserPlus className="mr-2 h-4 w-4" /> {t("admin.registrationRequests")}</TabsTrigger>}
             </TabsList>
 
             {canManageUsers && (
@@ -102,6 +110,31 @@ export function AdminView({ canManageUsers, canManageRoles }: AdminViewProps) {
             {canManageRoles && (
               <TabsContent value="roles">
                 <RolesPanel />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="audit">
+                <AuditPanel />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="backup">
+                <BackupPanel />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="import">
+                <CsvImportPanel />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="validation">
+                <ValidationPanel />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="registrations">
+                <RegistrationsPanel />
               </TabsContent>
             )}
           </Tabs>
@@ -638,5 +671,403 @@ function RoleDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ============ AUDIT LOG PANEL ============
+
+function AuditPanel() {
+  const { t } = useLanguage();
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/audit-log");
+        if (!res.ok) throw new Error();
+        setEntries(await res.json());
+      } catch {
+        toast.error("Failed to load audit log");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  if (entries.length === 0) {
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("admin.auditEmpty")}</CardContent></Card>;
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="p-3 font-medium">{t("admin.auditTime")}</th>
+                <th className="p-3 font-medium">{t("admin.auditUser")}</th>
+                <th className="p-3 font-medium">{t("admin.auditAction")}</th>
+                <th className="p-3 font-medium">{t("admin.auditEntity")}</th>
+                <th className="p-3 font-medium">{t("admin.auditChanges")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{e.created_at ? new Date(e.created_at.replace(" ", "T")).toLocaleString() : "—"}</td>
+                  <td className="p-3">{e.user_name || "—"}</td>
+                  <td className="p-3"><Badge variant={e.action === "create" ? "default" : e.action === "delete" ? "destructive" : "secondary"} className="capitalize">{e.action}</Badge></td>
+                  <td className="p-3"><span className="text-muted-foreground capitalize">{e.entity_type}</span>: {e.entity_name || e.entity_id || "—"}</td>
+                  <td className="p-3 text-xs text-muted-foreground">{e.changes ? <details><summary className="cursor-pointer">View changes</summary><pre className="mt-1 max-w-md overflow-auto whitespace-pre-wrap">{JSON.stringify(JSON.parse(e.changes), null, 2)}</pre></details> : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ BACKUP & RESTORE PANEL ============
+
+function BackupPanel() {
+  const { t } = useLanguage();
+  const [restoring, setRestoring] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/backup");
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hariandja-backup-${new Date().toISOString().slice(0, 10)}.db`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t("admin.backupSuccess"));
+    } catch {
+      toast.error(t("admin.backupFailed"));
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleRestore(file: File) {
+    if (!confirm(t("admin.restoreConfirm"))) return;
+    setRestoring(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/backup", { method: "POST", body: fd });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.error || "Restore failed");
+      }
+      toast.success(t("admin.restoreSuccess"));
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (e: any) {
+      toast.error(e?.message || t("admin.restoreFailed"));
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{t("admin.backup")}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">{t("admin.backupDesc")}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleDownload} disabled={downloading}>
+            {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {t("admin.downloadBackup")}
+          </Button>
+          <label>
+            <input
+              type="file"
+              accept=".db,.sqlite,.sqlite3"
+              className="hidden"
+              disabled={restoring}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRestore(f); }}
+            />
+            <Button variant="outline" disabled={restoring} asChild>
+              <span>
+                {restoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {t("admin.restoreBackup")}
+              </span>
+            </Button>
+          </label>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ CSV IMPORT PANEL ============
+
+function CsvImportPanel() {
+  const { t } = useLanguage();
+  const [importing, setImporting] = useState(false);
+
+  async function handleImport(file: File) {
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/csv-import", { method: "POST", body: fd });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.error || "Import failed");
+      }
+      const data = await res.json();
+      toast.success(t("admin.csvSuccess", { count: data.imported }));
+    } catch (e: any) {
+      toast.error(e?.message || t("admin.csvFailed"));
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function downloadTemplate() {
+    const headers = "name,nickname,gender,date_of_birth,date_of_death,place_of_birth,generation,parent_id,father_id,mother_id";
+    const example = "John Hariandja,Johnny,male,1990-01-15,,Jakarta,8,p_0001,,";
+    const blob = new Blob([headers + "\n" + example], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tarombo-import-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{t("admin.csvImport")}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">{t("admin.csvImportDesc")}</p>
+        <div className="flex flex-wrap gap-2">
+          <label>
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              disabled={importing}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); }}
+            />
+            <Button disabled={importing} asChild>
+              <span>
+                {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {t("admin.uploadCsv")}
+              </span>
+            </Button>
+          </label>
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            {t("admin.csvTemplate")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ DATA VALIDATION PANEL ============
+
+function ValidationPanel() {
+  const { t } = useLanguage();
+  const [issues, setIssues] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function runValidation() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/validation");
+      if (!res.ok) throw new Error();
+      setIssues(await res.json());
+    } catch {
+      toast.error("Validation failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const typeLabels: Record<string, string> = {
+    missingBirth: t("admin.valMissingBirth"),
+    missingParent: t("admin.valMissingParent"),
+    missingPlace: t("admin.valMissingPlace"),
+    potentialDup: t("admin.valPotentialDup"),
+    deathBeforeBirth: t("admin.valDeathBeforeBirth"),
+    childOlderThanParent: t("admin.valChildOlderThanParent"),
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{t("admin.validation")}</CardTitle>
+          <Button size="sm" onClick={runValidation} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
+            {t("admin.runValidation")}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {issues === null ? (
+          <p className="text-sm text-muted-foreground">{t("admin.validationDesc")}</p>
+        ) : issues.length === 0 ? (
+          <p className="py-6 text-center text-muted-foreground">{t("admin.validationEmpty")}</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("admin.validationIssues", { count: issues.length })}</p>
+            {issues.map((issue, i) => (
+              <div key={i} className="flex items-start gap-2 rounded-lg border p-2.5">
+                <Badge variant="outline" className="shrink-0 text-xs">{typeLabels[issue.type] || issue.type}</Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{issue.person_name}</div>
+                  <div className="text-xs text-muted-foreground">{issue.details}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ REGISTRATION REQUESTS PANEL ============
+
+function RegistrationsPanel() {
+  const { t } = useLanguage();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [password, setPassword] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/registration");
+      if (!res.ok) throw new Error();
+      setRequests(await res.json());
+    } catch {
+      toast.error("Failed to load requests");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  async function handleApprove(id: string) {
+    if (!password) { toast.error(t("admin.setRequestPassword")); return; }
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/registration/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved", password }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Failed"); }
+      toast.success(t("admin.requestApproved"));
+      setPasswordDialog(null);
+      setPassword("");
+      load();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleReject(id: string) {
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/registration/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(t("admin.requestRejected"));
+      load();
+    } catch {
+      toast.error("Failed");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  if (loading) return <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  if (requests.length === 0) {
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">No registration requests.</CardContent></Card>;
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        {requests.map((r) => (
+          <Card key={r.id}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{r.name}</span>
+                  <Badge variant={r.status === "pending" ? "default" : r.status === "approved" ? "secondary" : "outline"} className="capitalize">
+                    {t(`register.${r.status}` as any) || r.status}
+                  </Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">{r.email}</div>
+                {r.person_name && <div className="text-xs text-muted-foreground">Linked: {r.person_name}</div>}
+                <div className="text-xs text-muted-foreground">{new Date(r.created_at.replace(" ", "T")).toLocaleDateString()}</div>
+              </div>
+              {r.status === "pending" && (
+                <div className="flex gap-1">
+                  <Button size="sm" onClick={() => { setPasswordDialog({ id: r.id, name: r.name, email: r.email }); setPassword(""); }} disabled={processingId === r.id}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleReject(r.id)} disabled={processingId === r.id}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Dialog open={!!passwordDialog} onOpenChange={(o) => { if (!o) { setPasswordDialog(null); setPassword(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("admin.setRequestPassword")}</DialogTitle>
+            <DialogDescription>{passwordDialog?.name} ({passwordDialog?.email})</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>{t("register.name")}</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPasswordDialog(null); setPassword(""); }}>{t("common.cancel")}</Button>
+            <Button onClick={() => passwordDialog && handleApprove(passwordDialog.id)} disabled={!password || processingId === passwordDialog.id}>
+              {processingId === passwordDialog?.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              {t("admin.approve")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

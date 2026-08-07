@@ -5,6 +5,7 @@ import {
   assertPageAccess,
   assertAction,
 } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import { createPerson, validateParentAssignment } from "@/app/api/tree/route";
 import type { Person } from "@/lib/types";
 
@@ -25,7 +26,7 @@ export function GET() {
 // POST /api/persons - create a new person
 export function POST(req: Request) {
   return handleApi(async () => {
-    const { permissions } = await getRequestContext();
+    const { permissions, session } = await getRequestContext();
     assertAction(permissions, "managePersons");
     const body = (await req.json()) as Partial<Person>;
 
@@ -34,6 +35,14 @@ export function POST(req: Request) {
     if (body.parent_id) validateParentAssignment(body.id ?? null, body.parent_id, "parent");
 
     const person = createPerson(body);
+    logAudit({
+      user_id: session?.id ?? null,
+      user_name: session?.name ?? null,
+      action: "create",
+      entity_type: "person",
+      entity_id: person.id,
+      entity_name: person.name,
+    });
     return json(person, 201);
   });
 }

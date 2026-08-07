@@ -21,9 +21,10 @@ interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  onRequestAccess?: () => void;
 }
 
-export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps) {
+export function LoginDialog({ open, onOpenChange, onSuccess, onRequestAccess }: LoginDialogProps) {
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -118,6 +119,15 @@ export function LoginDialog({ open, onOpenChange, onSuccess }: LoginDialogProps)
             Editor: <span className="font-mono">editor@hariandja.id</span> /{" "}
             <span className="font-mono">editor123</span>
           </p>
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={() => { onOpenChange(false); onRequestAccess?.(); }}
+            className="text-xs text-primary underline-offset-2 hover:underline"
+          >
+            {t("register.title")}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

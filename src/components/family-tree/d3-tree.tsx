@@ -8,6 +8,7 @@ import { useLanguage } from "@/hooks/use-language";
 interface D3TreeProps {
   data: TreeData | null;
   selectedId?: string | null;
+  focusPersonId?: string | null;
   onSelect?: (personId: string) => void;
   onReady?: (svg: SVGSVGElement, width: number, height: number) => void;
 }
@@ -111,7 +112,7 @@ function shiftSubtree(node: LayoutNode, delta: number) {
   for (const c of node.children) shiftSubtree(c, delta);
 }
 
-export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
+export function D3Tree({ data, selectedId, focusPersonId, onSelect, onReady }: D3TreeProps) {
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const internalSvgRef = useRef<SVGSVGElement | null>(null);
@@ -356,23 +357,40 @@ export function D3Tree({ data, selectedId, onSelect, onReady }: D3TreeProps) {
     svg.call(zoom as any);
 
     // Start at a readable scale centered on the root (top-center of the
-    // tree). The tree does not need to fit entirely on screen — the user
-    // can pan and zoom to explore different branches.
+    // tree), OR focus on a specific person if focusPersonId is set.
     const initialScale = 1;
-    // Find the root: the node with the smallest y (top of the tree)
-    const rootNode = allNodes.reduce((min, n) => (n.y < min.y ? n : min), allNodes[0]);
-    const rootX = rootNode.x;
-    const tx = size.width / 2 - rootX * initialScale;
-    const ty = PADDING * initialScale;
-    if (isFinite(tx) && isFinite(ty)) {
-      svg.call(
-        zoom.transform as any,
-        d3.zoomIdentity.translate(tx, ty).scale(initialScale)
-      );
+    const focusNode = focusPersonId
+      ? allNodes.find(n => n.person.id === focusPersonId)
+      : null;
+
+    if (focusNode) {
+      // Pan/zoom to center on the focused person
+      const fx = focusNode.x;
+      const fy = focusNode.y;
+      const tx = size.width / 2 - fx * initialScale;
+      const ty = size.height / 2 - fy * initialScale;
+      if (isFinite(tx) && isFinite(ty)) {
+        svg.call(
+          zoom.transform as any,
+          d3.zoomIdentity.translate(tx, ty).scale(initialScale)
+        );
+      }
+    } else {
+      // Default: center on the root (node with smallest y)
+      const rootNode = allNodes.reduce((min, n) => (n.y < min.y ? n : min), allNodes[0]);
+      const rootX = rootNode.x;
+      const tx = size.width / 2 - rootX * initialScale;
+      const ty = PADDING * initialScale;
+      if (isFinite(tx) && isFinite(ty)) {
+        svg.call(
+          zoom.transform as any,
+          d3.zoomIdentity.translate(tx, ty).scale(initialScale)
+        );
+      }
     }
 
     onReady?.(svgEl, width, height);
-  }, [data, selectedId, size.width, size.height, t]);
+  }, [data, selectedId, focusPersonId, size.width, size.height, t]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden">

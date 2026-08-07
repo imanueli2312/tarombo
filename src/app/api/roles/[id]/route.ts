@@ -25,6 +25,9 @@ function normalizePermissions(input: any) {
       birthdays: Boolean(input?.pages?.birthdays),
       weddings: Boolean(input?.pages?.weddings),
       profile: Boolean(input?.pages?.profile),
+      map: input?.pages?.map !== undefined ? Boolean(input.pages.map) : true,
+      pedigree: input?.pages?.pedigree !== undefined ? Boolean(input.pages.pedigree) : true,
+      descendants: input?.pages?.descendants !== undefined ? Boolean(input.pages.descendants) : true,
     },
     actions: {
       managePersons: Boolean(input?.actions?.managePersons),

@@ -13,7 +13,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { LoginDialog } from "@/components/login-dialog";
+import { RegisterDialog } from "@/components/register-dialog";
 import { LanguageToggle } from "@/components/language-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useLanguage } from "@/hooks/use-language";
 import {
   Search as SearchIcon,
@@ -27,6 +29,9 @@ import {
   LogIn,
   LogOut,
   ChevronDown,
+  Map as MapIcon,
+  GitBranch,
+  Users as UsersIcon,
 } from "lucide-react";
 import type { Permissions } from "@/lib/types";
 
@@ -37,7 +42,10 @@ export type ViewKey =
   | "birthdays"
   | "weddings"
   | "profile"
-  | "admin";
+  | "admin"
+  | "map"
+  | "pedigree"
+  | "descendants";
 
 interface NavBarProps {
   permissions: Permissions | null;
@@ -68,6 +76,24 @@ const NAV_ITEMS: NavItem[] = [
     requires: (p) => p.pages.familyChart,
   },
   {
+    key: "pedigree",
+    labelKey: "nav.pedigree",
+    icon: <GitBranch className="h-4 w-4" />,
+    requires: (p) => p.pages.pedigree,
+  },
+  {
+    key: "descendants",
+    labelKey: "nav.descendants",
+    icon: <UsersIcon className="h-4 w-4" />,
+    requires: (p) => p.pages.descendants,
+  },
+  {
+    key: "map",
+    labelKey: "nav.map",
+    icon: <MapIcon className="h-4 w-4" />,
+    requires: (p) => p.pages.map,
+  },
+  {
     key: "birthdays",
     labelKey: "nav.birthdays",
     icon: <Cake className="h-4 w-4" />,
@@ -96,6 +122,7 @@ const NAV_ITEMS: NavItem[] = [
 export function NavBar(props: NavBarProps) {
   const { t } = useLanguage();
   const [loginOpen, setLoginOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter(
@@ -143,7 +170,9 @@ export function NavBar(props: NavBarProps) {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
+            {/* Theme toggle */}
+            <ThemeToggle />
             {/* Language toggle */}
             <LanguageToggle />
 
@@ -228,6 +257,12 @@ export function NavBar(props: NavBarProps) {
         open={loginOpen}
         onOpenChange={setLoginOpen}
         onSuccess={props.onLogin}
+        onRequestAccess={() => setRegisterOpen(true)}
+      />
+      <RegisterDialog
+        open={registerOpen}
+        onOpenChange={setRegisterOpen}
+        allPersons={[]}
       />
     </>
   );

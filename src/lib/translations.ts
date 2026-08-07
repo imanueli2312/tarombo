@@ -211,6 +211,9 @@ export const translations: Record<Language, Dict> = {
     "perm.page.birthdays": "Birthdays",
     "perm.page.weddings": "Weddings",
     "perm.page.profile": "Profile",
+    "perm.page.map": "Burial Map",
+    "perm.page.pedigree": "Pedigree",
+    "perm.page.descendants": "Descendants",
     "perm.action.managePersons": "Manage persons",
     "perm.action.manageSpouses": "Manage marriages",
     "perm.action.manageUsers": "Manage users",
@@ -329,6 +332,103 @@ export const translations: Record<Language, Dict> = {
     "common.loading": "Loading...",
     "common.updated": "Updated",
     "common.updateFailed": "Failed to update",
+
+    // ---- Nav: new views ----
+    "nav.map": "Map",
+    "nav.pedigree": "Pedigree",
+    "nav.descendants": "Descendants",
+
+    // ---- Dark mode ----
+    "theme.toggle": "Toggle theme",
+    "theme.light": "Light",
+    "theme.dark": "Dark",
+
+    // ---- Search-to-focus ----
+    "tree.focusOn": "Focus on {name}",
+
+    // ---- Burial Map view ----
+    "map.title": "Burial Sites",
+    "map.subtitle": "Burial locations of Hariandja clan members across generations.",
+    "map.empty": "No burial locations recorded yet.",
+    "map.loadFailed": "Failed to load map data",
+    "map.persons": "{count} burial sites",
+    "map.clickHint": "Click a marker for details",
+
+    // ---- Pedigree view ----
+    "pedigree.title": "Pedigree",
+    "pedigree.subtitle": "Direct ancestors of the selected person.",
+    "pedigree.selectPerson": "Select a person to view their pedigree",
+    "pedigree.searchPlaceholder": "Search person...",
+    "pedigree.empty": "No ancestors found.",
+    "pedigree.loadFailed": "Failed to load pedigree data",
+
+    // ---- Descendants view ----
+    "descendants.title": "Descendants",
+    "descendants.subtitle": "All descendants of the selected person.",
+    "descendants.selectPerson": "Select a person to view their descendants",
+    "descendants.searchPlaceholder": "Search person...",
+    "descendants.empty": "No descendants found.",
+    "descendants.loadFailed": "Failed to load descendants data",
+
+    // ---- Audit Log (Admin) ----
+    "admin.auditLog": "Audit Log",
+    "admin.auditEmpty": "No changes logged yet.",
+    "admin.auditAction": "Action",
+    "admin.auditEntity": "Entity",
+    "admin.auditUser": "User",
+    "admin.auditTime": "Time",
+    "admin.auditChanges": "Changes",
+
+    // ---- Backup & Restore (Admin) ----
+    "admin.backup": "Backup & Restore",
+    "admin.backupDesc": "Download a backup of the database or restore from a previous backup.",
+    "admin.downloadBackup": "Download Backup",
+    "admin.restoreBackup": "Restore from Backup",
+    "admin.restoreConfirm": "This will REPLACE all current data. Continue?",
+    "admin.restoreSuccess": "Database restored successfully. The page will reload.",
+    "admin.restoreFailed": "Restore failed",
+    "admin.backupSuccess": "Backup downloaded",
+    "admin.backupFailed": "Backup failed",
+
+    // ---- CSV Import (Admin) ----
+    "admin.csvImport": "CSV Import",
+    "admin.csvImportDesc": "Bulk import persons from a CSV file. Columns: name, nickname, gender, date_of_birth, date_of_death, place_of_birth, generation, parent_id, father_id, mother_id.",
+    "admin.uploadCsv": "Upload CSV",
+    "admin.csvSuccess": "Imported {count} persons successfully.",
+    "admin.csvFailed": "Import failed",
+    "admin.csvTemplate": "Download Template",
+
+    // ---- Data Validation (Admin) ----
+    "admin.validation": "Data Validation",
+    "admin.validationDesc": "Scan the database for missing data, duplicates, and inconsistencies.",
+    "admin.runValidation": "Run Validation",
+    "admin.validationEmpty": "No issues found! The data looks clean.",
+    "admin.validationIssues": "{count} issue(s) found",
+    "admin.valMissingBirth": "Missing birth date",
+    "admin.valMissingParent": "No parent recorded",
+    "admin.valMissingPlace": "Missing place of birth",
+    "admin.valPotentialDup": "Potential duplicate",
+    "admin.valDeathBeforeBirth": "Death before birth",
+    "admin.valChildOlderThanParent": "Child older than parent",
+
+    // ---- Self-Registration ----
+    "register.title": "Request Access",
+    "register.description": "Submit a request to join the Hariandja clan genealogy. An administrator will review and approve your request.",
+    "register.name": "Your name",
+    "register.email": "Email",
+    "register.linkedPerson": "Linked person (optional)",
+    "register.submit": "Submit Request",
+    "register.success": "Request submitted! An administrator will review it.",
+    "register.failed": "Request failed",
+    "register.pending": "Pending",
+    "register.approved": "Approved",
+    "register.rejected": "Rejected",
+    "admin.registrationRequests": "Registration Requests",
+    "admin.approve": "Approve",
+    "admin.reject": "Reject",
+    "admin.setRequestPassword": "Set password for new account",
+    "admin.requestApproved": "Request approved. Account created.",
+    "admin.requestRejected": "Request rejected.",
   },
 
   id: {
@@ -531,6 +631,9 @@ export const translations: Record<Language, Dict> = {
     "perm.page.birthdays": "Ulang Tahun",
     "perm.page.weddings": "Pernikahan",
     "perm.page.profile": "Profil",
+    "perm.page.map": "Peta Makam",
+    "perm.page.pedigree": "Silsilah Leluhur",
+    "perm.page.descendants": "Keturunan",
     "perm.action.managePersons": "Kelola orang",
     "perm.action.manageSpouses": "Kelola pernikahan",
     "perm.action.manageUsers": "Kelola pengguna",
@@ -649,5 +752,102 @@ export const translations: Record<Language, Dict> = {
     "common.loading": "Memuat...",
     "common.updated": "Diperbarui",
     "common.updateFailed": "Gagal memperbarui",
+
+    // ---- Nav: new views ----
+    "nav.map": "Peta",
+    "nav.pedigree": "Silsilah",
+    "nav.descendants": "Keturunan",
+
+    // ---- Dark mode ----
+    "theme.toggle": "Ganti tema",
+    "theme.light": "Terang",
+    "theme.dark": "Gelap",
+
+    // ---- Search-to-focus ----
+    "tree.focusOn": "Fokus ke {name}",
+
+    // ---- Burial Map view ----
+    "map.title": "Lokasi Makam",
+    "map.subtitle": "Lokasi pemakaman anggota marga Hariandja lintas generasi.",
+    "map.empty": "Belum ada lokasi pemakaman tercatat.",
+    "map.loadFailed": "Gagal memuat data peta",
+    "map.persons": "{count} lokasi makam",
+    "map.clickHint": "Klik penanda untuk detail",
+
+    // ---- Pedigree view ----
+    "pedigree.title": "Silsilah Leluhur",
+    "pedigree.subtitle": "Leluhur langsung dari orang yang dipilih.",
+    "pedigree.selectPerson": "Pilih seseorang untuk melihat silsilah leluhurnya",
+    "pedigree.searchPlaceholder": "Cari orang...",
+    "pedigree.empty": "Tidak ada leluhur ditemukan.",
+    "pedigree.loadFailed": "Gagal memuat data silsilah",
+
+    // ---- Descendants view ----
+    "descendants.title": "Keturunan",
+    "descendants.subtitle": "Semua keturunan dari orang yang dipilih.",
+    "descendants.selectPerson": "Pilih seseorang untuk melihat keturunannya",
+    "descendants.searchPlaceholder": "Cari orang...",
+    "descendants.empty": "Tidak ada keturunan ditemukan.",
+    "descendants.loadFailed": "Gagal memuat data keturunan",
+
+    // ---- Audit Log (Admin) ----
+    "admin.auditLog": "Log Audit",
+    "admin.auditEmpty": "Belum ada perubahan tercatat.",
+    "admin.auditAction": "Aksi",
+    "admin.auditEntity": "Entitas",
+    "admin.auditUser": "Pengguna",
+    "admin.auditTime": "Waktu",
+    "admin.auditChanges": "Perubahan",
+
+    // ---- Backup & Restore (Admin) ----
+    "admin.backup": "Cadangkan & Pulihkan",
+    "admin.backupDesc": "Unduh cadangan basis data atau pulihkan dari cadangan sebelumnya.",
+    "admin.downloadBackup": "Unduh Cadangan",
+    "admin.restoreBackup": "Pulihkan dari Cadangan",
+    "admin.restoreConfirm": "Ini akan MENGGANTI semua data saat ini. Lanjutkan?",
+    "admin.restoreSuccess": "Basis data berhasil dipulihkan. Halaman akan dimuat ulang.",
+    "admin.restoreFailed": "Pemulihan gagal",
+    "admin.backupSuccess": "Cadangan diunduh",
+    "admin.backupFailed": "Cadangan gagal",
+
+    // ---- CSV Import (Admin) ----
+    "admin.csvImport": "Impor CSV",
+    "admin.csvImportDesc": "Impor orang secara massal dari file CSV. Kolom: name, nickname, gender, date_of_birth, date_of_death, place_of_birth, generation, parent_id, father_id, mother_id.",
+    "admin.uploadCsv": "Unggah CSV",
+    "admin.csvSuccess": "Berhasil mengimpor {count} orang.",
+    "admin.csvFailed": "Impor gagal",
+    "admin.csvTemplate": "Unduh Template",
+
+    // ---- Data Validation (Admin) ----
+    "admin.validation": "Validasi Data",
+    "admin.validationDesc": "Pindai basis data untuk data hilang, duplikat, dan inkonsistensi.",
+    "admin.runValidation": "Jalankan Validasi",
+    "admin.validationEmpty": "Tidak ada masalah ditemukan! Data terlihat bersih.",
+    "admin.validationIssues": "{count} masalah ditemukan",
+    "admin.valMissingBirth": "Tanggal lahir hilang",
+    "admin.valMissingParent": "Tidak ada induk tercatat",
+    "admin.valMissingPlace": "Tempat lahir hilang",
+    "admin.valPotentialDup": "Duplikat potensial",
+    "admin.valDeathBeforeBirth": "Wafat sebelum lahir",
+    "admin.valChildOlderThanParent": "Anak lebih tua dari induk",
+
+    // ---- Self-Registration ----
+    "register.title": "Minta Akses",
+    "register.description": "Ajukan permintaan untuk bergabung dengan silsilah marga Hariandja. Administrator akan meninjau dan menyetujui permintaan Anda.",
+    "register.name": "Nama Anda",
+    "register.email": "Email",
+    "register.linkedPerson": "Orang tertaut (opsional)",
+    "register.submit": "Kirim Permintaan",
+    "register.success": "Permintaan dikirim! Administrator akan meninjau.",
+    "register.failed": "Permintaan gagal",
+    "register.pending": "Menunggu",
+    "register.approved": "Disetujui",
+    "register.rejected": "Ditolak",
+    "admin.registrationRequests": "Permintaan Pendaftaran",
+    "admin.approve": "Setujui",
+    "admin.reject": "Tolak",
+    "admin.setRequestPassword": "Setel kata sandi untuk akun baru",
+    "admin.requestApproved": "Permintaan disetujui. Akun dibuat.",
+    "admin.requestRejected": "Permintaan ditolak.",
   },
 };

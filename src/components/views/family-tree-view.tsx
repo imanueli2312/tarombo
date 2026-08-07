@@ -37,6 +37,7 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
   const [defaultWife, setDefaultWife] = useState<string | undefined>();
   const [exportOpen, setExportOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [focusPersonId, setFocusPersonId] = useState<string | null>(null);
   const [treeDims, setTreeDims] = useState({ width: 800, height: 600 });
   const [svgEl, setSvgEl] = useState<SVGSVGElement | null>(null);
 
@@ -103,14 +104,20 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
     }
   }
 
-  useEffect(() => {
-    if (!search || !data) return;
+  // Search matches for the dropdown
+  const searchMatches = (() => {
+    if (!search || !data) return [];
     const q = search.toLowerCase();
-    const match = data.persons.find((p) => p.name.toLowerCase().includes(q) || (p.nickname?.toLowerCase().includes(q)));
-    if (match) {
-      // could auto-select; for now just hint
-    }
-  }, [search, data]);
+    return data.persons
+      .filter((p) => p.name.toLowerCase().includes(q) || (p.nickname?.toLowerCase().includes(q)))
+      .slice(0, 8);
+  })();
+
+  function focusOnPerson(personId: string) {
+    setFocusPersonId(personId);
+    setSelected(data.persons.find((p) => p.id === personId) ?? null);
+    setSearch("");
+  }
 
   const totalPeople = data?.persons.length ?? 0;
   const totalGenerations = data?.persons.reduce((m, p) => Math.max(m, p.generation), 0) ?? 0;
@@ -135,6 +142,27 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
             placeholder={t("tree.searchPlaceholder")}
             className="h-8 w-44 rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
           />
+          {searchMatches.length > 0 && (
+            <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border bg-popover shadow-soft-lg">
+              {searchMatches.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => focusOnPerson(p.id)}
+                  className="flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm last:border-0 hover:bg-accent"
+                >
+                  <span
+                    className="h-6 w-1 rounded-full"
+                    style={{ background: p.gender === "male" ? "oklch(0.6 0.08 200)" : "oklch(0.65 0.12 25)" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{p.name}</div>
+                    {p.nickname && <div className="truncate text-xs text-muted-foreground">"{p.nickname}"</div>}
+                  </div>
+                  <span className="text-xs text-muted-foreground">Gen {p.generation}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -202,6 +230,7 @@ export function FamilyTreeView({ canEdit, canExport }: FamilyTreeViewProps) {
           <D3Tree
             data={data}
             selectedId={selected?.id}
+            focusPersonId={focusPersonId}
             onSelect={handleSelect}
             onReady={(svg, w, h) => {
               setSvgEl(svg);

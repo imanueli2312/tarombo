@@ -9,12 +9,15 @@ import { BirthdaysView } from "@/components/views/birthdays-view";
 import { WeddingsView } from "@/components/views/weddings-view";
 import { ProfileView } from "@/components/views/profile-view";
 import { AdminView } from "@/components/views/admin-view";
+import { MapView } from "@/components/views/map-view";
+import { PedigreeView } from "@/components/views/pedigree-view";
+import { DescendantsView } from "@/components/views/descendants-view";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { Loader2 } from "lucide-react";
 
 const VIEWER_PERMISSIONS = {
-  pages: { search: true, familyTree: true, familyChart: false, birthdays: false, weddings: false, profile: false },
+  pages: { search: true, familyTree: true, familyChart: false, birthdays: false, weddings: false, profile: false, map: true, pedigree: true, descendants: true },
   actions: { managePersons: false, manageSpouses: false, manageUsers: false, manageRoles: false, exportData: false },
 };
 
@@ -34,6 +37,9 @@ export default function Home() {
     weddings: permissions.pages.weddings,
     profile: permissions.pages.profile,
     admin: permissions.actions.manageUsers || permissions.actions.manageRoles,
+    map: permissions.pages.map,
+    pedigree: permissions.pages.pedigree,
+    descendants: permissions.pages.descendants,
   };
   const effectiveView: ViewKey = viewAccessible[view] ? view : "search";
 
@@ -85,6 +91,9 @@ export default function Home() {
                     canManageRoles={permissions.actions.manageRoles}
                   />
                 )}
+              {effectiveView === "map" && permissions.pages.map && <MapView />}
+              {effectiveView === "pedigree" && permissions.pages.pedigree && <PedigreeView />}
+              {effectiveView === "descendants" && permissions.pages.descendants && <DescendantsView />}
             </div>
           )}
         </main>
