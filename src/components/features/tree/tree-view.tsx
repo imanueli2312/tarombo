@@ -73,7 +73,6 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       treeLayout(root);
 
       // 3. Link generator
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const linkGen = d3.linkVertical<any, any>()
         .x((d: any) => d.x ?? 0)
         .y((d: any) => d.y ?? 0);
@@ -453,8 +452,8 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
               dx="0"
               dy="2"
               stdDeviation="4"
-              flood-color="var(--foreground)"
-              flood-opacity="0.08"
+              floodColor="var(--foreground)"
+              floodOpacity="0.08"
             />
           </filter>
         </defs>

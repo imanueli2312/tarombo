@@ -86,3 +86,42 @@ Stage Summary:
 - 6 code quality improvements
 - All fixes browser-verified: zero console errors, all tabs functional, person detail loads correctly from both Profile and Search
 - Lint passes: 0 errors, 3 warnings (all non-blocking)
+
+---
+Task ID: 4
+Agent: Main
+Task: Deep audit round 2 — comprehensive re-verification of all integration points
+
+Work Log:
+- Re-read all 20+ source files from scratch for line-by-line audit
+- Verified db.ts: schema, CRUD, monogamy check, death auto-divorce, cascade delete, search, RBAC functions
+- Verified all 12 API routes for RBAC protection consistency, error handling, input validation
+- Verified tree-view.tsx: D3 vertical layout, zoom/pan, spouse nodes, deceased indicators, node click
+- Verified person-detail.tsx: correct interface matching API response (father/mother/children/spouse)
+- Verified export-dialog.tsx: watermark bg02 centered 40% scale 30% opacity, PNG/JPG/PDF/large PDF
+- Verified rbac-panel.tsx: Promise.allSettled, admin locked, dirty tracking, permission toggle
+- Verified user-management.tsx: CRUD, self-delete prevention, role validation
+- Verified auth flow: login-form → cookie + JWT → auth-provider → auth-store → RBAC tabs
+- Verified theme: next-themes class-based, dark/light toggle, CSS variables for both themes
+- Verified business rules: monogamy (OR check on both columns), death auto-divorce (duda/janda), single marga
+- Ran ESLint: 0 errors, 3 warnings → fixed 1 → 0 errors, 2 warnings
+- Browser-verified with agent-browser: page load, login, all 6 tabs, search → person detail, RBAC panel, dark theme toggle, Pernikahan tab
+- Checked console for errors: found SVG flood-color/flood-opacity DOM warnings
+
+Issues found and fixed (3 total):
+1. **MEDIUM — RBACPermission.allowed type mismatch**: SQLite returns `allowed` as INTEGER (0/1) but TypeScript type expects boolean. Functions `getPermissionsForRole()`, `getAllPermissions()`, `updatePermission()` used `as RBACPermission[]` without converting values. Fixed by mapping rows with `allowed: row.allowed === 1`.
+2. **MEDIUM — SVG DOM warnings**: `feDropShadow` used kebab-case attributes `flood-color`/`flood-opacity` which are invalid in React JSX. Fixed to camelCase `floodColor`/`floodOpacity`.
+3. **LOW — Unused eslint-disable directive**: `tree-view.tsx` line 76 had `// eslint-disable-next-line @typescript-eslint/no-explicit-any` but the rule was not active. Removed.
+
+Accepted risks (non-issues):
+- `/api/seed` POST has no auth: intentional bootstrap endpoint, idempotent (checks data existence)
+- `persons` GET has no auth: intentional for viewer role (public family tree)
+- React Hook Form `watch()` compiler warning: known library limitation, not fixable on our side
+- html2canvas CSS variable resolution: known library limitation for SVG exports
+
+Stage Summary:
+- 3 issues found and fixed (2 medium, 1 low)
+- Lint: 0 errors, 2 warnings (both React Hook Form library limitations)
+- Dev log: all 200s, zero runtime errors
+- Browser verified: all flows work correctly, zero console errors after fixes
+- Total across all audits: 12 issues found and fixed (1 critical, 1 high, 5 medium, 5 low)

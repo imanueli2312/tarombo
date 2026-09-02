@@ -443,17 +443,20 @@ export function searchPersons(db: Database.Database, q: string) {
 }
 
 // RBAC
-export function getPermissionsForRole(db: Database.Database, role: string) {
-  return db.prepare('SELECT * FROM rbac_permissions WHERE role = ?').all(role) as import('@/types').RBACPermission[];
+export function getPermissionsForRole(db: Database.Database, role: string): import('@/types').RBACPermission[] {
+  const rows = db.prepare('SELECT * FROM rbac_permissions WHERE role = ?').all(role) as (Omit<import('@/types').RBACPermission, 'allowed'> & { allowed: number })[];
+  return rows.map(r => ({ ...r, allowed: r.allowed === 1 }));
 }
 
-export function getAllPermissions(db: Database.Database) {
-  return db.prepare('SELECT * FROM rbac_permissions ORDER BY role, permission').all() as import('@/types').RBACPermission[];
+export function getAllPermissions(db: Database.Database): import('@/types').RBACPermission[] {
+  const rows = db.prepare('SELECT * FROM rbac_permissions ORDER BY role, permission').all() as (Omit<import('@/types').RBACPermission, 'allowed'> & { allowed: number })[];
+  return rows.map(r => ({ ...r, allowed: r.allowed === 1 }));
 }
 
-export function updatePermission(db: Database.Database, id: string, allowed: boolean) {
+export function updatePermission(db: Database.Database, id: string, allowed: boolean): import('@/types').RBACPermission {
   db.prepare('UPDATE rbac_permissions SET allowed = ? WHERE id = ?').run(allowed ? 1 : 0, id);
-  return db.prepare('SELECT * FROM rbac_permissions WHERE id = ?').get(id) as import('@/types').RBACPermission;
+  const row = db.prepare('SELECT * FROM rbac_permissions WHERE id = ?').get(id) as (Omit<import('@/types').RBACPermission, 'allowed'> & { allowed: number });
+  return { ...row, allowed: row.allowed === 1 };
 }
 
 export function hasPermission(db: Database.Database, role: string, permission: string): boolean {
