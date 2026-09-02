@@ -145,12 +145,12 @@ export function createPerson(db: Database.Database, data: import('@/types').Pers
       nomor_generasi, burial_nama, burial_alamat, burial_latitude, burial_longitude)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    data.id, data.nama, data.nama_panggilan ?? '', data.tempat_lahir ?? '',
+    data.id, data.nama, data.nama_panggilan || null, data.tempat_lahir || null,
     data.tanggal_lahir ?? null, data.tanggal_kematian ?? null,
-    data.nomor_urut_lahir ?? null, data.jenis_kelamin, data.alamat ?? '',
-    data.agama ?? '', data.nomor_telepon ?? '', data.photo ?? null,
+    data.nomor_urut_lahir ?? null, data.jenis_kelamin, data.alamat || null,
+    data.agama || null, data.nomor_telepon || null, data.photo ?? null,
     data.status_pernikahan ?? 'belum_menikah', data.nomor_generasi ?? 1,
-    data.burial_nama ?? null, data.burial_alamat ?? null,
+    data.burial_nama || null, data.burial_alamat || null,
     data.burial_latitude ?? null, data.burial_longitude ?? null
   );
 
@@ -563,4 +563,20 @@ export function getActiveSpouseOf(db: Database.Database, personId: string) {
     WHERE (ps.person1_id = ? OR ps.person2_id = ?) AND ps.divorce_date IS NULL
   `).get(personId, personId, personId) as import('@/types').Person | undefined;
   return row || null;
+}
+
+// Cycle detection: check if making parentId a parent of childId would create a cycle
+export function wouldCreateCycle(db: Database.Database, parentId: string, childId: string): boolean {
+  const visited = new Set<string>();
+  visited.add(childId); // the person themselves
+  function walkUp(id: string): boolean {
+    if (visited.has(id)) return true;
+    visited.add(id);
+    const parents = db.prepare('SELECT parent_id FROM parent_child WHERE child_id = ?').all(id) as { parent_id: string }[];
+    for (const p of parents) {
+      if (walkUp(p.parent_id)) return true;
+    }
+    return false;
+  }
+  return walkUp(parentId);
 }

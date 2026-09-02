@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf } from '@/lib/db';
+import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf, wouldCreateCycle } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude } from '@/lib/validation';
+import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateFieldLength } from '@/lib/validation';
 import type { PersonUpdate } from '@/types';
 
 export async function GET(
@@ -60,6 +60,15 @@ export async function PUT(
       body.nama = trimmed;
     }
 
+    // Field length validation
+    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat'] as const) {
+      const val = (body as Record<string, unknown>)[field];
+      if (val != null && val !== '') {
+        const lenErr = validateFieldLength(field, val as string);
+        if (lenErr) return NextResponse.json({ error: lenErr }, { status: 400 });
+      }
+    }
+
     // Validate jenis_kelamin (if provided)
     if (body.jenis_kelamin && !['L', 'P'].includes(body.jenis_kelamin)) {
       return NextResponse.json({ error: 'Jenis kelamin tidak valid' }, { status: 400 });
@@ -101,6 +110,14 @@ export async function PUT(
     if (latErr) return NextResponse.json({ error: latErr }, { status: 400 });
     const lngErr = validateLongitude(body.burial_longitude);
     if (lngErr) return NextResponse.json({ error: lngErr }, { status: 400 });
+
+    // Cycle detection
+    if (body.father_id && wouldCreateCycle(db, body.father_id, id)) {
+      return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
+    }
+    if (body.mother_id && wouldCreateCycle(db, body.mother_id, id)) {
+      return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
+    }
 
     const person = updatePerson(db, id, body);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPersons, createPerson, getPersonById, hasPermission } from '@/lib/db';
+import { getDb, getPersons, createPerson, getPersonById, hasPermission, wouldCreateCycle } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude } from '@/lib/validation';
+import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateChildAfterParent, validateFieldLength } from '@/lib/validation';
 import type { PersonCreate } from '@/types';
 
 export async function GET() {
@@ -35,6 +35,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nama wajib diisi' }, { status: 400 });
     }
     body.nama = nama;
+
+    // Field length validation
+    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat'] as const) {
+      const lenErr = validateFieldLength(field, (body as Record<string, unknown>)[field] as string | null);
+      if (lenErr) return NextResponse.json({ error: lenErr }, { status: 400 });
+    }
 
     if (!body.jenis_kelamin || !['L', 'P'].includes(body.jenis_kelamin)) {
       return NextResponse.json({ error: 'Jenis kelamin tidak valid' }, { status: 400 });
@@ -84,7 +90,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate child birth date vs parent birth date
+    if (body.tanggal_lahir && body.father_id) {
+      const father = getPersonById(db, body.father_id);
+      if (father?.tanggal_lahir) {
+        const childErr = validateChildAfterParent(father.tanggal_lahir, body.tanggal_lahir);
+        if (childErr) return NextResponse.json({ error: childErr }, { status: 400 });
+      }
+    }
+    if (body.tanggal_lahir && body.mother_id) {
+      const mother = getPersonById(db, body.mother_id);
+      if (mother?.tanggal_lahir) {
+        const childErr = validateChildAfterParent(mother.tanggal_lahir, body.tanggal_lahir);
+        if (childErr) return NextResponse.json({ error: childErr }, { status: 400 });
+      }
+    }
+
     const id = crypto.randomUUID();
+    // Cycle detection
+    if (body.father_id && wouldCreateCycle(db, body.father_id, id)) {
+      return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
+    }
+    if (body.mother_id && wouldCreateCycle(db, body.mother_id, id)) {
+      return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
+    }
+
     const person = createPerson(db, { ...body, id, nomor_generasi });
 
     return NextResponse.json(person, { status: 201 });

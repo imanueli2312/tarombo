@@ -388,3 +388,46 @@ Stage Summary:
 - Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Total across all audits (rounds 1-7): 36 issues found and fixed (1 critical, 4 high, 21 medium, 10 low)
+
+---
+Task ID: 10
+Agent: Main
+Task: Apply remaining PWA & Data Quality improvements from audit round 7
+
+Work Log:
+- Generated PNG icons (192x192, 512x512) from tarombo-bg02.png using sharp (center-crop square)
+- Created basic service worker (public/sw.js): cache-first for static, network-first for API, old cache cleanup
+- Created ServiceWorkerProvider client component to register SW on mount
+- Wrapped layout.tsx with ServiceWorkerProvider
+- Updated manifest.json with PNG icons + SVG fallback + maskable purpose
+- Updated layout.tsx icons metadata to reference PNG icons (with apple-touch-icon)
+- Implemented wouldCreateCycle() in db.ts: walks full ancestor chain to detect A→B→C→A cycles
+- Added cycle detection to POST and PUT /api/persons routes (before parent link creation)
+- Added validateChildAfterParent() in validation.ts: ensures child birth date is at least 10 years after parent
+- Added child vs parent birth date validation in POST /api/persons
+- Added FIELD_LIMITS config and validateFieldLength() in validation.ts (nama 200, alamat 1000, etc.)
+- Added field length validation to POST and PUT /api/persons routes
+- Normalized empty strings to NULL in createPerson() for optional text fields (nama_panggilan, tempat_lahir, alamat, agama, nomor_telepon)
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+
+Issues implemented (9 total):
+
+PWA (4, from round 7 backlog):
+1. Service worker with cache strategy (static cache-first, API network-first with fallback)
+2. PNG icon generation (192x192, 512x512) from tarombo-bg02.png
+3. Service worker registration via ServiceWorkerProvider client component
+4. Manifest.json updated with PNG icons + maskable purpose
+
+Data Quality (5, from round 7 backlog):
+5. Cycle detection for parent-child links — prevents A→B→C→A circular ancestry
+6. Child birth date vs parent birth date validation (minimum 10-year gap)
+7. Field length limits (nama 200, nama_panggilan 100, tempat_lahir 200, alamat 1000, agama 50, nomor_telepon 20, burial fields 200/500)
+8. Empty string → NULL normalization in createPerson for optional text fields
+9. Field length validation applied to PUT route as well
+
+Stage Summary:
+- 9 improvements implemented from round 7 backlog
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Total across all audits (rounds 1-7 + this): 45 issues addressed (1 critical, 4 high, 26 medium, 14 low)

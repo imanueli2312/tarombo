@@ -58,9 +58,46 @@ export function validateLongitude(value: number | null | undefined): string | nu
   return null;
 }
 
+/** Validate that a child's birth date is after parent's birth date (min ~12 years gap) */
+export function validateChildAfterParent(parentBirth: string | null | undefined, childBirth: string | null | undefined): string | null {
+  if (!parentBirth || !childBirth) return null;
+  const parent = parseDate(parentBirth);
+  const child = parseDate(childBirth);
+  if (!parent || !child) return null;
+  // Child must be born at least 10 years after parent (biological minimum)
+  const minChildAge = new Date(parent);
+  minChildAge.setFullYear(minChildAge.getFullYear() + 10);
+  if (child < minChildAge) return 'Tanggal lahir anak tidak wajar (terlalu dekat dengan tanggal lahir orang tua)';
+  return null;
+}
+
 /** Sanitize a string for use in SQL LIKE patterns (escape % and _) */
 export function sanitizeLikePattern(q: string): string {
   return q
     .replace(/%/g, '\%')
     .replace(/_/g, '\_');
+}
+
+/** Field length limits */
+export const FIELD_LIMITS: Record<string, { max: number; label: string }> = {
+  nama: { max: 200, label: 'Nama' },
+  nama_panggilan: { max: 100, label: 'Nama panggilan' },
+  tempat_lahir: { max: 200, label: 'Tempat lahir' },
+  alamat: { max: 1000, label: 'Alamat' },
+  agama: { max: 50, label: 'Agama' },
+  nomor_telepon: { max: 20, label: 'Nomor telepon' },
+  photo: { max: 500, label: 'Foto' },
+  burial_nama: { max: 200, label: 'Nama tempat pemakaman' },
+  burial_alamat: { max: 500, label: 'Alamat pemakaman' },
+};
+
+/** Validate a text field's length */
+export function validateFieldLength(field: string, value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const limit = FIELD_LIMITS[field];
+  if (!limit) return null;
+  if (value.length > limit.max) {
+    return `${limit.label} tidak boleh lebih dari ${limit.max} karakter`;
+  }
+  return null;
 }

@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { ServiceWorkerProvider } from "@/components/providers/sw-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,8 +32,11 @@ export const metadata: Metadata = {
   description: "Pohon Keluarga Digital Marga Hariandja",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.svg",
-    apple: "/logo.svg",
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icon-192.png',
   },
   appleWebApp: {
     capable: true,
@@ -57,11 +61,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <ThemeProvider>
-          <QueryProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </QueryProvider>
-        </ThemeProvider>
+        <ServiceWorkerProvider>
+          <ThemeProvider>
+            <QueryProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </QueryProvider>
+          </ThemeProvider>
+        </ServiceWorkerProvider>
         <Toaster />
       </body>
     </html>
