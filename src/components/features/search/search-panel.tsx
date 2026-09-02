@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import type { Person } from '@/types';
 import { PersonDetail } from '@/components/features/persons/person-detail';
+import { PersonForm } from '@/components/features/persons/person-form';
 import { useAuthStore } from '@/store/auth';
 
 function formatDate(date: string | null): string {
@@ -31,9 +32,18 @@ interface SearchPanelProps {
 export function SearchPanel({ initialPersonId }: SearchPanelProps) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canDelete = hasPermission('delete_person');
+  const canEdit = hasPermission('edit_person');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(initialPersonId ?? null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Person | undefined>(undefined);
+
+  const handleEdit = useCallback((person: Person) => {
+    setSelectedPersonId(null);
+    setEditingPerson(person);
+    setFormOpen(true);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 300);
@@ -74,9 +84,11 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
             Kembali ke hasil pencarian
           </button>
         </div>
-        <PersonDetail personId={selectedPersonId} onDelete={canDelete ? (id) => {
-          setSelectedPersonId(null);
-        } : undefined} />
+        <PersonDetail
+          personId={selectedPersonId}
+          onEdit={canEdit ? handleEdit : undefined}
+          onDelete={canDelete ? (id) => { setSelectedPersonId(null); } : undefined}
+        />
       </div>
     );
   }
@@ -84,6 +96,7 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
   const isSearching = debouncedQuery.trim().length > 0;
 
   return (
+    <>
     <div className="flex flex-col gap-4 h-full">
       {/* Search Input */}
       <div className="relative">
@@ -192,5 +205,16 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
         </div>
       )}
     </div>
+
+    {/* Edit Person Form */}
+    <PersonForm
+      person={editingPerson}
+      open={formOpen}
+      onOpenChange={(open) => {
+        setFormOpen(open);
+        if (!open) setEditingPerson(undefined);
+      }}
+    />
+    </>
   );
 }

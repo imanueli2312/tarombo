@@ -254,6 +254,7 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['persons'] });
       queryClient.invalidateQueries({ queryKey: ['tree'] });
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] });
       toast.success('Anggota keluarga berhasil diperbarui');
       onOpenChange(false);
     },

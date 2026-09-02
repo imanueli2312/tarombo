@@ -186,3 +186,35 @@ Stage Summary:
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Pushed to GitHub: commit 588c9c3
 - Total across all audits (rounds 1-4): 20 issues found and fixed (1 critical, 1 high, 11 medium, 8 low)
+
+---
+Task ID: 7
+Agent: Main
+Task: Deep audit round 5 — cascade deletion data integrity, cross-mutation invalidation, API validation parity, search panel edit parity
+
+Work Log:
+- Line-by-line re-audit of all 20+ source files, focusing on data integrity edge cases, mutation invalidation chains, and API validation consistency
+- Traced cascade delete flow: deletePerson → raw SQL DELETE partnerships → spouse marital status NOT updated
+- Traced death auto-divorce flow: updatePerson (sets tanggal_kematian) → auto-divorce fires → partnerships records changed → frontend updateMutation does NOT invalidate ['partnerships']
+- Verified PUT /api/persons/[id] has no FK validation for father_id/mother_id (POST does, but PUT doesn't)
+- Verified search-panel.tsx has no onEdit handler or PersonForm integration (editors can't edit from search results)
+- Fixed duplicate imports in search-panel.tsx (Person and PersonForm imported twice from previous partial edit)
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: all routes return expected status codes, zero compilation errors
+
+Issues found and fixed (4 total):
+1. **MEDIUM — Stale marital status after cascade person deletion**: `deletePerson()` in db.ts uses raw SQL to delete partnerships, bypassing the `deletePartnership()` function's spouse marital status update logic. When a person (and their descendants) are deleted, surviving spouses retain 'menikah' status. Fixed by adding a `fixStaleMaritalStatus` prepared statement inside the transaction that updates any person marked 'menikah' but with no active partnership.
+2. **MEDIUM — Missing partnerships invalidation on person edit**: `person-form.tsx` updateMutation only invalidated ['persons'] and ['tree']. When a death date is set, the auto-divorce logic in db.ts changes partnership records and spouse statuses. The Pernikahan tab would show stale data. Fixed by adding `queryClient.invalidateQueries({ queryKey: ['partnerships'] })` to the updateMutation's onSuccess.
+3. **MEDIUM — Missing FK validation in PUT /api/persons/[id]**: The POST route validates father_id/mother_id exist before creating parent_child links, but the PUT route did not. With foreign_keys=ON, passing a non-existent parent would cause a raw SQLite FOREIGN KEY error instead of a user-friendly 404 message. Fixed by adding explicit FK existence checks matching the POST route pattern.
+4. **LOW — Search panel missing edit capability for editors**: SearchPanel only had onDelete but no onEdit handler or PersonForm integration. Editors viewing person details from search results had no way to edit — they had to navigate to the Profile tab. Fixed by adding canEdit check, handleEdit callback, onEdit prop to PersonDetail, and PersonForm component with proper state management.
+
+Accepted risks (non-issues):
+- 'Bagan Keluarga' tab renders same ProfilePanel as 'Profil' tab (product/design decision, not code bug)
+- Client-side permission caching: permissions fetched at login, not real-time (known limitation)
+- SQLite single-writer lock for concurrent requests (known limitation for family tree scale)
+
+Stage Summary:
+- 4 issues found and fixed (3 medium, 1 low)
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Total across all audits (rounds 1-5): 24 issues found and fixed (1 critical, 1 high, 14 medium, 8 low)

@@ -245,12 +245,30 @@ export function deletePerson(db: Database.Database, id: string) {
   const deleteParentChild = db.prepare('DELETE FROM parent_child WHERE parent_id = ? OR child_id = ?');
   const deletePerson = db.prepare('DELETE FROM persons WHERE id = ?');
 
+  const fixStaleMaritalStatus = db.prepare(`
+    UPDATE persons SET status_pernikahan =
+      CASE
+        WHEN tanggal_kematian IS NOT NULL THEN
+          CASE WHEN jenis_kelamin = 'L' THEN 'duda' ELSE 'janda' END
+        ELSE 'belum_menikah'
+      END,
+      updated_at = datetime('now')
+    WHERE status_pernikahan = 'menikah'
+      AND id NOT IN (
+        SELECT person1_id FROM partnerships WHERE divorce_date IS NULL
+        UNION
+        SELECT person2_id FROM partnerships WHERE divorce_date IS NULL
+      )
+  `);
+
   const tx = db.transaction(() => {
     for (const did of allIds) {
       deletePartnerships.run(did, did);
       deleteParentChild.run(did, did);
       deletePerson.run(did);
     }
+    // Fix stale marital statuses for surviving spouses after cascade deletion
+    fixStaleMaritalStatus.run();
   });
   tx();
 

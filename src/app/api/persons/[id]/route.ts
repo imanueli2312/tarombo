@@ -49,6 +49,15 @@ export async function PUT(
     }
 
     const body: PersonUpdate = await request.json();
+
+    // Validate father_id and mother_id exist
+    if (body.father_id && !getPersonById(db, body.father_id)) {
+      return NextResponse.json({ error: 'Ayah tidak ditemukan' }, { status: 404 });
+    }
+    if (body.mother_id && !getPersonById(db, body.mother_id)) {
+      return NextResponse.json({ error: 'Ibu tidak ditemukan' }, { status: 404 });
+    }
+
     const person = updatePerson(db, id, body);
 
     return NextResponse.json(person);
