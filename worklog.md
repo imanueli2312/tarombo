@@ -125,3 +125,33 @@ Stage Summary:
 - Dev log: all 200s, zero runtime errors
 - Browser verified: all flows work correctly, zero console errors after fixes
 - Total across all audits: 12 issues found and fixed (1 critical, 1 high, 5 medium, 5 low)
+
+---
+Task ID: 5
+Agent: Main
+Task: Deep audit round 3 — final verification and push to repository
+
+Work Log:
+- Re-read all 20+ source files from scratch for line-by-line audit
+- Verified db.ts: schema, CRUD, monogamy (OR check), death auto-divorce, cascade delete, search, RBAC boolean conversion
+- Verified all 12 API routes: RBAC consistency, error handling, input validation, monogamy 409 response
+- Verified D3 tree-view: vertical layout, zoom/pan, spouse nodes, deceased overlay, node click, camelCase SVG attrs
+- Verified person-detail: correct interface (father/mother/children/spouse), edit/delete handlers
+- Verified export-dialog: watermark bg02 centered 40% 30% opacity, PNG/JPG/PDF/large PDF
+- Verified RBAC panel: Promise.allSettled, admin locked, dirty tracking
+- Verified user-management: CRUD, self-delete prevention, role validation
+- Verified auth flow: login-form → cookie + JWT → auth-provider → auth-store → RBAC tabs
+- Verified theme: next-themes class-based, dark/light toggle, CSS variables for both themes
+- Ran ESLint: 0 errors, 2 warnings (React Hook Form library limitations)
+- Started dev server: all routes return expected status codes, zero compilation errors
+
+Issues found and fixed (2 total):
+1. **MEDIUM — Missing delete person UI**: PersonDetail component has delete functionality, but profile-panel.tsx and search-panel.tsx never passed the `onDelete` prop, making it impossible to delete persons from the UI. Fixed by passing `onDelete` handler gated by `delete_person` permission.
+2. **LOW — Stale file**: `public/tarombo-bg01.png` remained in the repo (2MB) despite all references being replaced with bg02 in Task ID 2. Removed.
+
+Stage Summary:
+- 2 issues found and fixed (1 medium, 1 low)
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Pushed to GitHub: commit 4520cb4
+- Total across all audits (rounds 1-3): 14 issues found and fixed (1 critical, 1 high, 6 medium, 6 low)
