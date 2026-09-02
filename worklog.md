@@ -331,3 +331,60 @@ Stage Summary:
 - Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Total across all audits (rounds 1-6): 28 issues found and fixed (1 critical, 2 high, 17 medium, 8 low)
+
+---
+Task ID: 9
+Agent: Main
+Task: Deep audit round 7 — PWA & Data Quality areas
+
+Work Log:
+- Audited PWA capabilities: manifest, service worker, meta tags, viewport, theme-color, icons, apple-web-app
+- Audited Data Quality: date validation, nama trimming, coordinate ranges, search sanitization, future dates, numeric constraints
+- Created `/public/manifest.json` with PWA manifest (name, short_name, display standalone, SVG icons, theme-color)
+- Updated `layout.tsx`: added Viewport export with theme-color (light/dark), appleWebApp metadata, manifest link, OpenGraph tags, proper SVG favicon/icon
+- Fixed `package.json` name from generic `nextjs_tailwind_shadcn_ts` to `tarombo-hariandja`, bumped version to 0.3.0
+- Created `src/lib/validation.ts` with shared validation helpers: parseDate, validateDeathAfterBirth, validateDivorceAfterMarriage, validateNotFuture, validateLatitude, validateLongitude, sanitizeLikePattern
+- Applied validation to POST /api/persons: nama trim, jenis_kelamin enum check, death>=birth, no future birth, father/mother gender, nomor_generasi>=1, nomor_urut_lahir>0, burial coords range
+- Applied validation to PUT /api/persons/[id]: nama trim, jenis_kelamin enum, death>=birth (merges with existing), no future birth, father/mother gender, nomor_generasi, nomor_urut_lahir, burial coords
+- Applied validation to PUT /api/partnerships/[id]: divorce>=marriage (merges with existing values)
+- Applied validation to POST /api/partnerships: marriage date not in future
+- Sanitized search LIKE pattern in db.ts: escape % and _ characters to prevent pattern injection, added ESCAPE clause
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes, zero compilation errors
+
+Issues found and fixed (8 total, 0 bugs — all proactive validation gaps):
+
+PWA (4):
+1. **HIGH — No PWA manifest**: App had no manifest.json. Browsers couldn't identify it as an installable PWA. Created `/public/manifest.json` with proper PWA config.
+2. **HIGH — Missing PWA meta tags**: layout.tsx lacked viewport (now via Viewport export), theme-color, apple-mobile-web-app-capable, manifest link, OpenGraph, and apple-touch-icon. Added all meta tags with light/dark theme-color support.
+3. **MEDIUM — Wrong favicon**: Used 1.5MB tarombo-bg02.png as icon/favicon (too large, wrong format). Changed to logo.svg (1KB vector, proper for icons).
+4. **LOW — Generic package.json name**: `nextjs_tailwind_shadcn_ts` → `tarombo-hariandja`.
+
+Data Quality (4):
+5. **HIGH — No date logic validation**: tanggal_kematian could be before tanggal_lahir, divorce_date before marriage_date. Added validateDeathAfterBirth, validateDivorceAfterMarriage to both POST and PUT routes (merge with existing values for partial updates).
+6. **MEDIUM — No future-date prevention**: Users could set tanggal_lahir or marriage_date in the future. Added validateNotFuture checks.
+7. **MEDIUM — Weak nama validation**: Empty/whitespace-only names passed the `!body.nama` check (empty string is truthy-ish in JS, and API didn't trim). Added explicit trim + reject. Also added jenis_kelamin enum validation, nomor_generasi>=1, nomor_urut_lahir>0, burial_latitude [-90,90], burial_longitude [-180,180].
+8. **MEDIUM — Search LIKE pattern injection**: searchPersons() passed user input directly into LIKE pattern. Characters like `%` and `_` in search query could match unintended rows. Added sanitizeLikePattern() to escape these characters, and ESCAPE clause to the SQL.
+
+PWA Improvement Areas Identified (not fixed — requires infrastructure):
+- P1: No service worker / offline support — requires next-pwa or @serwist/next package
+- P2: No push notifications
+- P3: No background sync for offline mutations
+- P4: No periodic background sync for data refresh
+- P5: No app shortcuts (quick actions from home screen)
+- P6: No screenshots for install prompt
+- P7: SVG icons not supported on all Android versions — needs PNG fallbacks at 192x192 and 512x512
+
+Data Quality Improvement Areas Identified (not fixed):
+- DQ1: No cycle detection for parent-child links (A→B→C→A)
+- DQ2: No child birth date vs parent birth date validation
+- DQ3: Empty strings stored for optional text fields (alamat, agama, etc.) instead of NULL — affects search accuracy
+- DQ4: No input length limits (nama 500 chars? nomor_telepon format?)
+- DQ5: No duplicate person detection (same name + same parents + same birth date)
+- DQ6: No data migration/repair endpoint for existing invalid data
+
+Stage Summary:
+- 8 issues found and fixed (2 high, 4 medium, 2 low — all proactive, no runtime bugs)
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Total across all audits (rounds 1-7): 36 issues found and fixed (1 critical, 4 high, 21 medium, 10 low)

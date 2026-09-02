@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
+import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude } from '@/lib/validation';
 import type { PersonUpdate } from '@/types';
 
 export async function GET(
@@ -50,6 +51,29 @@ export async function PUT(
 
     const body: PersonUpdate = await request.json();
 
+    // Validate nama (if provided)
+    if (body.nama !== undefined) {
+      const trimmed = (body.nama || '').trim();
+      if (!trimmed) {
+        return NextResponse.json({ error: 'Nama tidak boleh kosong' }, { status: 400 });
+      }
+      body.nama = trimmed;
+    }
+
+    // Validate jenis_kelamin (if provided)
+    if (body.jenis_kelamin && !['L', 'P'].includes(body.jenis_kelamin)) {
+      return NextResponse.json({ error: 'Jenis kelamin tidak valid' }, { status: 400 });
+    }
+
+    // Date validations (merge with existing values for partial updates)
+    const tanggal_lahir = body.tanggal_lahir ?? existing.tanggal_lahir;
+    const tanggal_kematian = body.tanggal_kematian ?? existing.tanggal_kematian;
+    const dateErr = validateDeathAfterBirth(tanggal_lahir, tanggal_kematian);
+    if (dateErr) return NextResponse.json({ error: dateErr }, { status: 400 });
+
+    const futureBirth = validateNotFuture(body.tanggal_lahir, 'Tanggal lahir');
+    if (futureBirth) return NextResponse.json({ error: futureBirth }, { status: 400 });
+
     // Validate father_id and mother_id exist and have correct gender
     if (body.father_id) {
       const father = getPersonById(db, body.father_id);
@@ -61,6 +85,22 @@ export async function PUT(
       if (!mother) return NextResponse.json({ error: 'Ibu tidak ditemukan' }, { status: 404 });
       if (mother.jenis_kelamin !== 'P') return NextResponse.json({ error: 'Ibu harus berjenis kelamin perempuan' }, { status: 400 });
     }
+
+    // Validate nomor_generasi
+    if (body.nomor_generasi != null && (body.nomor_generasi < 1 || !Number.isInteger(body.nomor_generasi))) {
+      return NextResponse.json({ error: 'Nomor generasi harus bilangan bulat positif' }, { status: 400 });
+    }
+
+    // Validate nomor_urut_lahir
+    if (body.nomor_urut_lahir != null && (body.nomor_urut_lahir < 1 || !Number.isInteger(body.nomor_urut_lahir))) {
+      return NextResponse.json({ error: 'Nomor urut kelahiran harus bilangan bulat positif' }, { status: 400 });
+    }
+
+    // Validate burial coordinates
+    const latErr = validateLatitude(body.burial_latitude);
+    if (latErr) return NextResponse.json({ error: latErr }, { status: 400 });
+    const lngErr = validateLongitude(body.burial_longitude);
+    if (lngErr) return NextResponse.json({ error: lngErr }, { status: 400 });
 
     const person = updatePerson(db, id, body);
 

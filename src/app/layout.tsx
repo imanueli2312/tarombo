@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -16,11 +16,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
 export const metadata: Metadata = {
   title: "Tarombo Hariandja",
-  description: "Pohon Keluarga Marga Hariandja",
+  description: "Pohon Keluarga Digital Marga Hariandja",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/tarombo-bg02.png",
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Tarombo",
+  },
+  openGraph: {
+    title: "Tarombo Hariandja",
+    description: "Pohon Keluarga Digital Marga Hariandja",
+    type: "website",
+    locale: "id_ID",
   },
 };
 

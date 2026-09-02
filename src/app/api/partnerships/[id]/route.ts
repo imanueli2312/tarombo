@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPartnershipById, updatePartnership, deletePartnership, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
+import { validateDivorceAfterMarriage } from '@/lib/validation';
 
 export async function PUT(
   request: NextRequest,
@@ -25,6 +26,12 @@ export async function PUT(
 
     const body = await request.json();
     const { marriage_date, divorce_date } = body as { marriage_date?: string | null; divorce_date?: string | null };
+
+    // Validate divorce >= marriage (merge with existing values for partial updates)
+    const effectiveMarriage = marriage_date ?? existing.marriage_date;
+    const effectiveDivorce = divorce_date ?? existing.divorce_date;
+    const dateErr = validateDivorceAfterMarriage(effectiveMarriage, effectiveDivorce);
+    if (dateErr) return NextResponse.json({ error: dateErr }, { status: 400 });
 
     const partnership = updatePartnership(db, id, { marriage_date, divorce_date });
     return NextResponse.json(partnership);

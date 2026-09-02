@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPartnerships, createPartnership, getPersonById, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
+import { validateNotFuture } from '@/lib/validation';
 
 type PopulatedPartnership = {
   id: string;
@@ -63,6 +64,12 @@ export async function POST(request: NextRequest) {
     const p2 = getPersonById(db, person2_id);
     if (!p1 || !p2) {
       return NextResponse.json({ error: 'Salah satu orang tidak ditemukan' }, { status: 404 });
+    }
+
+    // Validate marriage date not in future
+    if (marriage_date) {
+      const futureErr = validateNotFuture(marriage_date, 'Tanggal pernikahan');
+      if (futureErr) return NextResponse.json({ error: futureErr }, { status: 400 });
     }
 
     const id = crypto.randomUUID();

@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { DEFAULT_PERMISSIONS } from '@/types';
+import { sanitizeLikePattern } from '@/lib/validation';
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'db', 'tarombo.db');
 
@@ -471,9 +472,10 @@ export function getTreeData(db: Database.Database): import('@/types').TreeNode[]
 
 // Search
 export function searchPersons(db: Database.Database, q: string) {
+  const safe = sanitizeLikePattern(q);
   return db.prepare(
-    `SELECT * FROM persons WHERE nama LIKE ? OR nama_panggilan LIKE ? ORDER BY nomor_generasi, nama LIMIT 50`
-  ).all(`%${q}%`, `%${q}%`) as import('@/types').Person[];
+    `SELECT * FROM persons WHERE nama LIKE ? ESCAPE '\' OR nama_panggilan LIKE ? ESCAPE '\' ORDER BY nomor_generasi, nama LIMIT 50`
+  ).all(`%${safe}%`, `%${safe}%`) as import('@/types').Person[];
 }
 
 // RBAC
