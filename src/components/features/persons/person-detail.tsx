@@ -40,13 +40,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import type { Person } from '@/types';
-
-interface PersonDetailResponse extends Person {
-  parents?: { father?: Person; mother?: Person };
-  children?: Person[];
-  spouse?: Person | null;
-}
+import type { Person, PersonDetailResponse } from '@/types';
 
 interface PersonDetailProps {
   personId: string;

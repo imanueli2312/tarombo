@@ -119,6 +119,7 @@ export function PartnershipForm({ partnership, open, onOpenChange }: Partnership
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partnerships'] });
+      queryClient.invalidateQueries({ queryKey: ['persons'] });
       queryClient.invalidateQueries({ queryKey: ['tree'] });
       toast.success('Pernikahan berhasil ditambahkan');
       onOpenChange(false);
@@ -147,6 +148,7 @@ export function PartnershipForm({ partnership, open, onOpenChange }: Partnership
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partnerships'] });
+      queryClient.invalidateQueries({ queryKey: ['persons'] });
       queryClient.invalidateQueries({ queryKey: ['tree'] });
       toast.success('Pernikahan berhasil diperbarui');
       onOpenChange(false);

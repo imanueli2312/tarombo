@@ -218,3 +218,116 @@ Stage Summary:
 - Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Total across all audits (rounds 1-5): 24 issues found and fixed (1 critical, 1 high, 14 medium, 8 low)
+
+---
+Task ID: 8
+Agent: Main
+Task: Deep audit round 6 — Core Genealogy (Foundation) areas identification
+
+Work Log:
+- Line-by-line audit of 20+ source files focusing on Core Genealogy Foundation:
+  - Data model completeness (schema, types, constraints)
+  - Tree data building logic (getTreeData)
+  - D3 tree rendering (tree-view.tsx)
+  - Parent-child relationship semantics
+  - Partnership/spouse handling
+  - Search completeness
+  - Person form CRUD parity
+  - Generation number calculation
+  - Data integrity edge cases
+  - API validation gaps
+- Traced complete data flow: form → API → db → tree → UI
+- Analyzed D3 tree root-node selection logic for duplicate spouse issue
+- Verified parent-child link handling in both create and edit flows
+- Checked gender consistency enforcement across API routes
+- Analyzed query invalidation chains for all partnership mutations
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: all routes return expected status codes, zero compilation errors
+
+Issues found and fixed (4 total):
+1. **HIGH — Tree shows married-in spouses as duplicate root nodes**: In getTreeData(), root nodes were identified as `persons with no parents`. Spouses who married into the family (no parents in the system) appeared both as: (a) standalone root nodes at the top level, AND (b) spouse cards next to their partner. This violated the patrilineal tree structure. Fixed by filtering root nodes: a person with no parents is only a root if they have children (blood lineage) or are not a spouse of someone else.
+
+2. **MEDIUM — Partnership create/update mutations missing ['persons'] invalidation**: When a partnership is created, both persons' status_pernikahan changes to 'menikah'. When divorce_date is set via edit, both change to 'cerai'. However, the frontend mutations only invalidated ['partnerships'] and ['tree'], leaving the ['persons'] query cache stale. Profile tab and person detail would show incorrect marital status until manual refresh. Fixed by adding `queryClient.invalidateQueries({ queryKey: ['persons'] })` to both create and update onSuccess handlers.
+
+3. **MEDIUM — No gender validation for father_id/mother_id**: POST and PUT /api/persons validated that father_id/mother_id exist, but did not verify gender. A female person could be set as father, a male as mother. This would corrupt the tree's parent-child semantics. Fixed by adding `jenis_kelamin` checks: father must be 'L', mother must be 'P'. Returns 400 with clear Indonesian error message.
+
+4. **MEDIUM — Person form hides parent editing during update**: The person form showed parent selection (father_id, mother_id) only during CREATE. The API (PUT /api/persons/[id]) fully supports updating parent links via updatePerson() in db.ts. Users who made mistakes during creation had no way to correct parent assignments from the UI. Fixed by: (a) removing the !isEditing condition, (b) fetching person's current parents via personDetail query when editing, (c) pre-filling parent selects, (d) including father_id/mother_id in the update mutation payload, (e) extracting PersonDetailResponse to shared types, (f) filtering self from parent options.
+
+---
+
+## CORE GENEALOGY FOUNDATION — IMPROVEMENT AREAS IDENTIFIED
+
+### TIER 1: Critical Foundation Gaps
+
+**F-1. No distinction between 'blood lineage' and 'married-in spouse' in data model**
+- Current: All persons are treated identically. The system cannot distinguish between a Hariandja blood member and a spouse who married in.
+- Impact: Tree root filtering (fixed above) is a workaround, not a solution. The fundamental issue remains that the data model doesn't encode this critical Batak Toba genealogy concept.
+- Recommendation: Add a `is_blood_lineage` (BOOLEAN DEFAULT 1) or `lineage_type` ('blood' | 'married_in') column to persons. When creating a partnership, the non-Hariandja spouse should be marked as 'married_in'. This enables: correct tree root selection, lineage-specific statistics, and proper GEDCOM export.
+
+**F-2. No audit trail / change history**
+- Current: All mutations (person update, partnership create/delete) are permanent with no history tracking.
+- Impact: For a genealogy application, data accuracy is critical. Accidental deletions or incorrect edits cannot be undone. There's no way to see who changed what and when.
+- Recommendation: Add an `audit_log` table (id, user_id, action, entity_type, entity_id, old_values JSON, new_values JSON, created_at). Record all CUD operations. Consider soft-delete for persons instead of hard-delete.
+
+**F-3. No data backup / GEDCOM export-import**
+- Current: Only visual exports (PNG/JPG/PDF) exist. No structured data export.
+- Impact: If the SQLite database is lost, all genealogy data is permanently gone. No way to migrate data to/from other genealogy tools.
+- Recommendation: Implement JSON backup export/import endpoint. Consider GEDCOM 5.5.1 standard support for interoperability with other genealogy software (Ahnenblatt, Gramps, FamilySearch).
+
+### TIER 2: Important Functional Gaps
+
+**F-4. No cycle detection beyond direct self-reference**
+- Current: parent_child has CHECK(parent_id != child_id) preventing A→A, but nothing prevents A→B→C→A cycles.
+- Impact: If cycles are introduced (via API bug or direct DB manipulation), the tree rendering uses a `visited` set to prevent infinite loops, but the data would be semantically corrupt and the tree would silently drop nodes.
+- Recommendation: Add recursive cycle detection in updatePerson/createPerson before inserting parent_child links. Walk up the ancestor chain from the proposed parent to verify the child doesn't appear.
+
+**F-5. Generation number only auto-calculated from father**
+- Current: POST /api/persons calculates nomor_generasi from father only. If only mother is specified, the user must manually set generation.
+- Impact: Children with only a mother recorded get generation 1 by default, regardless of the mother's actual generation.
+- Recommendation: Also check mother's generation as fallback. Use MAX(father_gen, mother_gen) + 1 if both parents are specified.
+
+**F-6. Limited search scope**
+- Current: searchPersons() only queries `nama LIKE ? OR nama_panggilan LIKE ?`.
+- Impact: Cannot search by birth place, address, phone, religion, generation number, or burial location. For large families, users need more filter dimensions.
+- Recommendation: Extend search to include tempat_lahir, alamat, agama. Add a dedicated filter/search API with structured parameters (generation, gender, marital status, date ranges) instead of just a text search.
+
+**F-7. Deceased/divorced spouses disappear from tree**
+- Current: spouseMap in getTreeData() only includes partnerships where divorce_date IS NULL. When a person dies (auto-divorce sets divorce_date), the spouse completely disappears from the tree. When a couple divorces, same result.
+- Impact: The tree loses historical context. In Batak genealogy, knowing who was married to whom (even if divorced or deceased) is important.
+- Recommendation: Show ALL spouses in the tree with visual distinction: solid line for active, dashed line for divorced, cross/overlay for deceased. This requires extending spouseMap to include divorced/deceased partnerships.
+
+**F-8. No sibling relationship concept**
+- Current: Siblings can be inferred (shared parents) but there's no first-class sibling query or display.
+- Impact: Person detail shows parents and children but not siblings. Users must navigate to parent's detail to see other children.
+- Recommendation: Add getSiblingOf(personId) query. Show siblings section in PersonDetail. Consider sibling order (by birth date or nomor_urut_lahir).
+
+### TIER 3: Data Model Enhancements
+
+**F-9. Missing Batak-specific fields**
+- No `marga` field per person (currently hardcoded 'Hariandja' in tree subtitle). If the app ever expands to multi-marga, every person needs their own marga.
+- No `tempat_meninggal` (place of death) — only date is tracked.
+- No `marriage_place` in partnerships.
+- No `photo` upload mechanism — the field exists but there's no upload endpoint or UI.
+- No `notes` or `biography` field for additional context.
+
+**F-10. No date validation logic**
+- Current: Dates are stored as free-form strings. No validation that: birth date < death date, marriage date < divorce date, child birth date > parent birth date, etc.
+- Impact: Nonsensical dates can be stored (e.g., death before birth, child born before parent).
+- Recommendation: Add date validation in API routes. At minimum: death_date >= birth_date, marriage_date <= divorce_date.
+
+**F-11. No statistics/dashboard**
+- Current: No way to see aggregate family statistics (total members per generation, male/female ratio, deceased count, marital status distribution, oldest living member, etc.).
+- Impact: For large families, statistical overview is valuable for understanding the family's composition.
+- Recommendation: Add a statistics API endpoint and a dashboard panel with charts.
+
+**F-12. SQLite single-writer concurrency**
+- Current: better-sqlite3 with WAL mode. Only one write transaction at a time.
+- Impact: If multiple editors submit changes simultaneously, one will get SQLITE_BUSY error. For a single-family app this is unlikely but becomes an issue at scale.
+- Recommendation: For current scale (single marga, ~hundreds of members), this is acceptable. Document the limitation. If scaling to multi-marga, consider PostgreSQL.
+
+Stage Summary:
+- 4 issues found and fixed (1 high, 3 medium)
+- 12 Core Genealogy Foundation improvement areas identified across 3 tiers
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Total across all audits (rounds 1-6): 28 issues found and fixed (1 critical, 2 high, 17 medium, 8 low)

@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-import type { Person } from '@/types';
+import type { Person, PersonDetailResponse } from '@/types';
 
 const personSchema = z.object({
   nama: z.string().min(1, 'Nama Lengkap wajib diisi'),
@@ -77,8 +77,16 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
     enabled: open,
   });
 
-  const males = allPersons.filter((p) => p.jenis_kelamin === 'L');
-  const females = allPersons.filter((p) => p.jenis_kelamin === 'P');
+  // Fetch current parents when editing
+  const { data: personDetail } = useQuery<PersonDetailResponse>({
+    queryKey: ['person', person?.id],
+    queryFn: () => fetch(`/api/persons/${person!.id}`).then((r) => r.json()),
+    enabled: !!person && open,
+  });
+
+  // Filter out self from parent options
+  const otherMales = allPersons.filter((p) => p.jenis_kelamin === 'L' && p.id !== person?.id);
+  const otherFemales = allPersons.filter((p) => p.jenis_kelamin === 'P' && p.id !== person?.id);
 
   const {
     register,
@@ -131,8 +139,8 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
         burial_alamat: person.burial_alamat ?? '',
         burial_latitude: person.burial_latitude,
         burial_longitude: person.burial_longitude,
-        father_id: '',
-        mother_id: '',
+        father_id: personDetail?.parents?.father?.id ?? '',
+        mother_id: personDetail?.parents?.mother?.id ?? '',
       });
       if (person.burial_nama || person.burial_alamat) {
         setBurialOpen(true);
@@ -240,6 +248,9 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (!data.burial_alamat) payload.burial_alamat = null;
       if (!Number.isFinite(data.burial_latitude)) payload.burial_latitude = null;
       if (!Number.isFinite(data.burial_longitude)) payload.burial_longitude = null;
+      // Parent links
+      if (data.father_id) payload.father_id = data.father_id; else payload.father_id = null;
+      if (data.mother_id) payload.mother_id = data.mother_id; else payload.mother_id = null;
 
       const res = await fetch(`/api/persons/${person!.id}`, {
         method: 'PUT',
@@ -441,67 +452,65 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
 
             <Separator />
 
-            {/* --- Orang Tua (hanya untuk tambah baru) --- */}
-            {!isEditing && (
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                  Orang Tua (opsional)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Ayah */}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="father_id">Ayah</Label>
-                    <Select
-                      value={watch('father_id')}
-                      onValueChange={(val) => setValue('father_id', val)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih ayah" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {males.length === 0 && (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            Tidak ada data laki-laki
-                          </div>
-                        )}
-                        {males.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nama_panggilan || p.nama}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            {/* --- Orang Tua --- */}
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                Orang Tua (opsional)
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Ayah */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="father_id">Ayah</Label>
+                  <Select
+                    value={watch('father_id')}
+                    onValueChange={(val) => setValue('father_id', val)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pilih ayah" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {otherMales.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Tidak ada data laki-laki
+                        </div>
+                      )}
+                      {otherMales.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nama_panggilan || p.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {/* Ibu */}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="mother_id">Ibu</Label>
-                    <Select
-                      value={watch('mother_id')}
-                      onValueChange={(val) => setValue('mother_id', val)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih ibu" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {females.length === 0 && (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            Tidak ada data perempuan
-                          </div>
-                        )}
-                        {females.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nama_panggilan || p.nama}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Ibu */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mother_id">Ibu</Label>
+                  <Select
+                    value={watch('mother_id')}
+                    onValueChange={(val) => setValue('mother_id', val)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pilih ibu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {otherFemales.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Tidak ada data perempuan
+                        </div>
+                      )}
+                      {otherFemales.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nama_panggilan || p.nama}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
+            </div>
 
-            {!isEditing && <Separator />}
+            <Separator />
 
             {/* --- Data Pemakaman (collapsible) --- */}
             <Collapsible open={burialOpen} onOpenChange={setBurialOpen}>

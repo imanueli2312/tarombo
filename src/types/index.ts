@@ -135,6 +135,12 @@ export type SessionUser = {
   role: UserRole;
 };
 
+export interface PersonDetailResponse extends Person {
+  parents?: { father?: Person; mother?: Person };
+  children?: Person[];
+  spouse?: Person | null;
+}
+
 export const DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   viewer: ['view_tree', 'search'],
   editor: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export'],

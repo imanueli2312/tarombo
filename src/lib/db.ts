@@ -414,10 +414,26 @@ export function getTreeData(db: Database.Database): import('@/types').TreeNode[]
     });
   }
 
-  // Find root nodes (persons with no parents)
+  // Find root nodes (persons with no parents AND not appearing as someone's spouse)
   const hasParent = new Set<string>();
   for (const pc of parentChild) hasParent.add(pc.child_id);
-  const rootPersons = persons.filter(p => !hasParent.has(p.id));
+  const spouseIds = new Set<string>();
+  for (const p of partnerships) {
+    if (!p.divorce_date) {
+      spouseIds.add(p.person1_id);
+      spouseIds.add(p.person2_id);
+    }
+  }
+  // Root = no parents, and either has children (blood lineage) or is not a spouse
+  // This prevents married-in spouses (no parents, no blood children) from appearing as separate roots
+  const hasChild = new Set<string>();
+  for (const pc of parentChild) hasChild.add(pc.parent_id);
+  const rootPersons = persons.filter(p => {
+    if (hasParent.has(p.id)) return false; // has parents → not a root
+    if (hasChild.has(p.id)) return true; // has children → blood lineage root
+    if (!spouseIds.has(p.id)) return true; // not a spouse → standalone person (orphan record)
+    return false; // is a spouse without children → skip (shown as spouse card)
+  });
 
   // Build tree recursively
   const visited = new Set<string>();
