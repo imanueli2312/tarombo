@@ -155,3 +155,34 @@ Stage Summary:
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Pushed to GitHub: commit 4520cb4
 - Total across all audits (rounds 1-3): 14 issues found and fixed (1 critical, 1 high, 6 medium, 6 low)
+
+---
+Task ID: 6
+Agent: Main
+Task: Deep audit round 4 — cross-feature integration, data flow, edge cases
+
+Work Log:
+- Line-by-line re-audit of all 20+ files focusing on integration correctness
+- Traced data flow: form → API → db → API response → component state → UI
+- Verified all query invalidation chains (person CRUD ↔ tree ↔ partnerships ↔ search)
+- Tested tree node click flow: tree-view.tsx → page.tsx → ProfilePanel/SearchPanel
+- Analyzed person-form burial coordinate handling (valueAsNumber → NaN edge case)
+- Checked API validation gaps (missing FK existence checks)
+- Verified permission-gated UI rendering across all components
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: all routes return expected status codes, zero compilation errors
+
+Issues found and fixed (6 total):
+1. **MEDIUM — Tree node click unresponsive**: TreeView had onNodeClick wired internally but page.tsx never passed the prop. Clicking nodes did nothing despite cursor:pointer. Fixed by wiring onNodeClick to switch to Profile/Search tab with the selected person ID. Uses key-based remounting for clean state initialization.
+2. **MEDIUM — Missing partnerships invalidation on person delete**: PersonDetail's deleteMutation only invalidated ['persons'] and ['tree']. If the deleted person had partnerships, the Pernikahan tab would show stale data with broken person references until manual refresh. Added ['partnerships'] invalidation.
+3. **MEDIUM — Edit button shown without permission check**: ProfilePanel always passed onEdit to PersonDetail, so the Edit button was visible to all users (including viewers). Users without edit_person permission would see the button, click it, open the form, submit, and get a 403 API error. Fixed by gating onEdit with canEdit permission check.
+4. **MEDIUM — Missing FK existence validation**: POST /api/persons accepted any father_id/mother_id without checking if the person exists. SQLite FK constraint would throw a raw "FOREIGN KEY constraint failed" error. Added explicit validation with user-friendly 404 messages ("Ayah tidak ditemukan" / "Ibu tidak ditemukan").
+5. **MEDIUM — NaN sent for burial coordinates**: person-form.tsx used `data.burial_latitude != null` to check coordinates, but react-hook-form's valueAsNumber returns NaN for empty number inputs. NaN passes `!= null` (NaN !== null is true) but fails `=== null` (NaN === null is false), so NaN was sent to the API and stored in SQLite. Fixed both create and update mutations to use `Number.isFinite()` instead.
+6. **LOW — Missing persons invalidation on partnership delete**: PartnershipList's deleteMutation only invalidated ['partnerships'] and ['tree']. Deleting a partnership changes the persons' marital status (e.g., menikah → belum_menikah), but the Profile tab would show stale status. Added ['persons'] invalidation.
+
+Stage Summary:
+- 6 issues found and fixed (5 medium, 1 low)
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and runs correctly, all routes return expected status codes
+- Pushed to GitHub: commit 588c9c3
+- Total across all audits (rounds 1-4): 20 issues found and fixed (1 critical, 1 high, 11 medium, 8 low)
