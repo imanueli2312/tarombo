@@ -431,3 +431,50 @@ Stage Summary:
 - Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
 - Dev server: compiles and runs correctly, all routes return expected status codes
 - Total across all audits (rounds 1-7 + this): 45 issues addressed (1 critical, 4 high, 26 medium, 14 low)
+
+---
+Task ID: 11
+Agent: Main
+Task: Deep audit round 8 — Visual & Reporting areas
+
+Work Log:
+- Audited all visual and reporting components: tree-view, export-dialog, person-detail, person-form, search-panel, profile-panel, partnership-list, partnership-form, rbac-panel, user-management, page.tsx, globals.css, layout.tsx
+- Identified 8 issues across Visual & Reporting areas
+- Created /api/statistics endpoint with family aggregates (total, gender, generation dist, marital dist, age dist, oldest/youngest)
+- Created StatisticsPanel component with Recharts (bar chart, pie chart, stat cards)
+- Added Statistik tab to page.tsx (available for editor+ roles)
+- Enhanced export-dialog with title header, date footer, visual legend, dark mode support
+- Added generation level labels to D3 tree SVG (left-side Gen 1, Gen 2, etc.)
+- Fixed partnership list to show correct gender avatars (User/UserRound) with proper color coding
+- Added deceased cross (✝) indicator to spouse cards in tree view
+- Added dark mode scrollbar styles (.dark ::-webkit-scrollbar-thumb)
+- Fixed profile grid redundant name display (only show full nama when different from nama_panggilan)
+- Expanded search results area from max-h-96 to flex-1, removed redundant ScrollArea, added ScrollArea to person detail view
+- Made tree zoom controls mobile-responsive (smaller on mobile, repositioned)
+- Ran ESLint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and serves correctly, statistics API returns valid JSON
+- Pushed to GitHub: https://github.com/imanueli2312/tarombo
+
+Issues found and fixed (8 total):
+
+1. **HIGH — No statistics/dashboard**: The app had rich genealogy data but zero aggregate reporting. No way to see family composition, generation distribution, or demographics. Created full statistics panel with 8 summary cards, generation distribution bar chart (by gender), marital status pie chart, and age distribution chart. Added new /api/statistics endpoint and Statistik tab.
+
+2. **HIGH — Export has no title, footer, or legend**: Exported images (PNG/JPG/PDF) were bare tree captures with only a watermark. No title, date, or explanation of symbols. Added header (Tarombo Hariandja), footer (export date), and visual legend (gender colors, deceased ✝, divorce dashed line). Also fixed dark mode export to detect theme and use matching background color.
+
+3. **MEDIUM — No generation level labels in tree**: The D3 tree showed generation info per-node but no overall level indicators. Users had to inspect each node to understand which generation they were looking at. Added left-side generation labels (Gen 1, Gen 2, etc.) positioned at each generation level, with expanded bounding box to prevent clipping.
+
+4. **MEDIUM — Partnership list uses wrong gender avatars**: Both person avatars in partnership cards used the same <User> icon with hardcoded colors (primary for p1, rose for p2 assuming always female). Fixed to use actual gender data: User icon + sky color for male, UserRound icon + rose color for female. Also changed to show nama_panggilan first with full nama fallback.
+
+5. **MEDIUM — Spouse card missing deceased indicator**: Main node cards showed ✝ for deceased persons, but spouse cards only had a subtle opacity overlay. Added ✝ cross symbol on spouse cards matching the main card pattern.
+
+6. **MEDIUM — Dark mode scrollbar invisible**: The scrollbar thumb used oklch(0.7) which is medium gray — barely visible on dark backgrounds. Added .dark-specific scrollbar styles with oklch(0.4) thumb (lighter) and oklch(0.55) on hover.
+
+7. **MEDIUM — Profile grid shows redundant name**: When nama_panggilan equals nama, the grid card displayed the same name twice (truncated above, full below). Added conditional rendering: only show full nama line when nama_panggilan exists and differs from nama.
+
+8. **MEDIUM — Search results area too small + zoom controls not mobile-friendly**: Search results were constrained to max-h-96 (384px), forcing scrolling in a tiny area on desktop. Changed to flex-1 to fill available space. Removed redundant nested ScrollArea. Added ScrollArea wrapper for person detail view when selected. Tree zoom controls were fixed size — made them mobile-first (h-7 w-7 mobile, h-8 w-8 desktop) and repositioned closer to edge on mobile.
+
+Stage Summary:
+- 8 issues found and fixed (2 high, 6 medium)
+- Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
+- Dev server: compiles and serves correctly, statistics API returns valid JSON
+- Total across all audits (rounds 1-8): 53 issues addressed (1 critical, 6 high, 32 medium, 14 low)
