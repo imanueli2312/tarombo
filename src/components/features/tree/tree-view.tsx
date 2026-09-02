@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import * as d3 from 'd3';
 import type { TreeNode } from '@/types';
+import { getMargaLabel, MARGA_UTAMA } from '@/lib/batak-culture';
 import { TreePine, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 
 type HierarchyPointNode = d3.HierarchyPointNode<TreeNode>;
@@ -60,6 +61,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         status_pernikahan: 'belum_menikah',
         nomor_generasi: 0,
         photo: null,
+        marga_asal: '',
         children: data,
       };
 
@@ -229,7 +231,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         .attr('y', 48)
         .attr('font-size', '11px')
         .attr('fill', 'var(--muted-foreground)')
-        .text((d) => `Hariandja, Gen ${d.data.nomor_generasi}`);
+        .text((d) => `${d.data.marga_asal || MARGA_UTAMA}, Gen ${d.data.nomor_generasi}`);
 
       // Deceased cross
       cardGroup
@@ -268,14 +270,15 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
             .attr('class', 'spouse-card')
             .attr('transform', `translate(${NODE_W / 2 + SPOUSE_GAP},${-SPOUSE_H / 2})`);
 
+          const spouseMargaDiffers = spouse.marga_asal && spouse.marga_asal !== '' && spouse.marga_asal !== MARGA_UTAMA;
           sg.append('rect')
             .attr('width', SPOUSE_W)
             .attr('height', SPOUSE_H)
             .attr('rx', 8)
             .attr('ry', 8)
             .attr('fill', 'var(--card)')
-            .attr('stroke', 'var(--border)')
-            .attr('stroke-width', 1)
+            .attr('stroke', spouseMargaDiffers ? 'oklch(0.65 0.15 60)' : 'var(--border)')
+            .attr('stroke-width', spouseMargaDiffers ? 1.5 : 1)
             .attr('stroke-dasharray', isDivorced ? '4 3' : 'none')
             .attr('filter', 'url(#node-shadow)');
 
@@ -321,12 +324,18 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
           }
 
           // Spouse label
+          const isBoru = spouse.marga_asal && spouse.marga_asal !== '' && spouse.marga_asal !== MARGA_UTAMA;
           sg.append('text')
             .attr('x', 14)
             .attr('y', SPOUSE_H / 2 + 14)
             .attr('font-size', '10px')
             .attr('fill', 'var(--muted-foreground)')
-            .text(isDivorced ? '(Cerai)' : '(Pasangan)');
+            .text(() => {
+              if (isBoru) {
+                return isDivorced ? `(Cerai · ${spouse.marga_asal})` : `(Boru · ${spouse.marga_asal})`;
+              }
+              return isDivorced ? '(Cerai)' : '(Pasangan)';
+            });
         });
 
       // 10. Generation level labels

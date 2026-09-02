@@ -183,6 +183,11 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           Gen {person.nomor_generasi}
                         </Badge>
+                        {person.marga_asal && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400/50 text-amber-700 dark:text-amber-400">
+                            {person.marga_asal}
+                          </Badge>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {formatDate(person.tanggal_lahir)}
                         </span>

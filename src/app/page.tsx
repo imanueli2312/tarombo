@@ -318,7 +318,14 @@ export default function Home() {
       <footer className='border-t mt-auto'>
         <div className='max-w-screen-2xl mx-auto px-4 h-10 flex items-center justify-between text-xs text-muted-foreground'>
           <span>Tarombo Marga Hariandja</span>
-          <span>Pohon Keluarga Digital</span>
+          <span className='hidden sm:inline-flex items-center gap-2'>
+            <span className='font-medium text-foreground/60'>Hasangapon</span>
+            <span className='text-foreground/30'>·</span>
+            <span className='font-medium text-foreground/60'>Hagabeon</span>
+            <span className='text-foreground/30'>·</span>
+            <span className='font-medium text-foreground/60'>Hamoraon</span>
+          </span>
+          <span className='hidden sm:inline'>Pohon Keluarga Digital</span>
         </div>
       </footer>
     </div>

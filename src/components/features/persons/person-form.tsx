@@ -54,6 +54,11 @@ const personSchema = z.object({
   burial_alamat: z.string(),
   burial_latitude: z.number().nullable(),
   burial_longitude: z.number().nullable(),
+  marga_asal: z.string(),
+  tempat_asal: z.string(),
+  pendidikan: z.string(),
+  pekerjaan: z.string(),
+  keterangan: z.string(),
   father_id: z.string(),
   mother_id: z.string(),
 });
@@ -114,6 +119,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       burial_alamat: '',
       burial_latitude: null,
       burial_longitude: null,
+      marga_asal: '',
+      tempat_asal: '',
+      pendidikan: '',
+      pekerjaan: '',
+      keterangan: '',
       father_id: '',
       mother_id: '',
     },
@@ -139,6 +149,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
         burial_alamat: person.burial_alamat ?? '',
         burial_latitude: person.burial_latitude,
         burial_longitude: person.burial_longitude,
+        marga_asal: (person as Record<string, unknown>).marga_asal ?? '' || '',
+        tempat_asal: (person as Record<string, unknown>).tempat_asal ?? '' || '',
+        pendidikan: (person as Record<string, unknown>).pendidikan ?? '' || '',
+        pekerjaan: (person as Record<string, unknown>).pekerjaan ?? '' || '',
+        keterangan: (person as Record<string, unknown>).keterangan ?? '' || '',
         father_id: personDetail?.parents?.father?.id ?? '',
         mother_id: personDetail?.parents?.mother?.id ?? '',
       });
@@ -165,6 +180,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
         burial_alamat: '',
         burial_latitude: null,
         burial_longitude: null,
+        marga_asal: '',
+        tempat_asal: '',
+        pendidikan: '',
+        pekerjaan: '',
+        keterangan: '',
         father_id: '',
         mother_id: '',
       });
@@ -192,6 +212,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (data.burial_alamat) payload.burial_alamat = data.burial_alamat;
       if (Number.isFinite(data.burial_latitude)) payload.burial_latitude = data.burial_latitude;
       if (Number.isFinite(data.burial_longitude)) payload.burial_longitude = data.burial_longitude;
+      if (data.marga_asal) payload.marga_asal = data.marga_asal;
+      if (data.tempat_asal) payload.tempat_asal = data.tempat_asal;
+      if (data.pendidikan) payload.pendidikan = data.pendidikan;
+      if (data.pekerjaan) payload.pekerjaan = data.pekerjaan;
+      if (data.keterangan) payload.keterangan = data.keterangan;
       if (data.father_id) payload.father_id = data.father_id;
       if (data.mother_id) payload.mother_id = data.mother_id;
 
@@ -236,6 +261,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (data.burial_alamat) payload.burial_alamat = data.burial_alamat;
       if (Number.isFinite(data.burial_latitude)) payload.burial_latitude = data.burial_latitude;
       if (Number.isFinite(data.burial_longitude)) payload.burial_longitude = data.burial_longitude;
+      if (data.marga_asal) payload.marga_asal = data.marga_asal;
+      if (data.tempat_asal) payload.tempat_asal = data.tempat_asal;
+      if (data.pendidikan) payload.pendidikan = data.pendidikan;
+      if (data.pekerjaan) payload.pekerjaan = data.pekerjaan;
+      if (data.keterangan) payload.keterangan = data.keterangan;
       // Explicitly clear optional fields when emptied during edit
       if (!data.tanggal_lahir) payload.tanggal_lahir = null;
       if (!data.tanggal_kematian) payload.tanggal_kematian = null;
@@ -248,6 +278,11 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (!data.burial_alamat) payload.burial_alamat = null;
       if (!Number.isFinite(data.burial_latitude)) payload.burial_latitude = null;
       if (!Number.isFinite(data.burial_longitude)) payload.burial_longitude = null;
+      if (!data.marga_asal) payload.marga_asal = null;
+      if (!data.tempat_asal) payload.tempat_asal = null;
+      if (!data.pendidikan) payload.pendidikan = null;
+      if (!data.pekerjaan) payload.pekerjaan = null;
+      if (!data.keterangan) payload.keterangan = null;
       // Parent links
       if (data.father_id) payload.father_id = data.father_id; else payload.father_id = null;
       if (data.mother_id) payload.mother_id = data.mother_id; else payload.mother_id = null;
@@ -445,6 +480,63 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
                     placeholder="Masukkan alamat lengkap"
                     rows={2}
                     {...register('alamat')}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* --- Data Budaya Batak --- */}
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Data Budaya Batak</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="marga_asal">Marga Asal</Label>
+                  <Input
+                    id="marga_asal"
+                    placeholder="Contoh: Siregar, Simatupang..."
+                    {...register('marga_asal')}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Marga klan. Untuk keturunan Hariandja, biarkan kosong.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="tempat_asal">Tempat Asal (Huta)</Label>
+                  <Input
+                    id="tempat_asal"
+                    placeholder="Contoh: Balige, Samosir..."
+                    {...register('tempat_asal')}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="pendidikan">Pendidikan Terakhir</Label>
+                  <Input
+                    id="pendidikan"
+                    placeholder="Contoh: S1, SMA, SMP..."
+                    {...register('pendidikan')}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="pekerjaan">Pekerjaan</Label>
+                  <Input
+                    id="pekerjaan"
+                    placeholder="Contoh: PNS, Wiraswasta..."
+                    {...register('pekerjaan')}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <Label htmlFor="keterangan">Keterangan</Label>
+                  <Textarea
+                    id="keterangan"
+                    placeholder="Catatan tambahan (opsional)"
+                    rows={2}
+                    {...register('keterangan')}
                   />
                 </div>
               </div>

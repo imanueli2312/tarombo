@@ -98,6 +98,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
             <CardDescription>
               Masuk untuk mengelola pohon keluarga
             </CardDescription>
+            <p className='text-[11px] text-muted-foreground mt-1'>
+              Hasangapon, Hagabeon, Hamoraon
+            </p>
           </div>
         </CardHeader>
 

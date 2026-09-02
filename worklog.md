@@ -478,3 +478,68 @@ Stage Summary:
 - Lint: 0 errors, 2 warnings (known React Hook Form library limitations)
 - Dev server: compiles and serves correctly, statistics API returns valid JSON
 - Total across all audits (rounds 1-8): 53 issues addressed (1 critical, 6 high, 32 medium, 14 low)
+
+---
+Task ID: 5
+Agent: Main
+Task: Enhance Tree View with Batak cultural elements
+
+Work Log:
+- Added import for `getMargaLabel` and `MARGA_UTAMA` from `@/lib/batak-culture`
+- Added `marga_asal: ''` to the virtual root node object (line 64)
+- Changed node subtitle from hardcoded `Hariandja, Gen ${n}` to dynamic `${d.data.marga_asal || MARGA_UTAMA}, Gen ${n}` (line 234)
+- Enhanced spouse label to show Batak cultural context: `(Boru · {marga_asal})` or `(Cerai · {marga_asal})` when spouse has a different marga, otherwise falls back to existing `(Pasangan)` / `(Cerai)` (lines 326-337)
+- Added warm amber border (`oklch(0.65 0.15 60)`, stroke-width 1.5) on spouse card rect when spouse marga differs from MARGA_UTAMA (lines 273-283)
+
+Stage Summary:
+- Tree view now dynamically displays each person's actual marga in the subtitle
+- Spouses from other clans (Boru) are visually distinguished with amber border and labeled with their marga
+- Batak cultural terminology (Boru) integrated into the tree visualization
+- All existing functionality preserved (zoom, pan, click, deceased indicators, divorce styling)
+
+---
+Task ID: 8
+Agent: general-purpose
+Task: Enhance statistics panel with Batak cultural statistics
+
+Work Log:
+- Updated `Stats` interface: added `totalUniqueMarga` and `spouseMargaCount` to `summary`, added `margaDistribution` and `tempatAsalDistribution` arrays
+- Added new "Marga Berbeda" stat card in the second row (Users icon, amber color) showing unique clan count and spouse marga count
+- Added horizontal bar chart for Marga Distribution (Dalihan Na Tolu) — conditional on `margaDistribution.length > 1`, amber color `oklch(0.65 0.18 60)`
+- Added horizontal bar chart for Asal Daerah (Huta) — conditional on `tempatAsalDistribution.length > 0`, teal color `oklch(0.6 0.15 160)`
+- Both charts use Recharts `BarChart` with `layout="vertical"`, `YAxis type="category"`, `h-48` height
+
+Stage Summary:
+- Statistics panel now displays Batak cultural data: unique marga count, spouse-origin clan count, marga distribution chart, and origin region (huta) chart
+- All new charts/cards are conditionally rendered to avoid empty states
+- File modified: `src/components/features/statistics/statistics-panel.tsx`
+---
+Task ID: 1-13
+Agent: main
+Task: Budaya Batak Mendalam deep audit and implementation
+
+Work Log:
+- Created src/lib/batak-culture.ts: Dalihan Na Tolu, Tiga Tujuan Batak (Hasangapon/Hagabeon/Hamoraon), MARGA_BATAK list, kinship terminology, helper functions
+- Added DB migration for 5 new columns: marga_asal, tempat_asal, pendidikan, pekerjaan, keterangan
+- Updated Person/PersonCreate/PersonUpdate/TreeNode types with new fields
+- Updated createPerson and updatePerson DB functions
+- Updated getTreeData to include marga_asal in nodes and spouses
+- Updated API validation for new fields in POST and PUT routes
+- Enhanced statistics API with marga distribution, tempat asal distribution, Dalihan Na Tolu counts
+- Enhanced Tree View: dynamic marga labels, Boru labels for in-marrying spouses, amber border for different-marga spouses
+- Enhanced Person Form: new Data Budaya Batak section (Marga Asal, Tempat Asal/Huta, Pendidikan, Pekerjaan, Keterangan)
+- Enhanced Person Detail: marga badge in header, Data Budaya Batak section, Batak kinship terms (Amang/Inang) for parents, spouse marga display
+- Enhanced Statistics: new Marga Berbeda stat card, Marga Distribution horizontal bar chart, Tempat Asal (Huta) chart
+- Enhanced Footer: Hasangapon · Hagabeon · Hamoraon cultural motto
+- Enhanced Login Form: Batak cultural motto subtitle
+- Enhanced Export: cultural motto in header, Batak terms in legend (Meninggal/Alm., Cerai/Pisah, Boru)
+- Enhanced Profile Panel: marga badge on cards
+- Enhanced Search Panel: marga badge on search results
+- Version bump to 0.4.0
+
+Stage Summary:
+- 16 files modified, 1 new file created
+- 5 new database columns with migration
+- Deep Batak cultural integration across entire app
+- All changes pass ESLint (0 errors, 1 pre-existing warning)
+

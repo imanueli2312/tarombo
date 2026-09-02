@@ -37,7 +37,7 @@ function drawExportDecorations(
   const headerH = 80;
   const footerH = 60;
   const legendW = 240;
-  const legendH = 100;
+  const legendH = 118;
   const margin = 30;
 
   // Expand canvas for header + footer
@@ -57,7 +57,9 @@ function drawExportDecorations(
   ectx.fillText('Tarombo Hariandja', margin, 38);
   ectx.fillStyle = mutedColor;
   ectx.font = '14px sans-serif';
-  ectx.fillText('Pohon Keluarga Digital Marga Hariandja', margin, 60);
+  ectx.fillText('Pohon Keluarga Digital Marga Hariandja', margin, 58);
+  ectx.font = 'italic 11px sans-serif';
+  ectx.fillText('Hasangapon, Hagabeon, Hamoraon', margin, 73);
 
   // Header divider
   ectx.strokeStyle = dividerColor;
@@ -108,8 +110,9 @@ function drawExportDecorations(
   const items = [
     { color: 'oklch(0.6 0.2 250)', label: 'Laki-laki' },
     { color: 'oklch(0.65 0.2 350)', label: 'Perempuan' },
-    { symbol: '\u271D', label: 'Meninggal' },
-    { dash: true, label: 'Cerai' },
+    { symbol: '\u271D', label: 'Meninggal (Alm.)' },
+    { dash: true, label: 'Cerai (Pisah)' },
+    { color: 'oklch(0.65 0.15 60)', label: 'Boru (marga lain)' },
   ];
 
   items.forEach((item, i) => {

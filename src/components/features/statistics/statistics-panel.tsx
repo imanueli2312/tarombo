@@ -48,6 +48,8 @@ interface Stats {
     totalPartnerships: number;
     activePartnerships: number;
     deepestGeneration: number;
+    totalUniqueMarga: number;
+    spouseMargaCount: number;
   };
   oldestLiving: { nama: string; tanggal_lahir: string } | null;
   youngest: { nama: string; tanggal_lahir: string } | null;
@@ -59,6 +61,8 @@ interface Stats {
   }[];
   maritalDistribution: { status: string; jumlah: number }[];
   ageDistribution: { range: string; jumlah: number }[];
+  margaDistribution: { marga: string; jumlah: number }[];
+  tempatAsalDistribution: { asal: string; jumlah: number }[];
 }
 
 const genChartConfig = {
@@ -150,7 +154,7 @@ export function StatisticsPanel() {
     );
   }
 
-  const { summary, oldestLiving, youngest, generationDistribution, maritalDistribution, ageDistribution } = data;
+  const { summary, oldestLiving, youngest, generationDistribution, maritalDistribution, ageDistribution, margaDistribution, tempatAsalDistribution } = data;
 
   const maritalPieData = maritalDistribution.map((d) => ({
     ...d,
@@ -163,7 +167,7 @@ export function StatisticsPanel() {
       <div>
         <h2 className="text-lg font-semibold">Statistik Keluarga</h2>
         <p className="text-sm text-muted-foreground">
-          Ringkasan data keluarga Marga Hariandja
+          Ringkasan data keluarga Marga Hariandja &mdash; Dalihan Na Tolu
         </p>
       </div>
 
@@ -200,6 +204,13 @@ export function StatisticsPanel() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          icon={Users}
+          label="Marga Berbeda"
+          value={summary.totalUniqueMarga}
+          sub={`${summary.spouseMargaCount} marga dari pernikahan`}
+          color="bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+        />
         <StatCard
           icon={Heart}
           label="Pernikahan Aktif"
@@ -345,6 +356,82 @@ export function StatisticsPanel() {
                       />
                     ))}
                   </Bar>
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Marga Distribution (Dalihan Na Tolu) */}
+        {margaDistribution && margaDistribution.length > 1 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Distribusi Marga (Dalihan Na Tolu)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  marga: { label: 'Marga' },
+                  jumlah: { label: 'Jumlah Anggota' },
+                }}
+                className="h-48 w-full"
+              >
+                <BarChart
+                  data={margaDistribution}
+                  layout="vertical"
+                  margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="marga"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    width={100}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="jumlah" fill="oklch(0.65 0.18 60)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tempat Asal Distribution (Huta) */}
+        {tempatAsalDistribution && tempatAsalDistribution.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Asal Daerah (Huta)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  asal: { label: 'Asal' },
+                  jumlah: { label: 'Jumlah Anggota' },
+                }}
+                className="h-48 w-full"
+              >
+                <BarChart
+                  data={tempatAsalDistribution}
+                  layout="vertical"
+                  margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="asal"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    width={100}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="jumlah" fill="oklch(0.6 0.15 160)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ChartContainer>
             </CardContent>

@@ -93,6 +93,43 @@ export async function GET() {
     // Deepest generation
     const maxGen = genRows.length > 0 ? genRows[genRows.length - 1].nomor_generasi : 0;
 
+    // Marga distribution (Batak cultural insight)
+    const margaRows = db
+      .prepare(
+        "SELECT COALESCE(NULLIF(marga_asal, ''), 'Hariandja') as marga, COUNT(*) as count FROM persons GROUP BY marga ORDER BY count DESC"
+      )
+      .all() as { marga: string; count: number }[];
+
+    const margaDistribution = margaRows.map((r) => ({
+      marga: r.marga,
+      jumlah: r.count,
+    }));
+
+    // Dalihan Na Tolu: count of unique marga through marriages
+    const spouseMargaRows = db
+      .prepare(`
+        SELECT DISTINCT p.marga_asal
+        FROM persons p
+        JOIN partnerships ps ON (p.id = CASE WHEN ps.person1_id = p.id THEN ps.person2_id ELSE ps.person1_id END)
+        WHERE p.marga_asal IS NOT NULL AND p.marga_asal != ''
+      `)
+      .all() as { marga_asal: string }[];
+
+    const totalUniqueMarga = margaRows.length;
+    const spouseMargaCount = spouseMargaRows.length;
+
+    // Tempat asal distribution
+    const asalRows = db
+      .prepare(
+        "SELECT tempat_asal, COUNT(*) as count FROM persons WHERE tempat_asal IS NOT NULL AND tempat_asal != '' GROUP BY tempat_asal ORDER BY count DESC LIMIT 10"
+      )
+      .all() as { tempat_asal: string; count: number }[];
+
+    const tempatAsalDistribution = asalRows.map((r) => ({
+      asal: r.tempat_asal,
+      jumlah: r.count,
+    }));
+
     return NextResponse.json({
       summary: {
         totalPersons,
@@ -103,6 +140,8 @@ export async function GET() {
         totalPartnerships: totalPartnerships.c,
         activePartnerships: activePartnerships.c,
         deepestGeneration: maxGen,
+        totalUniqueMarga,
+        spouseMargaCount,
       },
       oldestLiving: oldestLiving
         ? {
@@ -119,6 +158,8 @@ export async function GET() {
       generationDistribution,
       maritalDistribution,
       ageDistribution,
+      margaDistribution,
+      tempatAsalDistribution,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Terjadi kesalahan';

@@ -54,6 +54,7 @@ import type { Person, MaritalStatus } from '@/types';
 import { useAuthStore } from '@/store/auth';
 import { PersonDetail } from '@/components/features/persons/person-detail';
 import { PersonForm } from '@/components/features/persons/person-form';
+import { getMargaLabel } from '@/lib/batak-culture';
 
 type SortKey = 'name' | 'generation' | 'birthDate';
 type ViewMode = 'grid' | 'table';
@@ -293,11 +294,16 @@ export function ProfilePanel({ initialPersonId }: ProfilePanelProps) {
                         )}
                       </div>
 
-                      {/* Generation + Marital */}
+                      {/* Generation + Marital + Marga */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           Gen {person.nomor_generasi}
                         </Badge>
+                        {person.marga_asal && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400/50 text-amber-700 dark:text-amber-400">
+                            {person.marga_asal}
+                          </Badge>
+                        )}
                         <Badge variant={MARITAL_VARIANT[person.status_pernikahan]} className="text-[10px] px-1.5 py-0">
                           {MARITAL_LABELS[person.status_pernikahan]}
                         </Badge>

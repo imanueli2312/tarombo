@@ -41,6 +41,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import type { Person, PersonDetailResponse } from '@/types';
+import { getMargaLabel, MARGA_UTAMA, MARITAL_STATUS_BATAK, getKinshipTerm } from '@/lib/batak-culture';
 
 interface PersonDetailProps {
   personId: string;
@@ -140,6 +141,8 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
   const isDeceased = !!person.tanggal_kematian;
   const father = person.parents?.father;
   const mother = person.parents?.mother;
+  const margaDisplay = getMargaLabel((person as Record<string, unknown>).marga_asal as string);
+  const isDifferentMarga = !!(person as Record<string, unknown>).marga_asal;
 
   return (
     <Card className={isDeceased ? 'opacity-80' : ''}>
@@ -171,6 +174,11 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                 : `Generasi ${person.nomor_generasi}`}
               {' · '}
               {person.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+              {isDifferentMarga && (
+                <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 border-amber-400/50 text-amber-700 dark:text-amber-400">
+                  {margaDisplay}
+                </Badge>
+              )}
             </CardDescription>
           </div>
         </div>
@@ -269,10 +277,39 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
           </div>
         </div>
 
+        <Separator />
+
+        {/* --- Data Budaya Batak --- */}
+        {(() => {
+          const p = person as Record<string, unknown>;
+          const hasBatakData = p.marga_asal || p.tempat_asal || p.pendidikan || p.pekerjaan || p.keterangan;
+          if (!hasBatakData) return null;
+          return (
+            <div>
+              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                Data Budaya Batak
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <InfoRow label="Marga" value={margaDisplay !== MARGA_UTAMA ? margaDisplay : undefined} />
+                <InfoRow label="Tempat Asal (Huta)" value={(p.tempat_asal as string) || undefined} />
+                <InfoRow label="Pendidikan" value={(p.pendidikan as string) || undefined} />
+                <InfoRow label="Pekerjaan" value={(p.pekerjaan as string) || undefined} />
+                {p.keterangan && (
+                  <div className="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-3">
+                    <span className="text-xs text-muted-foreground">Keterangan</span>
+                    <span className="text-sm font-medium">{p.keterangan as string}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        <Separator />
+
         {/* --- Orang Tua --- */}
         {(father || mother) && (
           <>
-            <Separator />
             <div>
               <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                 <Users className="size-3.5" />
@@ -288,7 +325,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                       <p className="text-sm font-medium truncate">
                         {father.nama_panggilan || father.nama}
                       </p>
-                      <p className="text-xs text-muted-foreground">Ayah</p>
+                      <p className="text-xs text-muted-foreground">Ayah <span className="text-muted-foreground/60">(Amang)</span></p>
                     </div>
                   </div>
                 )}
@@ -301,7 +338,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                       <p className="text-sm font-medium truncate">
                         {mother.nama_panggilan || mother.nama}
                       </p>
-                      <p className="text-xs text-muted-foreground">Ibu</p>
+                      <p className="text-xs text-muted-foreground">Ibu <span className="text-muted-foreground/60">(Inang)</span></p>
                     </div>
                   </div>
                 )}
@@ -341,6 +378,11 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                     {person.spouse.tanggal_lahir
                       ? `Lahir ${formatDate(person.spouse.tanggal_lahir)}`
                       : `Generasi ${person.spouse.nomor_generasi}`}
+                    {person.spouse.marga_asal && (
+                      <span className="ml-1 text-amber-600 dark:text-amber-400">
+                        · {person.spouse.marga_asal}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <Badge variant="secondary" className="ml-auto shrink-0">

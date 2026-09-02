@@ -23,6 +23,11 @@ export interface Person {
   burial_alamat: string | null;
   burial_latitude: number | null;
   burial_longitude: number | null;
+  marga_asal: string;
+  tempat_asal: string;
+  pendidikan: string;
+  pekerjaan: string;
+  keterangan: string;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +50,11 @@ export interface PersonCreate {
   burial_alamat?: string | null;
   burial_latitude?: number | null;
   burial_longitude?: number | null;
+  marga_asal?: string | null;
+  tempat_asal?: string | null;
+  pendidikan?: string | null;
+  pekerjaan?: string | null;
+  keterangan?: string | null;
   father_id?: string | null;
   mother_id?: string | null;
 }
@@ -115,6 +125,7 @@ export interface TreeNode {
   status_pernikahan: MaritalStatus;
   nomor_generasi: number;
   photo: string | null;
+  marga_asal: string;
   spouse?: {
     id: string;
     nama: string;
@@ -124,6 +135,7 @@ export interface TreeNode {
     tanggal_kematian: string | null;
     status_pernikahan: MaritalStatus;
     photo: string | null;
+    marga_asal: string;
   } | null;
   children: TreeNode[];
 }

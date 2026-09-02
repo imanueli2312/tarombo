@@ -61,7 +61,7 @@ export async function PUT(
     }
 
     // Field length validation
-    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat'] as const) {
+    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat', 'marga_asal', 'tempat_asal', 'pendidikan', 'pekerjaan'] as const) {
       const val = (body as Record<string, unknown>)[field];
       if (val != null && val !== '') {
         const lenErr = validateFieldLength(field, val as string);

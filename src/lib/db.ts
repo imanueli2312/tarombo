@@ -15,9 +15,30 @@ export function getDb(): Database.Database {
   _db.pragma('foreign_keys = ON');
 
   initializeSchema(_db);
+  runMigrations(_db);
   seedDefaultData(_db);
 
   return _db;
+}
+
+function runMigrations(db: Database.Database) {
+  // Migration: Add Batak cultural columns (v0.4.0)
+  const cols = db.prepare("PRAGMA table_info(persons)").all() as { name: string }[];
+  const colNames = new Set(cols.map((c) => c.name));
+
+  const migrations: { col: string; def: string }[] = [
+    { col: 'marga_asal', def: "ALTER TABLE persons ADD COLUMN marga_asal TEXT NOT NULL DEFAULT ''" },
+    { col: 'tempat_asal', def: "ALTER TABLE persons ADD COLUMN tempat_asal TEXT NOT NULL DEFAULT ''" },
+    { col: 'pendidikan', def: "ALTER TABLE persons ADD COLUMN pendidikan TEXT NOT NULL DEFAULT ''" },
+    { col: 'pekerjaan', def: "ALTER TABLE persons ADD COLUMN pekerjaan TEXT NOT NULL DEFAULT ''" },
+    { col: 'keterangan', def: "ALTER TABLE persons ADD COLUMN keterangan TEXT NOT NULL DEFAULT ''" },
+  ];
+
+  for (const m of migrations) {
+    if (!colNames.has(m.col)) {
+      db.exec(m.def);
+    }
+  }
 }
 
 function initializeSchema(db: Database.Database) {
@@ -51,6 +72,11 @@ function initializeSchema(db: Database.Database) {
       burial_alamat TEXT,
       burial_latitude REAL,
       burial_longitude REAL,
+      marga_asal TEXT NOT NULL DEFAULT '',
+      tempat_asal TEXT NOT NULL DEFAULT '',
+      pendidikan TEXT NOT NULL DEFAULT '',
+      pekerjaan TEXT NOT NULL DEFAULT '',
+      keterangan TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -142,8 +168,9 @@ export function createPerson(db: Database.Database, data: import('@/types').Pers
   db.prepare(`
     INSERT INTO persons (id, nama, nama_panggilan, tempat_lahir, tanggal_lahir, tanggal_kematian,
       nomor_urut_lahir, jenis_kelamin, alamat, agama, nomor_telepon, photo, status_pernikahan,
-      nomor_generasi, burial_nama, burial_alamat, burial_latitude, burial_longitude)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      nomor_generasi, burial_nama, burial_alamat, burial_latitude, burial_longitude,
+      marga_asal, tempat_asal, pendidikan, pekerjaan, keterangan)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.id, data.nama, data.nama_panggilan || null, data.tempat_lahir || null,
     data.tanggal_lahir ?? null, data.tanggal_kematian ?? null,
@@ -151,7 +178,9 @@ export function createPerson(db: Database.Database, data: import('@/types').Pers
     data.agama || null, data.nomor_telepon || null, data.photo ?? null,
     data.status_pernikahan ?? 'belum_menikah', data.nomor_generasi ?? 1,
     data.burial_nama || null, data.burial_alamat || null,
-    data.burial_latitude ?? null, data.burial_longitude ?? null
+    data.burial_latitude ?? null, data.burial_longitude ?? null,
+    data.marga_asal || null, data.tempat_asal || null,
+    data.pendidikan || null, data.pekerjaan || null, data.keterangan || null
   );
 
   if (father_id) {
@@ -172,7 +201,7 @@ export function updatePerson(db: Database.Database, id: string, data: import('@/
   const updates: string[] = [];
   const values: unknown[] = [];
 
-  const allowedFields = ['nama','nama_panggilan','tempat_lahir','tanggal_lahir','tanggal_kematian','nomor_urut_lahir','jenis_kelamin','alamat','agama','nomor_telepon','photo','status_pernikahan','nomor_generasi','burial_nama','burial_alamat','burial_latitude','burial_longitude'];
+  const allowedFields = ['nama','nama_panggilan','tempat_lahir','tanggal_lahir','tanggal_kematian','nomor_urut_lahir','jenis_kelamin','alamat','agama','nomor_telepon','photo','status_pernikahan','nomor_generasi','burial_nama','burial_alamat','burial_latitude','burial_longitude','marga_asal','tempat_asal','pendidikan','pekerjaan','keterangan'];
 
   for (const f of allowedFields) {
     if (fields[f as keyof typeof fields] !== undefined) {
@@ -395,7 +424,7 @@ export function getTreeData(db: Database.Database): import('@/types').TreeNode[]
   }
 
   // Build spouse map (active partnerships only)
-  const spouseMap = new Map<string, { id: string; nama: string; nama_panggilan: string; jenis_kelamin: import('@/types').Gender; tanggal_lahir: string | null; tanggal_kematian: string | null; status_pernikahan: import('@/types').MaritalStatus; photo: string | null } | null>();
+  const spouseMap = new Map<string, { id: string; nama: string; nama_panggilan: string; jenis_kelamin: import('@/types').Gender; tanggal_lahir: string | null; tanggal_kematian: string | null; status_pernikahan: import('@/types').MaritalStatus; photo: string | null; marga_asal: string } | null>();
   for (const p of partnerships) {
     if (p.divorce_date) continue;
     const p1 = personMap.get(p.person1_id);
@@ -405,13 +434,13 @@ export function getTreeData(db: Database.Database): import('@/types').TreeNode[]
       id: p2.id, nama: p2.nama, nama_panggilan: p2.nama_panggilan,
       jenis_kelamin: p2.jenis_kelamin, tanggal_lahir: p2.tanggal_lahir,
       tanggal_kematian: p2.tanggal_kematian, status_pernikahan: p2.status_pernikahan,
-      photo: p2.photo,
+      photo: p2.photo, marga_asal: p2.marga_asal,
     });
     spouseMap.set(p.person2_id, {
       id: p1.id, nama: p1.nama, nama_panggilan: p1.nama_panggilan,
       jenis_kelamin: p1.jenis_kelamin, tanggal_lahir: p1.tanggal_lahir,
       tanggal_kematian: p1.tanggal_kematian, status_pernikahan: p1.status_pernikahan,
-      photo: p1.photo,
+      photo: p1.photo, marga_asal: p1.marga_asal,
     });
   }
 
@@ -459,6 +488,7 @@ export function getTreeData(db: Database.Database): import('@/types').TreeNode[]
       status_pernikahan: person.status_pernikahan,
       nomor_generasi: person.nomor_generasi,
       photo: person.photo,
+      marga_asal: person.marga_asal,
       spouse: spouseMap.get(person.id) || null,
       children,
     };
