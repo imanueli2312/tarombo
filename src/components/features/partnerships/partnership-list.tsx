@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Heart, Trash2, Edit, User } from 'lucide-react'
+import { Plus, Heart, Trash2, Edit, User, UserRound } from 'lucide-react'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 
@@ -113,17 +113,17 @@ export default function PartnershipList() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center">
-                      <User className="h-3.5 w-3.5 text-primary" />
+                    <div className={`w-8 h-8 rounded-full border-2 border-background flex items-center justify-center ${p.person1?.jenis_kelamin === 'P' ? 'bg-rose-100 dark:bg-rose-950' : 'bg-sky-100 dark:bg-sky-950'}`}>
+                      {p.person1?.jenis_kelamin === 'P' ? <UserRound className="h-3.5 w-3.5 text-rose-500" /> : <User className="h-3.5 w-3.5 text-sky-500" />}
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-rose-500/10 border-2 border-background flex items-center justify-center">
-                      <User className="h-3.5 w-3.5 text-rose-500" />
+                    <div className={`w-8 h-8 rounded-full border-2 border-background flex items-center justify-center ${p.person2?.jenis_kelamin === 'P' ? 'bg-rose-100 dark:bg-rose-950' : 'bg-sky-100 dark:bg-sky-950'}`}>
+                      {p.person2?.jenis_kelamin === 'P' ? <UserRound className="h-3.5 w-3.5 text-rose-500" /> : <User className="h-3.5 w-3.5 text-sky-500" />}
                     </div>
                   </div>
                   <div className="text-sm">
-                    <p className="font-medium">{p.person1?.nama || '-'}</p>
+                    <p className="font-medium">{p.person1?.nama_panggilan || p.person1?.nama || '-'}</p>
                     <p className="text-muted-foreground">&</p>
-                    <p className="font-medium">{p.person2?.nama || '-'}</p>
+                    <p className="font-medium">{p.person2?.nama_panggilan || p.person2?.nama || '-'}</p>
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">

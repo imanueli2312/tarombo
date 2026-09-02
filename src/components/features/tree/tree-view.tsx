@@ -99,6 +99,9 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         }
       }
 
+      // Expand bounding box for generation labels on the left
+      minX -= 80;
+
       // 6. Draw links (only from real nodes to their children)
       const links = (root.links() as unknown as d3.HierarchyPointLink<TreeNode>[]).filter(
         (l) => l.source.data.id !== '__virtual_root__'
@@ -305,6 +308,18 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
             .attr('fill', 'var(--foreground)')
             .text(truncate(spouseName, 16));
 
+          // Spouse deceased cross
+          if (spouse.tanggal_kematian) {
+            sg.append('text')
+              .attr('x', SPOUSE_W - 12)
+              .attr('y', 14)
+              .attr('font-size', '12px')
+              .attr('fill', 'var(--muted-foreground)')
+              .attr('text-anchor', 'middle')
+              .attr('dominant-baseline', 'central')
+              .text('\u271D');
+          }
+
           // Spouse label
           sg.append('text')
             .attr('x', 14)
@@ -314,7 +329,33 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
             .text(isDivorced ? '(Cerai)' : '(Pasangan)');
         });
 
-      // 10. Hover + click on node cards
+      // 10. Generation level labels
+      const genNodes = root.descendants().filter(
+        (d) => d.data.id !== '__virtual_root__'
+      );
+      const genYs = new Map<number, number>();
+      for (const n of genNodes) {
+        const gen = n.data.nomor_generasi;
+        const y = n.y ?? 0;
+        if (!genYs.has(gen) || y < genYs.get(gen)!) {
+          genYs.set(gen, y);
+        }
+      }
+
+      const sortedGens = Array.from(genYs.entries()).sort((a, b) => a[1] - b[1]);
+      g.append('g').attr('class', 'gen-labels').selectAll('text')
+        .data(sortedGens)
+        .join('text')
+        .attr('x', minX - NODE_W / 2 - 8)
+        .attr('y', (d) => d[1] + NODE_H / 2 + 4)
+        .attr('text-anchor', 'end')
+        .attr('font-size', '11px')
+        .attr('font-weight', 600)
+        .attr('fill', 'var(--muted-foreground)')
+        .attr('opacity', 0.6)
+        .text((d) => `Gen ${d[0]}`);
+
+      // 10b. Hover + click on node cards
       cardGroup
         .on('mouseenter', function () {
           d3.select(this)
@@ -461,10 +502,10 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       </svg>
 
       {/* Zoom controls */}
-      <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-lg backdrop-blur-sm">
+      <div className="absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-lg backdrop-blur-sm bottom-2 right-2 sm:bottom-4 sm:right-4">
         <button
           onClick={handleZoomIn}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Perbesar"
           type="button"
         >
@@ -472,7 +513,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         </button>
         <button
           onClick={handleZoomOut}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Perkecil"
           type="button"
         >
@@ -480,7 +521,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         </button>
         <button
           onClick={handleReset}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Reset tampilan"
           type="button"
         >

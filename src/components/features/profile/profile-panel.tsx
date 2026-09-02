@@ -282,9 +282,11 @@ export function ProfilePanel({ initialPersonId }: ProfilePanelProps) {
                           <p className="font-medium text-sm truncate leading-tight">
                             {person.nama_panggilan || person.nama}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {person.nama}
-                          </p>
+                          {person.nama_panggilan && person.nama !== person.nama_panggilan && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {person.nama}
+                            </p>
+                          )}
                         </div>
                         {isDeceased && (
                           <Cross className="size-3.5 text-muted-foreground shrink-0" />

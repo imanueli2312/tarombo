@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Person } from '@/types';
 import { PersonDetail } from '@/components/features/persons/person-detail';
 import { PersonForm } from '@/components/features/persons/person-form';
@@ -84,11 +84,13 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
             Kembali ke hasil pencarian
           </button>
         </div>
-        <PersonDetail
-          personId={selectedPersonId}
-          onEdit={canEdit ? handleEdit : undefined}
-          onDelete={canDelete ? (id) => { setSelectedPersonId(null); } : undefined}
-        />
+        <ScrollArea className="flex-1">
+          <PersonDetail
+            personId={selectedPersonId}
+            onEdit={canEdit ? handleEdit : undefined}
+            onDelete={canDelete ? (id) => { setSelectedPersonId(null); } : undefined}
+          />
+        </ScrollArea>
       </div>
     );
   }
@@ -119,7 +121,7 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
 
       {/* Results */}
       {isSearching ? (
-        <div className="max-h-96 overflow-y-auto rounded-lg border bg-card">
+        <div className="flex-1 overflow-y-auto rounded-lg border bg-card">
           {isLoading ? (
             <div className="p-2 space-y-2">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -141,9 +143,8 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
               </p>
             </div>
           ) : (
-            <ScrollArea className="max-h-96">
-              <AnimatePresence mode="popLayout">
-                {results.map((person, idx) => (
+            <AnimatePresence mode="popLayout">
+              {results.map((person, idx) => (
                   <motion.button
                     key={person.id}
                     initial={{ opacity: 0, y: 8 }}
@@ -195,7 +196,6 @@ export function SearchPanel({ initialPersonId }: SearchPanelProps) {
                   </motion.button>
                 ))}
               </AnimatePresence>
-            </ScrollArea>
           )}
         </div>
       ) : (

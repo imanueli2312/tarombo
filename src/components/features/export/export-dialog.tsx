@@ -24,16 +24,135 @@ async function loadWatermark(): Promise<HTMLImageElement> {
   });
 }
 
+function drawExportDecorations(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  isDark: boolean
+) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const textColor = isDark ? '#e5e5e5' : '#1a1a1a';
+  const mutedColor = isDark ? '#a0a0a0' : '#666666';
+  const dividerColor = isDark ? '#333333' : '#e0e0e0';
+  const headerH = 80;
+  const footerH = 60;
+  const legendW = 240;
+  const legendH = 100;
+  const margin = 30;
+
+  // Expand canvas for header + footer
+  const newH = h + headerH + footerH;
+  const expanded = document.createElement('canvas');
+  expanded.width = w;
+  expanded.height = newH;
+  const ectx = expanded.getContext('2d')!;
+
+  // Background
+  ectx.fillStyle = isDark ? '#1a1a1a' : '#ffffff';
+  ectx.fillRect(0, 0, w, newH);
+
+  // Header
+  ectx.fillStyle = textColor;
+  ectx.font = 'bold 28px sans-serif';
+  ectx.fillText('Tarombo Hariandja', margin, 38);
+  ectx.fillStyle = mutedColor;
+  ectx.font = '14px sans-serif';
+  ectx.fillText('Pohon Keluarga Digital Marga Hariandja', margin, 60);
+
+  // Header divider
+  ectx.strokeStyle = dividerColor;
+  ectx.lineWidth = 1;
+  ectx.beginPath();
+  ectx.moveTo(margin, headerH - 8);
+  ectx.lineTo(w - margin, headerH - 8);
+  ectx.stroke();
+
+  // Draw tree content
+  ectx.drawImage(canvas, 0, headerH);
+
+  // Footer divider
+  ectx.beginPath();
+  ectx.moveTo(margin, h + headerH + 8);
+  ectx.lineTo(w - margin, h + headerH + 8);
+  ectx.stroke();
+
+  // Footer
+  ectx.fillStyle = mutedColor;
+  ectx.font = '11px sans-serif';
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  ectx.fillText(`Diekspor pada ${dateStr}`, margin, h + headerH + 32);
+  ectx.textAlign = 'right';
+  ectx.fillText('tarombo-hariandja', w - margin, h + headerH + 32);
+  ectx.textAlign = 'left';
+
+  // Legend (bottom-right of tree area)
+  const legX = w - legendW - margin;
+  const legY = h + headerH - legendH - 10;
+
+  // Legend background
+  ectx.fillStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  ectx.beginPath();
+  ectx.roundRect(legX - 10, legY - 10, legendW + 20, legendH + 20, 8);
+  ectx.fill();
+
+  ectx.font = 'bold 11px sans-serif';
+  ectx.fillStyle = mutedColor;
+  ectx.fillText('Keterangan:', legX, legY + 4);
+
+  ectx.font = '11px sans-serif';
+  const items = [
+    { color: 'oklch(0.6 0.2 250)', label: 'Laki-laki' },
+    { color: 'oklch(0.65 0.2 350)', label: 'Perempuan' },
+    { symbol: '\u271D', label: 'Meninggal' },
+    { dash: true, label: 'Cerai' },
+  ];
+
+  items.forEach((item, i) => {
+    const y = legY + 24 + i * 18;
+    if (item.color) {
+      ectx.fillStyle = item.color;
+      ectx.beginPath();
+      ectx.arc(legX + 6, y - 3, 5, 0, Math.PI * 2);
+      ectx.fill();
+    } else if (item.symbol) {
+      ectx.fillStyle = mutedColor;
+      ectx.font = '14px sans-serif';
+      ectx.fillText(item.symbol, legX + 1, y);
+      ectx.font = '11px sans-serif';
+    } else if (item.dash) {
+      ectx.strokeStyle = 'var(--destructive, #ef4444)';
+      ectx.setLineDash([4, 3]);
+      ectx.lineWidth = 1.5;
+      ectx.beginPath();
+      ectx.moveTo(legX, y - 3);
+      ectx.lineTo(legX + 16, y - 3);
+      ectx.stroke();
+      ectx.setLineDash([]);
+    }
+    ectx.fillStyle = textColor;
+    ectx.fillText(item.label, legX + 18, y);
+  });
+
+  return expanded;
+}
+
 async function captureWithWatermark(): Promise<HTMLCanvasElement> {
   const container = document.getElementById('tree-svg-container');
   if (!container) throw new Error('Container pohon keluarga tidak ditemukan');
+
+  const isDark = document.documentElement.classList.contains('dark');
 
   // Dynamically import html2canvas
   const html2canvas = (await import('html2canvas')).default;
 
   // Capture the tree container
   const canvas = await html2canvas(container, {
-    backgroundColor: '#ffffff',
+    backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
     scale: 2,
     useCORS: true,
     logging: false,
@@ -66,7 +185,8 @@ async function captureWithWatermark(): Promise<HTMLCanvasElement> {
     // Watermark load failed — continue without it
   }
 
-  return compositeCanvas;
+  // Add header, footer, and legend
+  return drawExportDecorations(ctx, compositeCanvas, isDark);
 }
 
 function downloadCanvas(canvas: HTMLCanvasElement, filename: string, mimeType: string) {
@@ -83,24 +203,23 @@ export function ExportDialog() {
   const handleExport = useCallback(async (format: 'png' | 'jpg' | 'pdf' | 'pdf-large') => {
     setExporting(format);
     try {
-      const compositeCanvas = await captureWithWatermark();
+      const finalCanvas = await captureWithWatermark();
 
       switch (format) {
         case 'png': {
-          downloadCanvas(compositeCanvas, 'tarombo-hariandja.png', 'image/png');
+          downloadCanvas(finalCanvas, 'tarombo-hariandja.png', 'image/png');
           toast.success('Export PNG berhasil!');
           break;
         }
 
         case 'jpg': {
-          // Convert to JPEG
           const jpgCanvas = document.createElement('canvas');
-          jpgCanvas.width = compositeCanvas.width;
-          jpgCanvas.height = compositeCanvas.height;
+          jpgCanvas.width = finalCanvas.width;
+          jpgCanvas.height = finalCanvas.height;
           const jpgCtx = jpgCanvas.getContext('2d')!;
           jpgCtx.fillStyle = '#ffffff';
           jpgCtx.fillRect(0, 0, jpgCanvas.width, jpgCanvas.height);
-          jpgCtx.drawImage(compositeCanvas, 0, 0);
+          jpgCtx.drawImage(finalCanvas, 0, 0);
           downloadCanvas(jpgCanvas, 'tarombo-hariandja.jpg', 'image/jpeg');
           toast.success('Export JPG berhasil!');
           break;
@@ -108,13 +227,10 @@ export function ExportDialog() {
 
         case 'pdf': {
           const { jsPDF } = await import('jspdf');
-          const imgData = compositeCanvas.toDataURL('image/png', 1.0);
+          const imgData = finalCanvas.toDataURL('image/png', 1.0);
 
-          // A4: 210 x 297 mm
-          const pdfWidth = 210;
-          const pdfHeight = 297;
           const pdf = new jsPDF({
-            orientation: compositeCanvas.width > compositeCanvas.height ? 'l' : 'p',
+            orientation: finalCanvas.width > finalCanvas.height ? 'l' : 'p',
             unit: 'mm',
             format: 'a4',
           });
@@ -122,11 +238,10 @@ export function ExportDialog() {
           const pageWidth = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
 
-          // Fit image to page with margin
           const margin = 10;
           const availW = pageWidth - margin * 2;
           const availH = pageHeight - margin * 2;
-          const imgRatio = compositeCanvas.width / compositeCanvas.height;
+          const imgRatio = finalCanvas.width / finalCanvas.height;
           const pageRatio = availW / availH;
 
           let drawW: number, drawH: number;
@@ -149,16 +264,13 @@ export function ExportDialog() {
 
         case 'pdf-large': {
           const { jsPDF } = await import('jspdf');
-          const imgData = compositeCanvas.toDataURL('image/png', 1.0);
+          const imgData = finalCanvas.toDataURL('image/png', 1.0);
 
-          // Custom large format based on tree dimensions
           const margin = 10;
-          const pxToMm = 0.264583; // 1px at 96dpi = 0.264583mm
-          // Composite canvas is at 2x scale, so halve for actual size
-          const actualW = (compositeCanvas.width / 2) * pxToMm + margin * 2;
-          const actualH = (compositeCanvas.height / 2) * pxToMm + margin * 2;
+          const pxToMm = 0.264583;
+          const actualW = (finalCanvas.width / 2) * pxToMm + margin * 2;
+          const actualH = (finalCanvas.height / 2) * pxToMm + margin * 2;
 
-          // Cap at A2 (420x594mm), fall back to custom
           const pageW = Math.min(actualW, 420);
           const pageH = Math.min(actualH, 594);
 
@@ -170,7 +282,7 @@ export function ExportDialog() {
 
           const availW = pageW - margin * 2;
           const availH = pageH - margin * 2;
-          const imgRatio = compositeCanvas.width / compositeCanvas.height;
+          const imgRatio = finalCanvas.width / finalCanvas.height;
           const pageRatio = availW / availH;
 
           let drawW: number, drawH: number;
@@ -213,8 +325,8 @@ export function ExportDialog() {
       label: 'JPG',
       description: 'File ringan, cocok untuk dibagikan',
       icon: FileImage,
-      color: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-50 dark:bg-blue-950/50',
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-950/50',
     },
     {
       id: 'pdf' as const,

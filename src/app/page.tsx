@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TreePine, Search, Users, Heart, Settings, LogOut, LogIn,
-  Sun, Moon, UserPlus, Menu, X, Download, UserCircle
+  Sun, Moon, UserPlus, Menu, X, Download, UserCircle, BarChart3
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -27,12 +27,13 @@ import PartnershipList from '@/components/features/partnerships/partnership-list
 import { ExportDialog } from '@/components/features/export/export-dialog'
 import { RBACPanel } from '@/components/features/admin/rbac-panel'
 import { UserManagement } from '@/components/features/admin/user-management'
+import { StatisticsPanel } from '@/components/features/statistics/statistics-panel'
 import { LoginForm } from '@/components/features/auth/login-form'
 
 import { useAuthStore } from '@/store/auth'
 import type { TreeNode } from '@/types'
 
-type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'admin'
+type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'statistik' | 'admin'
 
 function AdminPanel() {
   const [section, setSection] = useState<'users' | 'perms'>('users')
@@ -71,6 +72,7 @@ export default function Home() {
   }
   if (hasPermission('view_marriages')) {
     tabs.push({ value: 'pernikahan', label: 'Pernikahan', icon: <Heart className='h-4 w-4' /> })
+    tabs.push({ value: 'statistik', label: 'Statistik', icon: <BarChart3 className='h-4 w-4' /> })
   }
   if (hasPermission('view_admin')) {
     tabs.push({ value: 'admin', label: 'Admin', icon: <Settings className='h-4 w-4' /> })
@@ -146,6 +148,9 @@ export default function Home() {
 
       case 'pernikahan':
         return <PartnershipList />
+
+      case 'statistik':
+        return <StatisticsPanel />
 
       case 'admin':
         return <AdminPanel />
