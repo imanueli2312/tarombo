@@ -20,7 +20,7 @@ async function loadWatermark(): Promise<HTMLImageElement> {
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Gagal memuat watermark'));
-    img.src = '/tarombo-bg01.png';
+    img.src = '/tarombo-bg02.png';
   });
 }
 

@@ -146,7 +146,7 @@ export default function Home() {
   }
 
   return (
-    <div className='min-h-screen flex flex-col bg-background'>
+    <div className='min-h-screen flex flex-col bg-background page-bg'>
       {/* Login Overlay */}
       <AnimatePresence>
         {showLogin && (
@@ -172,7 +172,7 @@ export default function Home() {
           {/* Logo + Title */}
           <div className='flex items-center gap-2.5 min-w-0'>
             <img
-              src='/tarombo-bg01.png'
+              src='/tarombo-bg02.png'
               alt='Tarombo'
               className='w-8 h-8 rounded-md object-cover flex-shrink-0'
             />

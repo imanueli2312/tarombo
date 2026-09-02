@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Tarombo Hariandja",
   description: "Pohon Keluarga Marga Hariandja",
   icons: {
-    icon: "/tarombo-bg01.png",
+    icon: "/tarombo-bg02.png",
   },
 };
 

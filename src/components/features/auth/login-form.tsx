@@ -87,7 +87,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <Card className="w-full max-w-sm shadow-lg border-border/60">
         <CardHeader className="items-center text-center gap-3">
           <Image
-            src="/tarombo-bg01.png"
+            src="/tarombo-bg02.png"
             alt="Tarombo Hariandja"
             width={60}
             height={60}

@@ -36,3 +36,25 @@ Stage Summary:
 - Export system with watermark
 - 103 files changed, 13,554 insertions
 - Successfully pushed to GitHub (force push to main)
+
+---
+Task ID: 2
+Agent: Main
+Task: Replace all tarombo-bg01.png references with tarombo-bg02.png as watermark, logo, and background
+
+Work Log:
+- Copied tarombo-bg02.png from upload/ to public/
+- Updated export-dialog.tsx: watermark image src to /tarombo-bg02.png (centered, scaled to 40% of canvas)
+- Updated page.tsx: header logo img src to /tarombo-bg02.png
+- Updated layout.tsx: favicon to /tarombo-bg02.png
+- Updated login-form.tsx: login card logo to /tarombo-bg02.png
+- Updated globals.css: tree-container background to /tarombo-bg02.png
+- Added .page-bg CSS class with tarombo-bg02.png as full-page cover background (fixed attachment, centered)
+- Applied page-bg class to main page wrapper in page.tsx
+- Verified no remaining references to tarombo-bg01.png
+- Browser-verified: logo loads, background image applied correctly, no console errors
+
+Stage Summary:
+- tarombo-bg02.png is now used as: watermark (exports), logo (header + login), background (full page + tree container)
+- All 5 files updated, 0 remaining references to old image
+- Browser verified successfully

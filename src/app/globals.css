@@ -142,9 +142,18 @@
 
 /* Tree container background */
 .tree-container {
-  background-image: url('/tarombo-bg01.png');
+  background-image: url('/tarombo-bg02.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   background-opacity: 0.05;
+}
+
+/* Page background with tarombo-bg02.png */
+.page-bg {
+  background-image: url('/tarombo-bg02.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
 }
