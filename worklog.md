@@ -58,3 +58,31 @@ Stage Summary:
 - tarombo-bg02.png is now used as: watermark (exports), logo (header + login), background (full page + tree container)
 - All 5 files updated, 0 remaining references to old image
 - Browser verified successfully
+
+---
+Task ID: 3
+Agent: Main
+Task: Deep audit — find and fix all integration issues
+
+Work Log:
+- Read and audited all 20+ source files: db.ts, auth.ts, types/index.ts, 12 API routes, tree-view.tsx, person-detail.tsx, person-form.tsx, partnership-form.tsx, partnership-list.tsx, search-panel.tsx, profile-panel.tsx, rbac-panel.tsx, user-management.tsx, login-form.tsx, export-dialog.tsx, page.tsx, layout.tsx, globals.css, package.json
+- Browser-tested: login, all 6 tabs, person detail (Profile + Search), dark theme toggle, admin panel, RBAC panel, tree rendering
+
+Issues found and fixed (9 total):
+1. **CRITICAL — PersonDetail crash bug**: API returns `{parents: {father, mother}, children: Person[]}` but component expected `parents: Array<{parent_id, child_id, person}>` and `children: Array<{id, parent_id, child_id, person}>`. Called `.find()` on object → TypeError crash. Fixed interface and all property access patterns.
+2. **HIGH — Monogamy check incomplete**: `createPartnership` only checked `WHERE person1_id = ?` for person1 and `WHERE person2_id = ?` for person2. Missed case where person is in opposite column. Fixed to `WHERE (person1_id = ? OR person2_id = ?)`.
+3. **MEDIUM — Invalid CSS `background-opacity`**: `tree-container` and `page-bg` classes used `background-opacity: 0.05` which is not a valid CSS property. Replaced with `::before` pseudo-element approach using `opacity`.
+4. **LOW — `custom-scrollbar` class undefined**: Referenced in search-panel.tsx but never defined in CSS. Removed the class.
+5. **LOW — Dead `getAuthUser()` function**: Always returned null with comment "use async version". Removed dead code from auth.ts.
+6. **LOW — Unused files**: Removed `src/app/api/route.ts` (Hello World), `src/hooks/use-toast.ts`, `src/components/ui/toast.tsx`, `src/components/ui/toaster.tsx` (replaced by sonner).
+7. **LOW — Stale Prisma scripts**: `db:push`, `db:generate`, `db:migrate`, `db:reset` still in package.json. Removed.
+8. **MEDIUM — RBAC save mutation silent failures**: `Promise.all` ignored individual response errors. Changed to `Promise.allSettled` with error count check.
+9. **MEDIUM — Person form empty string vs null**: Update mutation sent empty strings `''` for cleared optional fields instead of `null`. Added explicit null assignment for empty optional fields during edit.
+
+Stage Summary:
+- 1 critical crash bug fixed (person detail page)
+- 1 data integrity bug fixed (monogamy enforcement)
+- 1 CSS rendering bug fixed (background opacity)
+- 6 code quality improvements
+- All fixes browser-verified: zero console errors, all tabs functional, person detail loads correctly from both Profile and Search
+- Lint passes: 0 errors, 3 warnings (all non-blocking)

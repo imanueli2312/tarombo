@@ -90,15 +90,23 @@ export function RBACPanel() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const dirty = displayGrouped[activeRole].filter((p) => p._dirty);
-      await Promise.all(
+      const results = await Promise.allSettled(
         dirty.map((p) =>
           fetch('/api/rbac/permissions', {
             method: 'PUT', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: p.id, allowed: p.allowed }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const j = await res.json().catch(() => ({}));
+              throw new Error(j.error || 'Gagal menyimpan');
+            }
+            return res.json();
           }),
         ),
       );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) throw new Error(`${failed.length} permission gagal disimpan`);
     },
     onSuccess: () => {
       toast.success('Hak akses berhasil disimpan');

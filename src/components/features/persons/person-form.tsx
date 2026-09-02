@@ -228,6 +228,18 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (data.burial_alamat) payload.burial_alamat = data.burial_alamat;
       if (data.burial_latitude != null) payload.burial_latitude = data.burial_latitude;
       if (data.burial_longitude != null) payload.burial_longitude = data.burial_longitude;
+      // Explicitly clear optional fields when emptied during edit
+      if (!data.tanggal_lahir) payload.tanggal_lahir = null;
+      if (!data.tanggal_kematian) payload.tanggal_kematian = null;
+      if (!data.nama_panggilan) payload.nama_panggilan = null;
+      if (!data.tempat_lahir) payload.tempat_lahir = null;
+      if (!data.agama) payload.agama = null;
+      if (!data.nomor_telepon) payload.nomor_telepon = null;
+      if (!data.alamat) payload.alamat = null;
+      if (!data.burial_nama) payload.burial_nama = null;
+      if (!data.burial_alamat) payload.burial_alamat = null;
+      if (data.burial_latitude === null) payload.burial_latitude = null;
+      if (data.burial_longitude === null) payload.burial_longitude = null;
 
       const res = await fetch(`/api/persons/${person!.id}`, {
         method: 'PUT',

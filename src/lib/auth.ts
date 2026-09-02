@@ -42,12 +42,6 @@ export function getTokenFromRequest(request: Request): string | null {
   return null;
 }
 
-export function getAuthUser(request: Request) {
-  const token = getTokenFromRequest(request);
-  if (!token) return null;
-  // This is sync but we need the async version
-  return null; // Use getAuthUserAsync instead
-}
 
 export async function getAuthUserAsync(request: Request) {
   const token = getTokenFromRequest(request);

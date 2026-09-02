@@ -97,7 +97,7 @@ export function SearchPanel() {
 
       {/* Results */}
       {isSearching ? (
-        <div className="max-h-96 overflow-y-auto custom-scrollbar rounded-lg border bg-card">
+        <div className="max-h-96 overflow-y-auto rounded-lg border bg-card">
           {isLoading ? (
             <div className="p-2 space-y-2">
               {Array.from({ length: 4 }).map((_, i) => (

@@ -277,15 +277,15 @@ export function getPartnershipById(db: Database.Database, id: string) {
 }
 
 export function createPartnership(db: Database.Database, data: import('@/types').PartnershipCreate & { id: string }) {
-  // Enforce monogamy: check for active partnerships
+  // Enforce monogamy: check for active partnerships (either column)
   const existing1 = db.prepare(
-    'SELECT id FROM partnerships WHERE person1_id = ? AND divorce_date IS NULL'
-  ).get(data.person1_id);
+    'SELECT id FROM partnerships WHERE (person1_id = ? OR person2_id = ?) AND divorce_date IS NULL'
+  ).get(data.person1_id, data.person1_id);
   if (existing1) throw new Error('Orang ini sudah memiliki pasangan aktif');
 
   const existing2 = db.prepare(
-    'SELECT id FROM partnerships WHERE person2_id = ? AND divorce_date IS NULL'
-  ).get(data.person2_id);
+    'SELECT id FROM partnerships WHERE (person1_id = ? OR person2_id = ?) AND divorce_date IS NULL'
+  ).get(data.person2_id, data.person2_id);
   if (existing2) throw new Error('Orang ini sudah memiliki pasangan aktif');
 
   db.prepare(

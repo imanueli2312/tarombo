@@ -43,9 +43,9 @@ import { toast } from 'sonner';
 import type { Person } from '@/types';
 
 interface PersonDetailResponse extends Person {
-  parents?: Array<{ parent_id: string; child_id: string; person: Person }>;
-  children?: Array<{ id: string; parent_id: string; child_id: string; person: Person }>;
-  spouse?: (Person & { partnership_id?: string }) | null;
+  parents?: { father?: Person; mother?: Person };
+  children?: Person[];
+  spouse?: Person | null;
 }
 
 interface PersonDetailProps {
@@ -143,12 +143,8 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
   }
 
   const isDeceased = !!person.tanggal_kematian;
-  const father = person.parents?.find(
-    (p) => p.person.jenis_kelamin === 'L'
-  );
-  const mother = person.parents?.find(
-    (p) => p.person.jenis_kelamin === 'P'
-  );
+  const father = person.parents?.father;
+  const mother = person.parents?.mother;
 
   return (
     <Card className={isDeceased ? 'opacity-80' : ''}>
@@ -295,7 +291,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {father.person.nama_panggilan || father.person.nama}
+                        {father.nama_panggilan || father.nama}
                       </p>
                       <p className="text-xs text-muted-foreground">Ayah</p>
                     </div>
@@ -308,7 +304,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {mother.person.nama_panggilan || mother.person.nama}
+                        {mother.nama_panggilan || mother.nama}
                       </p>
                       <p className="text-xs text-muted-foreground">Ibu</p>
                     </div>
@@ -372,17 +368,17 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {person.children.map((child) => (
                   <div
-                    key={child.child_id}
+                    key={child.id}
                     className="flex items-center gap-2 rounded-md border p-2.5"
                   >
                     <div
                       className={`flex items-center justify-center rounded-full size-7 shrink-0 ${
-                        child.person.jenis_kelamin === 'L'
+                        child.jenis_kelamin === 'L'
                           ? 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
                           : 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
                       }`}
                     >
-                      {child.person.jenis_kelamin === 'L' ? (
+                      {child.jenis_kelamin === 'L' ? (
                         <User className="size-3.5" />
                       ) : (
                         <UserRound className="size-3.5" />
@@ -390,9 +386,9 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {child.person.nama_panggilan || child.person.nama}
+                        {child.nama_panggilan || child.nama}
                       </p>
-                      {child.person.tanggal_kematian && (
+                      {child.tanggal_kematian && (
                         <p className="text-xs text-muted-foreground">Alm.</p>
                       )}
                     </div>
