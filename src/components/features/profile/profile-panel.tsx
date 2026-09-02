@@ -83,15 +83,21 @@ function formatDate(date: string | null): string {
   }
 }
 
-export function ProfilePanel() {
+interface ProfilePanelProps {
+  initialPersonId?: string | null;
+}
+
+export function ProfilePanel({ initialPersonId }: ProfilePanelProps) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission('create_person');
   const canDelete = hasPermission('delete_person');
+  const canEdit = hasPermission('edit_person');
 
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(initialPersonId ?? null);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | undefined>(undefined);
 
@@ -390,10 +396,10 @@ export function ProfilePanel() {
           {selectedPersonId && (
             <PersonDetail
               personId={selectedPersonId}
-              onEdit={(person) => {
+              onEdit={canEdit ? (person) => {
                 setSelectedPersonId(null);
                 handleEdit(person);
-              }}
+              } : undefined}
               onDelete={canDelete ? (id) => {
                 setSelectedPersonId(null);
               } : undefined}

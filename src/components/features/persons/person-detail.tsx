@@ -103,6 +103,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['persons'] });
       queryClient.invalidateQueries({ queryKey: ['tree'] });
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] });
       toast.success('Anggota keluarga berhasil dihapus');
       onDelete?.(personId);
     },

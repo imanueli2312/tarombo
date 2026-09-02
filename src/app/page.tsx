@@ -53,6 +53,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabValue>('tree')
   const [showLogin, setShowLogin] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [treePersonId, setTreePersonId] = useState<string | null>(null)
+  const [treeNavKey, setTreeNavKey] = useState(0)
   const queryClient = useQueryClient()
 
   // Determine available tabs based on permissions
@@ -121,15 +123,23 @@ export default function Home() {
         }
         return (
           <div id='tree-svg-container' className='w-full h-[calc(100vh-180px)] relative'>
-            <TreeView data={treeData || []} />
+            <TreeView data={treeData || []} onNodeClick={(id) => {
+              setTreePersonId(id)
+              setTreeNavKey((k) => k + 1)
+              if (hasPermission('view_profile')) {
+                setActiveTab('profile')
+              } else {
+                setActiveTab('search')
+              }
+            }} />
           </div>
         )
 
       case 'search':
-        return <SearchPanel />
+        return <SearchPanel key={treeNavKey} initialPersonId={treePersonId} />
 
       case 'profile':
-        return <ProfilePanel />
+        return <ProfilePanel key={treeNavKey} initialPersonId={treePersonId} />
 
       case 'bagan':
         return <ProfilePanel />

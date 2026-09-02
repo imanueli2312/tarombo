@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nama dan jenis kelamin wajib diisi' }, { status: 400 });
     }
 
+    // Validate father_id and mother_id exist
+    if (body.father_id && !getPersonById(db, body.father_id)) {
+      return NextResponse.json({ error: 'Ayah tidak ditemukan' }, { status: 404 });
+    }
+    if (body.mother_id && !getPersonById(db, body.mother_id)) {
+      return NextResponse.json({ error: 'Ibu tidak ditemukan' }, { status: 404 });
+    }
+
     // Auto-calculate nomor_generasi from father if provided
     let nomor_generasi = body.nomor_generasi ?? 1;
     if (body.father_id) {

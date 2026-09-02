@@ -24,12 +24,16 @@ function formatDate(date: string | null): string {
   }
 }
 
-export function SearchPanel() {
+interface SearchPanelProps {
+  initialPersonId?: string | null;
+}
+
+export function SearchPanel({ initialPersonId }: SearchPanelProps) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canDelete = hasPermission('delete_person');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(initialPersonId ?? null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 300);

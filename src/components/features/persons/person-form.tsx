@@ -182,8 +182,8 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (data.status_pernikahan) payload.status_pernikahan = data.status_pernikahan;
       if (data.burial_nama) payload.burial_nama = data.burial_nama;
       if (data.burial_alamat) payload.burial_alamat = data.burial_alamat;
-      if (data.burial_latitude != null) payload.burial_latitude = data.burial_latitude;
-      if (data.burial_longitude != null) payload.burial_longitude = data.burial_longitude;
+      if (Number.isFinite(data.burial_latitude)) payload.burial_latitude = data.burial_latitude;
+      if (Number.isFinite(data.burial_longitude)) payload.burial_longitude = data.burial_longitude;
       if (data.father_id) payload.father_id = data.father_id;
       if (data.mother_id) payload.mother_id = data.mother_id;
 
@@ -226,8 +226,8 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (data.status_pernikahan) payload.status_pernikahan = data.status_pernikahan;
       if (data.burial_nama) payload.burial_nama = data.burial_nama;
       if (data.burial_alamat) payload.burial_alamat = data.burial_alamat;
-      if (data.burial_latitude != null) payload.burial_latitude = data.burial_latitude;
-      if (data.burial_longitude != null) payload.burial_longitude = data.burial_longitude;
+      if (Number.isFinite(data.burial_latitude)) payload.burial_latitude = data.burial_latitude;
+      if (Number.isFinite(data.burial_longitude)) payload.burial_longitude = data.burial_longitude;
       // Explicitly clear optional fields when emptied during edit
       if (!data.tanggal_lahir) payload.tanggal_lahir = null;
       if (!data.tanggal_kematian) payload.tanggal_kematian = null;
@@ -238,8 +238,8 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
       if (!data.alamat) payload.alamat = null;
       if (!data.burial_nama) payload.burial_nama = null;
       if (!data.burial_alamat) payload.burial_alamat = null;
-      if (data.burial_latitude === null) payload.burial_latitude = null;
-      if (data.burial_longitude === null) payload.burial_longitude = null;
+      if (!Number.isFinite(data.burial_latitude)) payload.burial_latitude = null;
+      if (!Number.isFinite(data.burial_longitude)) payload.burial_longitude = null;
 
       const res = await fetch(`/api/persons/${person!.id}`, {
         method: 'PUT',

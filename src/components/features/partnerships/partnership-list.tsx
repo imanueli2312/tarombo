@@ -39,6 +39,7 @@ export default function PartnershipList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['partnerships'] })
       queryClient.invalidateQueries({ queryKey: ['tree'] })
+      queryClient.invalidateQueries({ queryKey: ['persons'] })
       toast.success('Pernikahan berhasil dihapus')
     },
     onError: (e: Error) => toast.error(e.message),
