@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import type { Person } from '@/types';
 import { PersonDetail } from '@/components/features/persons/person-detail';
+import { useAuthStore } from '@/store/auth';
 
 function formatDate(date: string | null): string {
   if (!date) return '-';
@@ -24,6 +25,8 @@ function formatDate(date: string | null): string {
 }
 
 export function SearchPanel() {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canDelete = hasPermission('delete_person');
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -67,7 +70,9 @@ export function SearchPanel() {
             Kembali ke hasil pencarian
           </button>
         </div>
-        <PersonDetail personId={selectedPersonId} />
+        <PersonDetail personId={selectedPersonId} onDelete={canDelete ? (id) => {
+          setSelectedPersonId(null);
+        } : undefined} />
       </div>
     );
   }

@@ -86,6 +86,7 @@ function formatDate(date: string | null): string {
 export function ProfilePanel() {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission('create_person');
+  const canDelete = hasPermission('delete_person');
 
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -393,6 +394,9 @@ export function ProfilePanel() {
                 setSelectedPersonId(null);
                 handleEdit(person);
               }}
+              onDelete={canDelete ? (id) => {
+                setSelectedPersonId(null);
+              } : undefined}
             />
           )}
         </DialogContent>
