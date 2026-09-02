@@ -120,6 +120,42 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_parent_child_parent ON parent_child(parent_id);
     CREATE INDEX IF NOT EXISTS idx_parent_child_child ON parent_child(child_id);
     CREATE INDEX IF NOT EXISTS idx_rbac_role ON rbac_permissions(role);
+
+    CREATE TABLE IF NOT EXISTS oral_histories (
+      id TEXT PRIMARY KEY,
+      person_id TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'turian_umum' CHECK(category IN ('turian_asal_usul','turian_migrasi','turian_peristiwa','gondang','mangalahat','saur_matua','pesta_pernikahan','turian_umum')),
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      source_person_name TEXT NOT NULL DEFAULT '',
+      recorded_date TEXT,
+      is_verified INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS pusaka_items (
+      id TEXT PRIMARY KEY,
+      person_id TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'lainnya' CHECK(type IN ('tombak','ulos','tunggal_panaluan','gorga','gabe','hasangapon','rattan_box','kalung_bulan','gutar_guar','tali_tiga','porhala','jamita','sial_solam_sial_sao','lainnya')),
+      description TEXT NOT NULL DEFAULT '',
+      origin TEXT NOT NULL DEFAULT '',
+      image TEXT,
+      passed_from_person_id TEXT,
+      year_acquired TEXT,
+      is_sacred INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
+      FOREIGN KEY (passed_from_person_id) REFERENCES persons(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_oral_histories_person ON oral_histories(person_id);
+    CREATE INDEX IF NOT EXISTS idx_oral_histories_category ON oral_histories(category);
+    CREATE INDEX IF NOT EXISTS idx_pusaka_person ON pusaka_items(person_id);
+    CREATE INDEX IF NOT EXISTS idx_pusaka_type ON pusaka_items(type);
   `);
 }
 
@@ -146,7 +182,7 @@ function seedDefaultData(db: Database.Database) {
   const allPerms: { role: string; permission: string; allowed: boolean }[] = [];
   for (const [role, permissions] of Object.entries(DEFAULT_PERMISSIONS)) {
     const permSet = new Set(permissions);
-    for (const perm of ['view_tree','search','view_profile','view_bagans','view_marriages','create_person','edit_person','delete_person','create_marriage','edit_marriage','delete_marriage','export','manage_users','manage_permissions','view_admin']) {
+    for (const perm of ['view_tree','search','view_profile','view_bagans','view_marriages','create_person','edit_person','delete_person','create_marriage','edit_marriage','delete_marriage','export','manage_users','manage_permissions','view_admin','view_heritage','create_heritage','edit_heritage','delete_heritage']) {
       allPerms.push({ role, permission: perm, allowed: permSet.has(perm) });
     }
   }
@@ -593,6 +629,169 @@ export function getActiveSpouseOf(db: Database.Database, personId: string) {
     WHERE (ps.person1_id = ? OR ps.person2_id = ?) AND ps.divorce_date IS NULL
   `).get(personId, personId, personId) as import('@/types').Person | undefined;
   return row || null;
+}
+
+// Oral History CRUD
+export function getOralHistories(db: Database.Database) {
+  return db.prepare(`
+    SELECT oh.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal
+    FROM oral_histories oh
+    JOIN persons p ON oh.person_id = p.id
+    ORDER BY oh.created_at DESC
+  `).all() as (import('@/types').OralHistory & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string })[];
+}
+
+export function getOralHistoryById(db: Database.Database, id: string) {
+  return db.prepare(`
+    SELECT oh.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal
+    FROM oral_histories oh
+    JOIN persons p ON oh.person_id = p.id
+    WHERE oh.id = ?
+  `).get(id) as (import('@/types').OralHistory & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string }) | undefined;
+}
+
+export function getOralHistoriesByPerson(db: Database.Database, personId: string) {
+  return db.prepare(`
+    SELECT * FROM oral_histories WHERE person_id = ? ORDER BY created_at DESC
+  `).all(personId) as import('@/types').OralHistory[];
+}
+
+export function createOralHistory(db: Database.Database, data: import('@/types').OralHistoryCreate & { id: string }) {
+  db.prepare(`
+    INSERT INTO oral_histories (id, person_id, category, title, content, source_person_name, recorded_date, is_verified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(data.id, data.person_id, data.category, data.title, data.content, data.source_person_name || null, data.recorded_date ?? null, data.is_verified ? 1 : 0);
+  return getOralHistoryById(db, data.id);
+}
+
+export function updateOralHistory(db: Database.Database, id: string, data: Partial<import('@/types').OralHistoryCreate>) {
+  const updates: string[] = [];
+  const values: unknown[] = [];
+  const allowed = ['person_id','category','title','content','source_person_name','recorded_date','is_verified'];
+  for (const f of allowed) {
+    if (data[f as keyof typeof data] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(f === 'is_verified' ? (data.is_verified ? 1 : 0) : (data[f as keyof typeof data] ?? null));
+    }
+  }
+  if (updates.length > 0) {
+    updates.push("updated_at = datetime('now')");
+    values.push(id);
+    db.prepare(`UPDATE oral_histories SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  }
+  return getOralHistoryById(db, id);
+}
+
+export function deleteOralHistory(db: Database.Database, id: string) {
+  db.prepare('DELETE FROM oral_histories WHERE id = ?').run(id);
+  return { deleted: true };
+}
+
+// Pusaka CRUD
+export function getPusakaItems(db: Database.Database) {
+  return db.prepare(`
+    SELECT pi.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal,
+      pf.nama as passed_from_nama
+    FROM pusaka_items pi
+    JOIN persons p ON pi.person_id = p.id
+    LEFT JOIN persons pf ON pi.passed_from_person_id = pf.id
+    ORDER BY pi.created_at DESC
+  `).all() as (import('@/types').PusakaItem & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string; passed_from_nama: string | null })[];
+}
+
+export function getPusakaById(db: Database.Database, id: string) {
+  return db.prepare(`
+    SELECT pi.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal,
+      pf.nama as passed_from_nama
+    FROM pusaka_items pi
+    JOIN persons p ON pi.person_id = p.id
+    LEFT JOIN persons pf ON pi.passed_from_person_id = pf.id
+    WHERE pi.id = ?
+  `).get(id) as (import('@/types').PusakaItem & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string; passed_from_nama: string | null }) | undefined;
+}
+
+export function getPusakaByPerson(db: Database.Database, personId: string) {
+  return db.prepare(`
+    SELECT * FROM pusaka_items WHERE person_id = ? ORDER BY created_at DESC
+  `).all(personId) as import('@/types').PusakaItem[];
+}
+
+export function createPusakaItem(db: Database.Database, data: import('@/types').PusakaCreate & { id: string }) {
+  db.prepare(`
+    INSERT INTO pusaka_items (id, person_id, name, type, description, origin, image, passed_from_person_id, year_acquired, is_sacred)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(data.id, data.person_id, data.name, data.type, data.description, data.origin, data.image ?? null, data.passed_from_person_id ?? null, data.year_acquired ?? null, data.is_sacred ? 1 : 0);
+  return getPusakaById(db, data.id);
+}
+
+export function updatePusakaItem(db: Database.Database, id: string, data: Partial<import('@/types').PusakaCreate>) {
+  const updates: string[] = [];
+  const values: unknown[] = [];
+  const allowed = ['person_id','name','type','description','origin','image','passed_from_person_id','year_acquired','is_sacred'];
+  for (const f of allowed) {
+    if (data[f as keyof typeof data] !== undefined) {
+      updates.push(`${f} = ?`);
+      values.push(f === 'is_sacred' ? (data.is_sacred ? 1 : 0) : (data[f as keyof typeof data] ?? null));
+    }
+  }
+  if (updates.length > 0) {
+    updates.push("updated_at = datetime('now')");
+    values.push(id);
+    db.prepare(`UPDATE pusaka_items SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  }
+  return getPusakaById(db, id);
+}
+
+export function deletePusakaItem(db: Database.Database, id: string) {
+  db.prepare('DELETE FROM pusaka_items WHERE id = ?').run(id);
+  return { deleted: true };
+}
+
+// Heritage stats for statistics panel
+export function getHeritageStats(db: Database.Database) {
+  const oralCount = db.prepare('SELECT COUNT(*) as c FROM oral_histories').get() as { c: number };
+  const pusakaCount = db.prepare('SELECT COUNT(*) as c FROM pusaka_items').get() as { c: number };
+  const sacredCount = db.prepare('SELECT COUNT(*) as c FROM pusaka_items WHERE is_sacred = 1').get() as { c: number };
+  const verifiedCount = db.prepare('SELECT COUNT(*) as c FROM oral_histories WHERE is_verified = 1').get() as { c: number };
+
+  const oralByCategory = db.prepare(`
+    SELECT category, COUNT(*) as jumlah FROM oral_histories GROUP BY category ORDER BY jumlah DESC
+  `).all() as { category: string; jumlah: number }[];
+
+  const pusakaByType = db.prepare(`
+    SELECT type, COUNT(*) as jumlah FROM pusaka_items GROUP BY type ORDER BY jumlah DESC
+  `).all() as { type: string; jumlah: number }[];
+
+  return {
+    totalOralHistories: oralCount.c,
+    totalPusakaItems: pusakaCount.c,
+    sacredPusakaCount: sacredCount.c,
+    verifiedOralCount: verifiedCount.c,
+    oralByCategory,
+    pusakaByType,
+  };
+}
+
+// Heritage search
+export function searchHeritage(db: Database.Database, q: string) {
+  const safe = sanitizeLikePattern(q);
+  const oralResults = db.prepare(`
+    SELECT oh.*, 'oral_history' as result_type, p.nama as person_nama, p.nama_panggilan as person_panggilan
+    FROM oral_histories oh
+    JOIN persons p ON oh.person_id = p.id
+    WHERE oh.title LIKE ? ESCAPE '\' OR oh.content LIKE ? ESCAPE '\' OR oh.source_person_name LIKE ? ESCAPE '\'
+    ORDER BY oh.created_at DESC LIMIT 20
+  `).all(`%${safe}%`, `%${safe}%`, `%${safe}%`) as (import('@/types').OralHistory & { result_type: string; person_nama: string; person_panggilan: string })[];
+
+  const pusakaResults = db.prepare(`
+    SELECT pi.*, 'pusaka' as result_type, p.nama as person_nama, p.nama_panggilan as person_panggilan
+    FROM pusaka_items pi
+    JOIN persons p ON pi.person_id = p.id
+    WHERE pi.name LIKE ? ESCAPE '\' OR pi.description LIKE ? ESCAPE '\' OR pi.origin LIKE ? ESCAPE '\'
+    ORDER BY pi.created_at DESC LIMIT 20
+  `).all(`%${safe}%`, `%${safe}%`, `%${safe}%`) as (import('@/types').PusakaItem & { result_type: string; person_nama: string; person_panggilan: string })[];
+
+  return { oral: oralResults, pusaka: pusakaResults };
 }
 
 // Cycle detection: check if making parentId a parent of childId would create a cycle

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, getPersons } from '@/lib/db';
+import { getDb, getPersons, getHeritageStats } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -130,6 +130,8 @@ export async function GET() {
       jumlah: r.count,
     }));
 
+    const heritageStats = getHeritageStats(db);
+
     return NextResponse.json({
       summary: {
         totalPersons,
@@ -160,6 +162,7 @@ export async function GET() {
       ageDistribution,
       margaDistribution,
       tempatAsalDistribution,
+      heritage: heritageStats,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Terjadi kesalahan';

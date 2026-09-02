@@ -543,3 +543,100 @@ Stage Summary:
 - Deep Batak cultural integration across entire app
 - All changes pass ESLint (0 errors, 1 pre-existing warning)
 
+
+---
+Task ID: 7
+Agent: API Routes Agent
+Task: Create oral-histories API routes
+
+Work Log:
+- Created /api/oral-histories/route.ts (GET list, POST create)
+- Created /api/oral-histories/[id]/route.ts (GET by id, PUT update, DELETE)
+- All routes include proper auth and RBAC permission checks
+
+Stage Summary:
+- Full CRUD API for oral histories with person join data
+- Permission-gated: create_heritage, edit_heritage, delete_heritage
+- Supports filtering by person_id via query param
+
+---
+Task ID: 7-b
+Agent: Pusaka API Agent
+Task: Create pusaka API routes
+
+Work Log:
+- Created /api/pusaka/route.ts (GET list, POST create)
+- Created /api/pusaka/[id]/route.ts (GET by id, PUT update, DELETE)
+- All routes include proper auth and RBAC permission checks
+
+Stage Summary:
+- Full CRUD API for pusaka items with person join data
+- Permission-gated: create_heritage, edit_heritage, delete_heritage
+- Supports filtering by person_id via query param
+
+---
+Task ID: 8
+Agent: Heritage Panel Agent
+Task: Create Warisan Budaya panel UI
+
+Work Log:
+- Created heritage-panel.tsx with dual-tab layout (Turian + Pusaka)
+- Implemented full CRUD forms with Dialog components
+- Added search, filter by category/type
+- Used TanStack Query for data fetching and cache invalidation
+- RBAC permission checks for create/edit/delete
+- Framer Motion animations, Skeleton loaders, responsive grid
+
+Stage Summary:
+- Complete Warisan Budaya panel with Oral History and Pusaka management
+- Bilingual labels (Indonesian + Batak) for categories and types
+- Permission-gated CRUD operations
+
+---
+Task ID: 9
+Agent: PersonDetail Update Agent
+Task: Integrate Oral History & Pusaka into PersonDetail
+
+Work Log:
+- Read current person-detail.tsx
+- Added useQuery imports for TanStack Query
+- Added Batak culture icon imports
+- Added Turian (Oral History) section with category badges and verified indicator
+- Added Pusaka (Warisan) section with sacred indicator and type badges
+- Both sections conditionally render only when linked items exist
+
+Stage Summary:
+- PersonDetail now shows linked oral histories and pusaka items
+- Uses lazy loading with staleTime for performance
+- Bilingual category/type labels from batak-culture module---
+Task ID: Oral History & Pusaka Deep Audit
+Agent: Main Agent
+Task: Audit and implement Oral History (Turian) & Pusaka (Heirloom) features
+
+Work Log:
+- Conducted deep audit of codebase for Oral History & Pusaka cultural elements
+- Identified 14 issues across database, types, API, UI, search, and statistics layers
+- Added oral_histories and pusaka_items database tables with full CRUD functions
+- Extended batak-culture.ts with 8 Oral History categories and 14 Pusaka types (bilingual labels)
+- Added Peran Adat (traditional ceremony roles) constants
+- Created OralHistory and Pusaka TypeScript types (OralHistoryCategory, PusakaType, etc.)
+- Added 4 new RBAC permissions: view_heritage, create_heritage, edit_heritage, delete_heritage
+- Created API routes: /api/oral-histories (CRUD) and /api/pusaka (CRUD)
+- Created HeritagePanel component with dual-tab layout (Turian + Pusaka)
+- Integrated heritage items into PersonDetail component (linked oral histories and pusaka)
+- Updated Statistics panel with heritage data (2 new stat cards, 2 new donut charts)
+- Updated search to include heritage items (turian + pusaka results)
+- Updated search API to support heritage=1 query parameter
+- Added Warisan Budaya tab to main page navigation
+- Updated footer to show "Turian · Pusaka · Tarombo"
+- Fixed pre-existing ?? || operator mixing bug in person-form.tsx
+
+Stage Summary:
+- Complete Oral History & Pusaka feature implementation
+- 2 new database tables, 4 new API route files, 1 new UI panel component
+- 14 Batak cultural pusaka types documented (tombak, ulos, tunggal_panaluan, gorga, etc.)
+- 8 oral history categories (turian_asal_usul, gondang, mangalahat, saur_matua, etc.)
+- 6 traditional ceremony roles (parhata, habonaron do bona, namora pungka, etc.)
+- Heritage items integrated into person detail, search, and statistics
+- All labels bilingual (Indonesian + Batak language)
+- RBAC permission-gated for all heritage CRUD operations

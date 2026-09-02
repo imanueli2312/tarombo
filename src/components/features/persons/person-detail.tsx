@@ -12,6 +12,11 @@ import {
   Cross,
   Heart,
   Users,
+  BookOpen,
+  Shield,
+  Flame,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
 
 import {
@@ -41,7 +46,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import type { Person, PersonDetailResponse } from '@/types';
-import { getMargaLabel, MARGA_UTAMA, MARITAL_STATUS_BATAK, getKinshipTerm } from '@/lib/batak-culture';
+import { getMargaLabel, MARGA_UTAMA, MARITAL_STATUS_BATAK, getKinshipTerm, ORAL_HISTORY_CATEGORIES, PUSAKA_TYPES, getOralHistoryCategoryLabel, getPusakaTypeLabel } from '@/lib/batak-culture';
 
 interface PersonDetailProps {
   personId: string;
@@ -73,6 +78,109 @@ function InfoRow({ label, value }: { label: string; value: string | number | nul
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-sm font-medium">{String(value)}</span>
     </div>
+  );
+}
+
+function PersonOralHistories({ personId }: { personId: string }) {
+  const { data: oralHistories = [] } = useQuery({
+    queryKey: ['oral-histories-by-person', personId],
+    queryFn: () => fetch(`/api/oral-histories?person_id=${personId}`).then(r => r.json()),
+    enabled: !!personId,
+    staleTime: 30000,
+  });
+  if (oralHistories.length === 0) return null;
+  return (
+    <>
+      <Separator />
+      <div>
+        <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+          <BookOpen className="size-3.5" />
+          Turian (Oral History)
+          <Badge variant="secondary" className="text-[10px] ml-1">{oralHistories.length}</Badge>
+        </h4>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {oralHistories.map((item: { id: string; title: string; category: string; content: string; is_verified: boolean; source_person_name: string }) => {
+            const cat = getOralHistoryCategoryLabel(item.category);
+            return (
+              <div key={item.id} className="flex items-start gap-2.5 rounded-md border p-2.5 hover:bg-muted/30 transition-colors">
+                <div className="rounded-md bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 p-1.5 mt-0.5 shrink-0">
+                  <BookOpen className="size-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium truncate">{item.title || 'Tanpa judul'}</p>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400/40 text-amber-700 dark:text-amber-400">
+                      {cat.label}
+                    </Badge>
+                    {item.is_verified && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-400/40 text-emerald-700 dark:text-emerald-400">
+                        <Shield className="size-2.5 mr-0.5" /> Terverifikasi
+                      </Badge>
+                    )}
+                  </div>
+                  {item.content && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.content}</p>
+                  )}
+                  {item.source_person_name && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Sumber: {item.source_person_name}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PersonPusakaItems({ personId }: { personId: string }) {
+  const { data: pusakaItems = [] } = useQuery({
+    queryKey: ['pusaka-by-person', personId],
+    queryFn: () => fetch(`/api/pusaka?person_id=${personId}`).then(r => r.json()),
+    enabled: !!personId,
+    staleTime: 30000,
+  });
+  if (pusakaItems.length === 0) return null;
+  return (
+    <>
+      <Separator />
+      <div>
+        <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Sparkles className="size-3.5" />
+          Pusaka (Warisan)
+          <Badge variant="secondary" className="text-[10px] ml-1">{pusakaItems.length}</Badge>
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {pusakaItems.map((item: { id: string; name: string; type: string; description: string; origin: string; is_sacred: boolean; year_acquired: string | null }) => {
+            const t = getPusakaTypeLabel(item.type);
+            return (
+              <div key={item.id} className="flex items-start gap-2.5 rounded-md border p-2.5 hover:bg-muted/30 transition-colors">
+                <div className={`rounded-md p-1.5 mt-0.5 shrink-0 ${item.is_sacred ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                  {item.is_sacred ? <Flame className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium truncate">{item.name}</p>
+                    {item.is_sacred && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-400/40 text-red-700 dark:text-red-400">
+                        Sakral
+                      </Badge>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-1 border-amber-400/40 text-amber-700 dark:text-amber-400">
+                    {t.label}
+                  </Badge>
+                  {item.origin && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Asal: {item.origin}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -458,6 +566,9 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
             </div>
           </>
         )}
+
+        <PersonOralHistories personId={personId} />
+        <PersonPusakaItems personId={personId} />
       </CardContent>
     </Card>
   );

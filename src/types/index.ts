@@ -155,8 +155,8 @@ export interface PersonDetailResponse extends Person {
 
 export const DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   viewer: ['view_tree', 'search'],
-  editor: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export'],
-  admin: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'manage_users', 'manage_permissions', 'view_admin'],
+  editor: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage'],
+  admin: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'manage_users', 'manage_permissions', 'view_admin', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage'],
 };
 
 export const ALL_PERMISSIONS = [
@@ -164,7 +164,88 @@ export const ALL_PERMISSIONS = [
   'create_person', 'edit_person', 'delete_person',
   'create_marriage', 'edit_marriage', 'delete_marriage',
   'export', 'manage_users', 'manage_permissions', 'view_admin',
+  'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage',
 ];
+
+// ---- Oral History (Turian) ----
+
+export type OralHistoryCategory =
+  | 'turian_asal_usul'
+  | 'turian_migrasi'
+  | 'turian_peristiwa'
+  | 'gondang'
+  | 'mangalahat'
+  | 'saur_matua'
+  | 'pesta_pernikahan'
+  | 'turian_umum';
+
+export interface OralHistory {
+  id: string;
+  person_id: string;
+  category: OralHistoryCategory;
+  title: string;
+  content: string;
+  source_person_name: string;
+  recorded_date: string | null;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OralHistoryCreate {
+  person_id: string;
+  category: OralHistoryCategory;
+  title: string;
+  content?: string;
+  source_person_name?: string;
+  recorded_date?: string | null;
+  is_verified?: boolean;
+}
+
+// ---- Pusaka (Heirloom) ----
+
+export type PusakaType =
+  | 'tombak'
+  | 'ulos'
+  | 'tunggal_panaluan'
+  | 'gorga'
+  | 'gabe'
+  | 'hasangapon'
+  | 'rattan_box'
+  | 'kalung_bulan'
+  | 'gutar_guar'
+  | 'tali_tiga'
+  | 'porhala'
+  | 'jamita'
+  | 'sial_solam_sial_sao'
+  | 'lainnya';
+
+export interface PusakaItem {
+  id: string;
+  person_id: string;
+  name: string;
+  type: PusakaType;
+  description: string;
+  origin: string;
+  image: string | null;
+  passed_from_person_id: string | null;
+  year_acquired: string | null;
+  is_sacred: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PusakaCreate {
+  person_id: string;
+  name: string;
+  type: PusakaType;
+  description?: string;
+  origin?: string;
+  image?: string | null;
+  passed_from_person_id?: string | null;
+  year_acquired?: string | null;
+  is_sacred?: boolean;
+}
 
 export const PERMISSION_LABELS: Record<string, string> = {
   view_tree: 'Lihat Pohon Keluarga',
@@ -182,4 +263,8 @@ export const PERMISSION_LABELS: Record<string, string> = {
   manage_users: 'Kelola Pengguna',
   manage_permissions: 'Kelola Hak Akses',
   view_admin: 'Panel Admin',
+  view_heritage: 'Lihat Warisan Budaya',
+  create_heritage: 'Tambah Warisan Budaya',
+  edit_heritage: 'Edit Warisan Budaya',
+  delete_heritage: 'Hapus Warisan Budaya',
 };

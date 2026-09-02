@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TreePine, Search, Users, Heart, Settings, LogOut, LogIn,
-  Sun, Moon, UserPlus, Menu, X, Download, UserCircle, BarChart3
+  Sun, Moon, UserPlus, Menu, X, Download, UserCircle, BarChart3, BookOpen
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -28,12 +28,13 @@ import { ExportDialog } from '@/components/features/export/export-dialog'
 import { RBACPanel } from '@/components/features/admin/rbac-panel'
 import { UserManagement } from '@/components/features/admin/user-management'
 import { StatisticsPanel } from '@/components/features/statistics/statistics-panel'
+import { HeritagePanel } from '@/components/features/heritage/heritage-panel'
 import { LoginForm } from '@/components/features/auth/login-form'
 
 import { useAuthStore } from '@/store/auth'
 import type { TreeNode } from '@/types'
 
-type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'statistik' | 'admin'
+type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'warisan' | 'statistik' | 'admin'
 
 function AdminPanel() {
   const [section, setSection] = useState<'users' | 'perms'>('users')
@@ -72,6 +73,11 @@ export default function Home() {
   }
   if (hasPermission('view_marriages')) {
     tabs.push({ value: 'pernikahan', label: 'Pernikahan', icon: <Heart className='h-4 w-4' /> })
+  }
+  if (hasPermission('view_heritage')) {
+    tabs.push({ value: 'warisan', label: 'Warisan Budaya', icon: <BookOpen className='h-4 w-4' /> })
+  }
+  if (hasPermission('view_marriages')) {
     tabs.push({ value: 'statistik', label: 'Statistik', icon: <BarChart3 className='h-4 w-4' /> })
   }
   if (hasPermission('view_admin')) {
@@ -148,6 +154,9 @@ export default function Home() {
 
       case 'pernikahan':
         return <PartnershipList />
+
+      case 'warisan':
+        return <HeritagePanel />
 
       case 'statistik':
         return <StatisticsPanel />
@@ -325,7 +334,7 @@ export default function Home() {
             <span className='text-foreground/30'>·</span>
             <span className='font-medium text-foreground/60'>Hamoraon</span>
           </span>
-          <span className='hidden sm:inline'>Pohon Keluarga Digital</span>
+          <span className='hidden sm:inline'>Turian · Pusaka · Tarombo</span>
         </div>
       </footer>
     </div>

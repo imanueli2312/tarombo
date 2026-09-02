@@ -263,3 +263,216 @@ export const MARITAL_STATUS_BATAK: Record<string, { id: string; batak: string }>
   duda: { id: 'Duda', batak: 'Duda' },
   janda: { id: 'Janda', batak: 'Janda' },
 };
+
+// ============================================================================
+// KATEGORI ORAL HISTORY (TURIAN)
+// ============================================================================
+
+/**
+ * Kategori-kategori Turian (oral history/tradisi lisan) dalam budaya Batak
+ * Turian adalah cerita lisan yang diturunkan dari generasi ke generasi
+ */
+export const ORAL_HISTORY_CATEGORIES: Record<string, { label: string; batak: string; description: string; icon: string }> = {
+  turian_asal_usul: {
+    label: 'Asal Usul',
+    batak: 'Turian Asal Na Gogo',
+    description: 'Cerita asal-usul marga dan leluhur (tontan hasangapon)',
+    icon: 'BookOpen',
+  },
+  turian_migrasi: {
+    label: 'Migrasi',
+    batak: 'Turian Pangalpohan',
+    description: 'Cerita perpindahan dan migrasi leluhur ke daerah baru',
+    icon: 'Map',
+  },
+  turian_peristiwa: {
+    label: 'Peristiwa Bersejarah',
+    batak: 'Turian Panggoaran',
+    description: 'Peristiwa penting dalam sejarah keluarga/marga',
+    icon: 'ScrollText',
+  },
+  gondang: {
+    label: 'Gondang',
+    batak: 'Gondang Sabangunan',
+    description: 'Tradisi gondang (musik dan tarian adat), gondang boru, gondang hasangapon',
+    icon: 'Music',
+  },
+  mangalahat: {
+    label: 'Mangalahat',
+    batak: 'Mangalahat Habonaran',
+    description: 'Upacara pemberian berkat dan restu adat',
+    icon: 'Sparkles',
+  },
+  saur_matua: {
+    label: 'Saur Matua',
+    batak: 'Saur Matua / Adat Pemakaman',
+    description: 'Upacara kematian adat Batak yang lengkap',
+    icon: 'Candle',
+  },
+  pesta_pernikahan: {
+    label: 'Pesta Pernikahan Adat',
+    batak: 'Pesta Pernikahan Adat (Manjalo)',
+    description: 'Upacara dan adat pernikahan Batak (manjalo)',
+    icon: 'Heart',
+  },
+  turian_umum: {
+    label: 'Turian Umum',
+    batak: 'Turian Umum',
+    description: 'Cerita lisan dan tradisi umum lainnya',
+    icon: 'MessageCircle',
+  },
+};
+
+// ============================================================================
+// JENIS PUSAKA (Warisan Pusaka Batak)
+// ============================================================================
+
+/**
+ * Jenis-jenis Pusaka dalam budaya Batak
+ * Pusaka adalah benda warisan turun-temurun yang sakral dan dihormati
+ */
+export const PUSAKA_TYPES: Record<string, { label: string; batak: string; description: string; icon: string }> = {
+  tombak: {
+    label: 'Tombak',
+    batak: 'Piso / Tombak',
+    description: 'Tombak pusaka (piso gaja dompak, piso sanalangiralangi)',
+    icon: 'Sword',
+  },
+  ulos: {
+    label: 'Ulos',
+    batak: 'Ulos',
+    description: 'Kain tenun tradisional Batak (ulos ragi hotang, ulos sadum, ulos bintang maratur)',
+    icon: 'Shirt',
+  },
+  tunggal_panaluan: {
+    label: 'Tunggal Panaluan',
+    batak: 'Tunggal Panaluan',
+    description: 'Tongkat sakral penanda otoritas spiritual (datu/pangulu)',
+    icon: 'Wand2',
+  },
+  gorga: {
+    label: 'Gorga',
+    batak: 'Gorga Batak',
+    description: 'Ukiran tradisional pada rumah adat (ruma bolon)',
+    icon: 'Frame',
+  },
+  gabe: {
+    label: 'Gabe',
+    batak: 'Gabe',
+    description: 'Topeng atau patung ritual adat Batak',
+    icon: 'Drama',
+  },
+  hasangapon: {
+    label: 'Hasangapon',
+    batak: 'Hasangapon',
+    description: 'Simbol kehormatan dan kebesaran keluarga',
+    icon: 'Crown',
+  },
+  rattan_box: {
+    label: 'Tempayan Rotan',
+    batak: 'Tapanuli / Raga Rotan',
+    description: 'Wadah rotan tradisional untuk upacara adat',
+    icon: 'Box',
+  },
+  kalung_bulan: {
+    label: 'Kalung Bulan',
+    batak: 'Rote / Bulang',
+    description: 'Perhiasan tradisional Batak (kalung, gelang, tali)',
+    icon: 'Gem',
+  },
+  gutar_guar: {
+    label: 'Gutar Guar',
+    batak: 'Gutar Guar',
+    description: 'Alat musik tradisional Batak (gutar, guar, taganing)',
+    icon: 'Guitar',
+  },
+  tali_tiga: {
+    label: 'Tali Tiga',
+    batak: 'Tali Tiga',
+    description: 'Simbol tali pengikat persaudaraan dalam Dalihan Na Tolu',
+    icon: 'Link',
+  },
+  porhala: {
+    label: 'Porhala',
+    batak: 'Porhala',
+    description: 'Batu atau benda bertuah dari leluhur',
+    icon: 'Diamond',
+  },
+  jamita: {
+    label: 'Jamita',
+    batak: 'Jamita',
+    description: 'Benda kebesaran yang menandakan status sosial',
+    icon: 'Award',
+  },
+  sial_solam_sial_sao: {
+    label: 'Sial Solam / Sial Sao',
+    batak: 'Sial Solam / Sial Sao',
+    description: 'Perhiasan dan hiasan adat Batak',
+    icon: 'Gem',
+  },
+  lainnya: {
+    label: 'Lainnya',
+    batak: 'Lain-lain',
+    description: 'Pusaka lainnya yang tidak termasuk dalam kategori di atas',
+    icon: 'Package',
+  },
+};
+
+// ============================================================================
+// PERAN PARHATA (Pembicara Adat)
+// ============================================================================
+
+/**
+ * Peran-peran dalam upacara adat Batak
+ * Parhata adalah pembicara adat yang menguasai tata cara upacara
+ */
+export const PERAN_ADAT = {
+  parhata: {
+    term: 'Parhata',
+    description: 'Pembicara adat utama yang menguasai seluruh tata cara upacara',
+  },
+  habonaronDoBona: {
+    term: 'Habonaron do Bona',
+    description: 'Pihak yang memberikan berkat (biasanya pihak tulang)',
+  },
+  namoraPungka: {
+    term: 'Namora Pungka',
+    description: 'Kakek/nenek yang dihormati dalam upacara',
+  },
+  rajaPanas: {
+    term: 'Raja Panas',
+    description: 'Ketua pelaksana upacara adat',
+  },
+  donganTubu: {
+    term: 'Dongan Tubu',
+    description: 'Saudara satu marga yang turut membantu dalam upacara',
+  },
+  boru: {
+    term: 'Boru',
+    description: 'Pihak penerima istri yang memiliki kewajiban adat',
+  },
+} as const;
+
+/**
+ * Mendapatkan label kategori oral history
+ */
+export function getOralHistoryCategoryLabel(category: string): { label: string; batak: string } {
+  const cat = ORAL_HISTORY_CATEGORIES[category];
+  return cat ? { label: cat.label, batak: cat.batak } : { label: category, batak: category };
+}
+
+/**
+ * Mendapatkan label jenis pusaka
+ */
+export function getPusakaTypeLabel(type: string): { label: string; batak: string } {
+  const t = PUSAKA_TYPES[type];
+  return t ? { label: t.label, batak: t.batak } : { label: type, batak: type };
+}
+
+/**
+ * Mendapatkan penjelasan peran adat
+ */
+export function getPeranAdatDescription(role: string): string | null {
+  const p = (PERAN_ADAT as Record<string, { term: string; description: string }>)[role];
+  return p ? `${p.term} — ${p.description}` : null;
+}

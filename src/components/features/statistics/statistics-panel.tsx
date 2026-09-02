@@ -12,6 +12,8 @@ import {
   Cross,
   TrendingUp,
   CalendarDays,
+  BookOpen,
+  Gem,
 } from 'lucide-react';
 
 import {
@@ -63,6 +65,14 @@ interface Stats {
   ageDistribution: { range: string; jumlah: number }[];
   margaDistribution: { marga: string; jumlah: number }[];
   tempatAsalDistribution: { asal: string; jumlah: number }[];
+  heritage: {
+    totalOralHistories: number;
+    totalPusakaItems: number;
+    sacredPusakaCount: number;
+    verifiedOralCount: number;
+    oralByCategory: { category: string; jumlah: number }[];
+    pusakaByType: { type: string; jumlah: number }[];
+  };
 }
 
 const genChartConfig = {
@@ -77,6 +87,17 @@ const MARITAL_COLORS: Record<string, string> = {
   Duda: 'oklch(0.6 0.15 250)',
   Janda: 'oklch(0.6 0.15 350)',
 };
+
+const HERITAGE_COLORS = [
+  'oklch(0.65 0.18 60)',
+  'oklch(0.65 0.18 145)',
+  'oklch(0.65 0.18 250)',
+  'oklch(0.65 0.18 35)',
+  'oklch(0.65 0.18 310)',
+  'oklch(0.65 0.18 85)',
+  'oklch(0.65 0.18 170)',
+  'oklch(0.65 0.18 0)',
+];
 
 const AGE_COLORS = [
   'oklch(0.65 0.18 145)',
@@ -154,7 +175,17 @@ export function StatisticsPanel() {
     );
   }
 
-  const { summary, oldestLiving, youngest, generationDistribution, maritalDistribution, ageDistribution, margaDistribution, tempatAsalDistribution } = data;
+  const { summary, oldestLiving, youngest, generationDistribution, maritalDistribution, ageDistribution, margaDistribution, tempatAsalDistribution, heritage } = data;
+
+  const oralPieData = heritage.oralByCategory.map((d, i) => ({
+    ...d,
+    fill: HERITAGE_COLORS[i % HERITAGE_COLORS.length],
+  }));
+
+  const pusakaPieData = heritage.pusakaByType.map((d, i) => ({
+    ...d,
+    fill: HERITAGE_COLORS[i % HERITAGE_COLORS.length],
+  }));
 
   const maritalPieData = maritalDistribution.map((d) => ({
     ...d,
@@ -238,6 +269,24 @@ export function StatisticsPanel() {
           value={youngest ? youngest.nama : '-'}
           sub={youngest ? `Lahir ${formatDate(youngest.tanggal_lahir)}` : undefined}
           color="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400"
+        />
+      </div>
+
+      {/* Heritage Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          icon={BookOpen}
+          label="Cerita Lisan"
+          value={heritage.totalOralHistories}
+          sub={`${heritage.verifiedOralCount} terverifikasi`}
+          color="bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+        />
+        <StatCard
+          icon={Gem}
+          label="Pusaka"
+          value={heritage.totalPusakaItems}
+          sub={`${heritage.sacredPusakaCount} sakral`}
+          color="bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400"
         />
       </div>
 
@@ -395,6 +444,92 @@ export function StatisticsPanel() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="jumlah" fill="oklch(0.65 0.18 60)" radius={[0, 4, 4, 0]} />
                 </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Oral History by Category */}
+        {oralPieData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Cerita Lisan per Kategori
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={
+                  Object.fromEntries(
+                    heritage.oralByCategory.map((d, i) => [
+                      d.category,
+                      { label: d.category, color: HERITAGE_COLORS[i % HERITAGE_COLORS.length] },
+                    ])
+                  )
+                }
+                className="h-48 w-full"
+              >
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Pie
+                    data={oralPieData}
+                    dataKey="jumlah"
+                    nameKey="category"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    innerRadius={35}
+                    paddingAngle={2}
+                  >
+                    {oralPieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent nameKey="category" />} />
+                </PieChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pusaka by Type */}
+        {pusakaPieData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pusaka per Jenis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={
+                  Object.fromEntries(
+                    heritage.pusakaByType.map((d, i) => [
+                      d.type,
+                      { label: d.type, color: HERITAGE_COLORS[i % HERITAGE_COLORS.length] },
+                    ])
+                  )
+                }
+                className="h-48 w-full"
+              >
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Pie
+                    data={pusakaPieData}
+                    dataKey="jumlah"
+                    nameKey="type"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    innerRadius={35}
+                    paddingAngle={2}
+                  >
+                    {pusakaPieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent nameKey="type" />} />
+                </PieChart>
               </ChartContainer>
             </CardContent>
           </Card>
