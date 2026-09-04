@@ -4,14 +4,23 @@ import { getAuthUserAsync } from '@/lib/auth';
 import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateChildAfterParent, validateFieldLength } from '@/lib/validation';
 import type { PersonCreate } from '@/types';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const db = getDb();
+    if (!hasPermission(db, session.role, 'view_tree')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const persons = getPersons(db);
     return NextResponse.json(persons);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/persons GET]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -115,11 +124,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
     }
 
+    // --- Panduan Adat: marga diwariskan patrilineal (mengikuti marga ayah) ---
+    // Jika marga anak kosong dan ayah diketahui, anak otomatis mengikuti marga ayah.
+    if ((!body.marga_asal || !body.marga_asal.trim()) && body.father_id) {
+      const father = getPersonById(db, body.father_id);
+      const fatherMarga = (father?.marga_asal || '').trim();
+      if (fatherMarga) {
+        body.marga_asal = fatherMarga;
+      }
+    }
+
     const person = createPerson(db, { ...body, id, nomor_generasi });
 
     return NextResponse.json(person, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/persons POST]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

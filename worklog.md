@@ -640,3 +640,78 @@ Stage Summary:
 - Heritage items integrated into person detail, search, and statistics
 - All labels bilingual (Indonesian + Batak language)
 - RBAC permission-gated for all heritage CRUD operations
+
+---
+Task ID: audit-adat-hardening
+Agent: Main Agent (Super Z)
+Task: Audit mendalam Panduan Adat & Hardening — identifikasi area krusial, terapkan semuanya, push ke repository
+
+## Temuan Audit
+
+### Panduan Adat (7 area krusial)
+1. Aturan eksogami marga (larangan menikah semarga) TIDAK divalidasi sama sekali di API partnerships
+2. Pewarisan marga patrilineal (anak mengikuti marga ayah) tidak otomatis — marga free text
+3. MARGA_BATAK kotor: duplikat (Simatupang 3x, Simanjuntak 3x, Manurung/Harahap/Siregar 2x, Lumbantobing/Lumban Tobing, Panjaitan/Pandjaitan), entri non-marga (Boru, Enda, Wicaksono, Guru), tanpa pengelompokan sub-etnis
+4. Istilah kekerabatan salah: parumaen='Suami' (harusnya menantu perempuan), istilah tidak terdokumentasi dipakai tanpa rujukan, istilah pasangan tidak gender-aware
+5. Istilah status pernikahan Batak tidak akurat ('manjalo' hanya untuk laki-laki mengambil istri)
+6. Dalihan Na Tolu hanya konstanta statis — tidak dihitung dari data silsilah nyata
+7. Tidak ada dokumentasi Panduan Adat maupun panduan in-app
+
+### Hardening (11 area krusial)
+1. db/tarombo.db (berisi hash password admin!) & .env.local ter-commit ke repo publik
+2. JWT secret fallback lemah hardcoded
+3. Seed route tanpa proteksi + password admin default 'admin123' publik
+4. Login tanpa rate limiting, tanpa proteksi timing attack, email tidak dinormalisasi
+5. SEMUA endpoint GET data (persons/tree/partnerships/search/statistics/oral-histories/pusaka) TANPA autentikasi — data keluarga (alamat/telepon/lokasi pemakaman) publik
+6. Logout client-side tidak bisa menghapus cookie httpOnly → sesi tetap aktif setelah logout (bug keamanan nyata)
+7. Token JWT dikembalikan di body respons login (permukaan serangan XSS)
+8. Tidak ada security headers (CSP, X-Frame-Options, HSTS, dst)
+9. Service worker men-cache respons API — data sensitif tersimpan di Cache Storage setelah logout
+10. Manajemen user: validasi minim, tanpa proteksi admin terakhir, email bisa ganda
+11. Error handling membocorkan error.message internal ke klien
+
+## Penerapan
+
+### Panduan Adat
+- src/lib/batak-culture.ts: rewrite — marga dedup & dikelompokkan per sub-etnis (Toba/Karo/Mandailing-Angkola/Simalungun/Pakpak), normalizeMarga/isSameMarga, istilah kekerabatan dikoreksi & diperluas (parumaen=menantu perempuan, +tunggane/pariban/hulahula/amang tua/uda/ipar), MARITAL_STATUS_BATAK akurat (marbagas/saur/balo), MARGA_UTAMA via env, ATURAN_ADAT_PERNIKAHAN + PANDUAN_ADAT sebagai sumber konten
+- src/lib/adat-rules.ts (baru): checkAdatMarriage — eksogami marga, saudara kandung, sepupu sejajar (dongan sabutuha) dari ayah & ibu, garis leluhur, deteksi pariban
+- API partnerships POST: validasi adat → 422 + violations; GET kini butuh view_marriages
+- API persons POST/PUT: marga anak otomatis mengikuti marga ayah (patrilineal)
+- src/lib/db.ts: getDalihanRelations — Hula-hula (orang tua pasangan + tulang/saudara laki-laki ibu), Boru (tunggane: suami anak perempuan & saudara perempuan), Dongan Sabutuha (jumlah semarga) — dihitung dari data nyata, tampil di detail anggota
+- src/components/features/adat/adat-guide-dialog.tsx (baru): dialog Panduan Adat in-app (4 seksi + semboyan)
+- docs/PANDUAN_ADAT.md (baru): panduan adat lengkap 8 bab
+- person-form: datalist saran marga; partnership-form: peringatan adat live + tampilan violations 422
+- Fix bug laten: createPerson mengubah '' → null padahal kolom NOT NULL (seed fresh DB gagal)
+
+### Hardening
+- auth.ts: JWT secret lazy fail-fast produksi (min 32 char), random ephemeral dev, issuer/audience JWT
+- src/lib/rate-limit.ts (baru): login 5 percobaan/15 menit per IP+email, reset saat sukses
+- login: email normalize lowercase, validasi format, timing-safe (dummy hash), token TIDAK lagi di body, error generik 500
+- /api/auth/logout (baru): hapus cookie httpOnly server-side; store logout async memanggilnya (fix bug sesi tetap aktif)
+- SEMUA GET data wajib auth + izin RBAC (view_tree/view_marriages/view_heritage/search/view_bagans); anonymous tidak melihat data (main content = LoginForm, tab tree/search digate izin)
+- seed: password admin dari SEED_ADMIN_PASSWORD (produksi wajib), email via env, rate-limited
+- rbac/users: validasi email format + unik case-insensitive, password min 8 huruf+angka, nama 1-100, proteksi admin terakhir (PUT/DELETE), JSON body guard
+- next.config.ts: security headers (CSP, X-Frame-Options DENY, nosniff, HSTS, Referrer-Policy, Permissions-Policy), reactStrictMode, hapus allowedDevOrigins '*'
+- sw.js v2: API network-only tanpa cache (data keluarga tidak membekas di Cache Storage)
+- search: batas panjang 100, heritage hanya jika view_heritage
+- .gitignore + git rm --cached: db/*.db(-shm/-wal), .env.local, tool-results/, upload/, .zscripts/dev.pid
+- Semua route: error internal dilog server, respons generik (tanpa bocor error.message)
+- README.md (baru) + .env.example (baru) termasuk catatan rotasi kredensial
+
+## Verifikasi
+- bun install + next build sukses (20 route dynamic)
+- Smoke test runtime (node standalone, DB fresh):
+  * anonim /api/tree → 401 ✓
+  * seed env password ✓, login ✓, salah password → 401 ✓
+  * nikah semarga → 422 violations eksogami ✓; beda marga → 201 ✓
+  * anak tanpa marga + ayah → marga otomatis mengikuti ayah ✓
+  * Dalihan: menantu mendapat hulahula (orang tua istri), ayah mendapat boru (tunggane) ✓
+  * rate limit 5x → 429 ✓; logout → cookie terhapus, tree 401 ✓
+- tsc: file baru 0 error; eslint: 0 error (sisa error pre-existing diabaikan build)
+
+Stage Summary:
+- 2 area audit lengkap, 18 temuan, semuanya diterapkan
+- 3 file baru lib/route (adat-rules, rate-limit, auth/logout), 1 komponen baru (adat-guide-dialog)
+- 3 dokumen baru: docs/PANDUAN_ADAT.md, README.md, .env.example
+- 18 file dimodifikasi, 12 file dilepas dari tracking git
+- Push ke main sebagai "feat: Panduan Adat & Hardening audit — implementasi lengkap"

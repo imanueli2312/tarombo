@@ -147,10 +147,26 @@ export type SessionUser = {
   role: UserRole;
 };
 
+/** Relasi Dalihan Na Tolu dihitung dari data silsilah (lihat lib/db.ts) */
+export interface DalihanRelationEntry {
+  id: string;
+  nama: string;
+  marga: string;
+  relation: string;
+  relationBatak: string;
+}
+
+export interface DalihanRelations {
+  hulahula: DalihanRelationEntry[];
+  boru: DalihanRelationEntry[];
+  donganSabutuha: { marga: string | null; total: number };
+}
+
 export interface PersonDetailResponse extends Person {
   parents?: { father?: Person; mother?: Person };
   children?: Person[];
   spouse?: Person | null;
+  dalihan?: DalihanRelations;
 }
 
 export const DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {

@@ -5,6 +5,20 @@ import type { UserRole } from '@/types';
 
 const VALID_ROLES: UserRole[] = ['viewer', 'editor', 'admin'];
 
+/** Validasi kekuatan password: minimal 8 karakter, ada huruf dan angka */
+function validatePasswordStrength(password: unknown): string | null {
+  if (typeof password !== 'string' || password.length < 8) {
+    return 'Password minimal 8 karakter';
+  }
+  if (password.length > 200) {
+    return 'Password maksimal 200 karakter';
+  }
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    return 'Password harus mengandung huruf dan angka';
+  }
+  return null;
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,27 +40,52 @@ export async function PUT(
       return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { name, role, password } = body as { name?: string; role?: string; password?: string };
+    let body: { name?: unknown; role?: unknown; password?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Format permintaan tidak valid' }, { status: 400 });
+    }
+    const { name, role, password } = body;
 
     const updateData: { name?: string; role?: UserRole; password_hash?: string } = {};
 
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) {
+      const trimmedName = typeof name === 'string' ? name.trim() : '';
+      if (trimmedName.length < 1 || trimmedName.length > 100) {
+        return NextResponse.json({ error: 'Nama harus 1-100 karakter' }, { status: 400 });
+      }
+      updateData.name = trimmedName;
+    }
+
     if (role !== undefined) {
       if (!VALID_ROLES.includes(role as UserRole)) {
         return NextResponse.json({ error: 'Role tidak valid' }, { status: 400 });
       }
+      // Proteksi admin terakhir: jangan menurunkan role admin terakhir yang tersisa
+      if (existing.role === 'admin' && role !== 'admin') {
+        const adminCount = (db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get() as { c: number }).c;
+        if (adminCount <= 1) {
+          return NextResponse.json(
+            { error: 'Tidak bisa menurunkan role administrator terakhir — minimal harus ada satu admin.' },
+            { status: 400 },
+          );
+        }
+      }
       updateData.role = role as UserRole;
     }
+
     if (password) {
-      updateData.password_hash = await hashPassword(password);
+      const pwErr = validatePasswordStrength(password);
+      if (pwErr) return NextResponse.json({ error: pwErr }, { status: 400 });
+      updateData.password_hash = await hashPassword(password as string);
     }
 
     const user = updateUser(db, id, updateData);
     return NextResponse.json(user);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/rbac/users/:id PUT]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -76,10 +115,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 });
     }
 
+    // Proteksi admin terakhir: jangan menghapus admin terakhir yang tersisa
+    if (existing.role === 'admin') {
+      const adminCount = (db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get() as { c: number }).c;
+      if (adminCount <= 1) {
+        return NextResponse.json(
+          { error: 'Tidak bisa menghapus administrator terakhir — minimal harus ada satu admin.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const result = deleteUser(db, id);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/rbac/users/:id DELETE]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

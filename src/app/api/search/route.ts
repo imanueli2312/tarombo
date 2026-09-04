@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, searchPersons, searchHeritage } from '@/lib/db';
+import { getDb, searchPersons, searchHeritage, hasPermission } from '@/lib/db';
+import { getAuthUserAsync } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
+    const db = getDb();
+    if (!hasPermission(db, session.role, 'search')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const q = request.nextUrl.searchParams.get('q');
     const includeHeritage = request.nextUrl.searchParams.get('heritage');
 
@@ -13,11 +24,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    const db = getDb();
-    const results = searchPersons(db, q.trim());
+    // Batasi panjang kueri pencarian (mitigasi beban & input tidak wajar)
+    const query = q.trim().slice(0, 100);
+    const results = searchPersons(db, query);
 
     if (includeHeritage) {
-      const heritage = searchHeritage(db, q.trim());
+      // Pencarian warisan budaya membutuhkan izin view_heritage tambahan
+      if (!hasPermission(db, session.role, 'view_heritage')) {
+        return NextResponse.json({ persons: results, heritage: { oral: [], pusaka: [] } });
+      }
+      const heritage = searchHeritage(db, query);
       return NextResponse.json({
         persons: results,
         heritage,
@@ -26,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(results);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/search]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

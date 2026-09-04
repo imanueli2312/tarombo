@@ -30,6 +30,7 @@ import { UserManagement } from '@/components/features/admin/user-management'
 import { StatisticsPanel } from '@/components/features/statistics/statistics-panel'
 import { HeritagePanel } from '@/components/features/heritage/heritage-panel'
 import { LoginForm } from '@/components/features/auth/login-form'
+import { AdatGuideDialog } from '@/components/features/adat/adat-guide-dialog'
 
 import { useAuthStore } from '@/store/auth'
 import type { TreeNode } from '@/types'
@@ -62,8 +63,14 @@ export default function Home() {
   // Determine available tabs based on permissions
   const tabs: { value: TabValue; label: string; icon: React.ReactNode; permission?: string }[] = []
 
-  tabs.push({ value: 'tree', label: 'Pohon Keluarga', icon: <TreePine className='h-4 w-4' /> })
-  tabs.push({ value: 'search', label: 'Cari', icon: <Search className='h-4 w-4' /> })
+  // Hardening: seluruh tab mensyaratkan izin — pengguna belum login
+  // tidak melihat data keluarga sama sekali.
+  if (hasPermission('view_tree')) {
+    tabs.push({ value: 'tree', label: 'Pohon Keluarga', icon: <TreePine className='h-4 w-4' />, permission: 'view_tree' })
+  }
+  if (hasPermission('search')) {
+    tabs.push({ value: 'search', label: 'Cari', icon: <Search className='h-4 w-4' />, permission: 'search' })
+  }
 
   if (hasPermission('view_profile')) {
     tabs.push({ value: 'profile', label: 'Profil', icon: <Users className='h-4 w-4' /> })
@@ -226,6 +233,9 @@ export default function Home() {
 
           {/* Right Actions */}
           <div className='flex items-center gap-1.5 flex-shrink-0'>
+            {/* Panduan Adat (Batak customary-law guide) */}
+            <AdatGuideDialog />
+
             {hasPermission('export') && effectiveTab === 'tree' && (
               <ExportDialog />
             )}
@@ -318,9 +328,15 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content — pengguna belum login hanya melihat form masuk */}
       <main className='flex-1 max-w-screen-2xl mx-auto w-full px-4 py-4'>
-        {tabContent()}
+        {!user ? (
+          <div className='flex min-h-[calc(100vh-180px)] items-center justify-center'>
+            <LoginForm onSuccess={handleLoginSuccess} />
+          </div>
+        ) : (
+          tabContent()
+        )}
       </main>
 
       {/* Footer */}

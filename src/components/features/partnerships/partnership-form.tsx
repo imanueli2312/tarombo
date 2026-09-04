@@ -29,6 +29,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import type { Person, Partnership } from '@/types';
+import { isSameMarga } from '@/lib/batak-culture';
 
 const partnershipSchema = z.object({
   person1_id: z.string().min(1, 'Suami/Istri 1 wajib diisi'),
@@ -112,6 +113,9 @@ export function PartnershipForm({ partnership, open, onOpenChange }: Partnership
       if (!res.ok) {
         if (res.status === 409) {
           throw new Error('Orang ini sudah memiliki pasangan aktif');
+        }
+        if (res.status === 422 && Array.isArray(json.violations) && json.violations.length > 0) {
+          throw new Error(json.violations.join(' '));
         }
         throw new Error(json.error || 'Gagal menambah pernikahan');
       }
@@ -267,6 +271,33 @@ export function PartnershipForm({ partnership, open, onOpenChange }: Partnership
                 )}
               </div>
             </div>
+
+            {/* Peringatan Panduan Adat: eksogami marga */}
+            {(() => {
+              const p1 = allPersons.find((p) => p.id === selectedPerson1);
+              const p2 = allPersons.find((p) => p.id === selectedPerson2);
+              if (!p1 || !p2) return null;
+              const m1 = (p1.marga_asal || '').trim();
+              const m2 = (p2.marga_asal || '').trim();
+              if (!m1 || !m2) {
+                return (
+                  <div className='rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-300'>
+                    Data marga salah satu anggota belum lengkap — aturan eksogami
+                    marga belum dapat diverifikasi.
+                  </div>
+                );
+              }
+              if (isSameMarga(m1, m2)) {
+                return (
+                  <div className='rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive'>
+                    Panduan Adat Batak melarang pernikahan semarga (eksogami
+                    marga): {p1.nama_panggilan || p1.nama} dan {p2.nama_panggilan || p2.nama}{' '}
+                    sama-sama bermarga {m1}.
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             <Separator />
 

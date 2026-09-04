@@ -8,23 +8,37 @@ type AuthState = {
   setUser: (user: SessionUser | null, permissions?: string[]) => void;
   setLoading: (loading: boolean) => void;
   hasPermission: (perm: string) => boolean;
-  logout: () => void;
+  /**
+   * Logout: memanggil /api/auth/logout agar cookie token httpOnly dihapus
+   * server-side, lalu mereset state. Tanpa panggilan server, cookie httpOnly
+   * tetap tersimpan dan sesi tetap aktif.
+   */
+  logout: () => Promise<void>;
 };
 
+// Pengguna yang belum login tidak memiliki izin apa pun.
+// Semua endpoint data kini mensyaratkan autentikasi (hardening).
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  permissions: ['view_tree', 'search'],
+  permissions: [],
   loading: true,
   setUser: (user, permissions) =>
-    set({ user, permissions: permissions ?? (user ? [] : ['view_tree', 'search']), loading: false }),
+    set({ user, permissions: permissions ?? (user ? [] : []), loading: false }),
   setLoading: (loading) => set({ loading }),
   hasPermission: (perm) => {
     const { user, permissions } = get();
-    if (!user) return ['view_tree', 'search'].includes(perm);
+    if (!user) return false;
     return permissions.includes(perm);
   },
-  logout: () => {
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    set({ user: null, permissions: ['view_tree', 'search'], loading: false });
+  logout: async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Abaikan kegagalan jaringan — tetap bersihkan state lokal
+    }
+    set({ user: null, permissions: [], loading: false });
   },
 }));

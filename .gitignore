@@ -52,3 +52,22 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# ---- Hardening: file kerja & data tidak boleh masuk repo ----
+# Database SQLite (berisi hash password & data keluarga) — dibuat otomatis saat runtime
+db/*.db
+db/*.db-shm
+db/*.db-wal
+db/*.sqlite*
+
+# Environment (kecuali template contoh)
+.env*
+!.env.example
+
+# Artefak audit/alat & unggahan lokal
+tool-results/
+upload/
+.zscripts/dev.pid
+dev.log
+dev.out.log
+server.log

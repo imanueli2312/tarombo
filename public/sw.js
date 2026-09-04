@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tarombo-v1';
+const CACHE_NAME = 'tarombo-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -27,36 +27,32 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch:
+// - API (/api/*): network-only dan TIDAK pernah di-cache.
+//   Respons API berisi data keluarga yang sensitif — menyimpannya di Cache
+//   Storage akan meninggalkan jejak data bahkan setelah logout (hardening).
+// - Aset statis: cache-first dengan fallback jaringan.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API routes: network-first with cache fallback
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+    // Network-only: biarkan request diteruskan tanpa respondWith
     return;
   }
 
-  // Static assets: cache-first with network fallback
+  if (request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(request).then((cached) => {
-    if (cached) return cached;
-    return fetch(request).then((response) => {
-      if (response.ok && request.method === 'GET') {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-      }
-      return response;
-    });
-  })
+      if (cached) return cached;
+      return fetch(request).then((response) => {
+        if (response.ok && url.origin === self.location.origin) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      });
+    })
   );
 });

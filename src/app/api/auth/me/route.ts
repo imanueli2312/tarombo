@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ user, permissions });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/auth/me]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

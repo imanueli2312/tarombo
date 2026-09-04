@@ -25,7 +25,6 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 interface LoginResponse {
   user: SessionUser;
-  token: string;
   permissions: string[];
 }
 
@@ -82,7 +81,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex min-h-screen items-center justify-center px-4 py-12"
+      className="flex w-full items-center justify-center px-4 py-12"
     >
       <Card className="w-full max-w-sm shadow-lg border-border/60">
         <CardHeader className="items-center text-center gap-3">

@@ -17,6 +17,8 @@ import {
   Flame,
   Sparkles,
   ChevronRight,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 import {
@@ -45,7 +47,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import type { Person, PersonDetailResponse } from '@/types';
+import type { Person, PersonDetailResponse , DalihanRelationEntry } from '@/types';
 import { getMargaLabel, MARGA_UTAMA, MARITAL_STATUS_BATAK, getKinshipTerm, ORAL_HISTORY_CATEGORIES, PUSAKA_TYPES, getOralHistoryCategoryLabel, getPusakaTypeLabel } from '@/lib/batak-culture';
 
 interface PersonDetailProps {
@@ -406,6 +408,76 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
                   <div className="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-3">
                     <span className="text-xs text-muted-foreground">Keterangan</span>
                     <span className="text-sm font-medium">{p.keterangan as string}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        <Separator />
+
+        {/* --- Dalihan Na Tolu (relasi adat dihitung dari silsilah) --- */}
+        {(() => {
+          const dalihan = (person as Record<string, unknown>).dalihan as
+            | { hulahula: DalihanRelationEntry[]; boru: DalihanRelationEntry[]; donganSabutuha: { marga: string | null; total: number } }
+            | undefined;
+          if (!dalihan) return null;
+          const hasHulahula = dalihan.hulahula?.length > 0;
+          const hasBoru = dalihan.boru?.length > 0;
+          const hasDongan = !!dalihan.donganSabutuha?.marga;
+          if (!hasHulahula && !hasBoru && !hasDongan) return null;
+          return (
+            <div>
+              <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                Dalihan Na Tolu
+              </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                {hasDongan && (
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                      <Users className="size-3.5 text-primary" />
+                      Dongan Sabutuha
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {dalihan.donganSabutuha.total > 0
+                        ? `${dalihan.donganSabutuha.total} kerabat semarga ${dalihan.donganSabutuha.marga}`
+                        : `Marga ${dalihan.donganSabutuha.marga} — satu-satunya dalam tarombo ini`}
+                    </p>
+                  </div>
+                )}
+                {hasHulahula && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                      <ArrowUp className="size-3.5 text-amber-600" />
+                      Hula-hula / Tulang
+                    </p>
+                    <ul className="space-y-1">
+                      {dalihan.hulahula.map((h) => (
+                        <li key={h.id} className="text-xs">
+                          <span className="font-medium">{h.nama}</span>
+                          {h.marga && <span className="text-muted-foreground"> ({h.marga})</span>}
+                          <span className="text-muted-foreground/70"> — {h.relation} · {h.relationBatak}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {hasBoru && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-semibold mb-1.5 flex items-center gap-1.5">
+                      <ArrowDown className="size-3.5 text-emerald-600" />
+                      Boru (Tunggane)
+                    </p>
+                    <ul className="space-y-1">
+                      {dalihan.boru.map((b) => (
+                        <li key={b.id} className="text-xs">
+                          <span className="font-medium">{b.nama}</span>
+                          {b.marga && <span className="text-muted-foreground"> ({b.marga})</span>}
+                          <span className="text-muted-foreground/70"> — {b.relation} · {b.relationBatak}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

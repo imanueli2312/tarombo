@@ -36,8 +36,8 @@ export async function PUT(
     const partnership = updatePartnership(db, id, { marriage_date, divorce_date });
     return NextResponse.json(partnership);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/partnerships/:id]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -65,7 +65,7 @@ export async function DELETE(
     const result = deletePartnership(db, id);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/partnerships/:id]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPartnerships, createPartnership, getPersonById, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { validateNotFuture } from '@/lib/validation';
+import { checkAdatMarriage } from '@/lib/adat-rules';
 
 type PopulatedPartnership = {
   id: string;
@@ -26,14 +27,23 @@ function populatePartnership(
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const db = getDb();
+    if (!hasPermission(db, session.role, 'view_marriages')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const partnerships = getPartnerships(db);
     return NextResponse.json(partnerships.map((p) => populatePartnership(db, p)));
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/partnerships GET]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -72,6 +82,23 @@ export async function POST(request: NextRequest) {
       if (futureErr) return NextResponse.json({ error: futureErr }, { status: 400 });
     }
 
+    // --- Panduan Adat: validasi pernikahan adat Batak ---
+    // 1. Eksogami marga (larangan semarga)
+    // 2. Saudara kandung
+    // 3. Sepupu sejajar / dongan sabutuha
+    // 4. Garis leluhur
+    // (pariban dicatat sebagai catatan adat)
+    const adat = checkAdatMarriage(db, p1, p2);
+    if (!adat.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Pernikahan tidak sesuai Panduan Adat Batak',
+          violations: adat.violations,
+        },
+        { status: 422 },
+      );
+    }
+
     const id = crypto.randomUUID();
     let partnership;
     try {
@@ -83,9 +110,12 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json(populatePartnership(db, partnership!), { status: 201 });
+    return NextResponse.json(
+      { ...populatePartnership(db, partnership!), adat_notes: adat.notes },
+      { status: 201 },
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/partnerships POST]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

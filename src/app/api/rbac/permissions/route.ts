@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     const permissions = getAllPermissions(db);
     return NextResponse.json(permissions);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/rbac/permissions]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -44,7 +44,7 @@ export async function PUT(request: NextRequest) {
     const permission = updatePermission(db, id, allowed);
     return NextResponse.json(permission);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/rbac/permissions]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

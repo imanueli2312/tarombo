@@ -1,9 +1,20 @@
-import { NextResponse } from 'next/server';
-import { getDb, getPersons, getHeritageStats } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb, getPersons, getHeritageStats, hasPermission } from '@/lib/db';
+import { getAuthUserAsync } from '@/lib/auth';
+import { MARGA_UTAMA } from '@/lib/batak-culture';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const db = getDb();
+    if (!hasPermission(db, session.role, 'view_bagans')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const persons = getPersons(db);
 
     // Total counts
@@ -96,9 +107,9 @@ export async function GET() {
     // Marga distribution (Batak cultural insight)
     const margaRows = db
       .prepare(
-        "SELECT COALESCE(NULLIF(marga_asal, ''), 'Hariandja') as marga, COUNT(*) as count FROM persons GROUP BY marga ORDER BY count DESC"
+        "SELECT COALESCE(NULLIF(marga_asal, ''), ?) as marga, COUNT(*) as count FROM persons GROUP BY marga ORDER BY count DESC"
       )
-      .all() as { marga: string; count: number }[];
+      .all(MARGA_UTAMA) as { marga: string; count: number }[];
 
     const margaDistribution = margaRows.map((r) => ({
       marga: r.marga,
@@ -165,7 +176,7 @@ export async function GET() {
       heritage: heritageStats,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/statistics]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

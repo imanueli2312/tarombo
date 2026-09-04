@@ -16,7 +16,16 @@ const VALID_CATEGORIES: OralHistoryCategory[] = [
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const db = getDb();
+    if (!hasPermission(db, session.role, 'view_heritage')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const personId = searchParams.get('person_id');
 
@@ -26,8 +35,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(getOralHistories(db));
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/oral-histories]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -72,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/oral-histories]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

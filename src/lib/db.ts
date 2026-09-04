@@ -1,7 +1,12 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { DEFAULT_PERMISSIONS } from '@/types';
 import { sanitizeLikePattern } from '@/lib/validation';
+import { normalizeMarga } from '@/lib/batak-culture';
+
+/** Tipe instance database better-sqlite3 (dipakai modul lain) */
+export type SQLiteDatabase = Database.Database;
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'db', 'tarombo.db');
 
@@ -9,6 +14,12 @@ let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (_db) return _db;
+
+  // Pastikan direktori database ada (fresh clone tidak lagi membawa db)
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
 
   _db = new Database(DB_PATH);
   _db.pragma('journal_mode = WAL');
@@ -208,15 +219,16 @@ export function createPerson(db: Database.Database, data: import('@/types').Pers
       marga_asal, tempat_asal, pendidikan, pekerjaan, keterangan)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    data.id, data.nama, data.nama_panggilan || null, data.tempat_lahir || null,
+    // Kolom NOT NULL: string kosong disimpan sebagai '' (bukan null)
+    data.id, data.nama ?? '', data.nama_panggilan ?? '', data.tempat_lahir ?? '',
     data.tanggal_lahir ?? null, data.tanggal_kematian ?? null,
-    data.nomor_urut_lahir ?? null, data.jenis_kelamin, data.alamat || null,
-    data.agama || null, data.nomor_telepon || null, data.photo ?? null,
+    data.nomor_urut_lahir ?? null, data.jenis_kelamin, data.alamat ?? '',
+    data.agama ?? '', data.nomor_telepon ?? '', data.photo ?? null,
     data.status_pernikahan ?? 'belum_menikah', data.nomor_generasi ?? 1,
-    data.burial_nama || null, data.burial_alamat || null,
+    data.burial_nama ?? null, data.burial_alamat ?? null,
     data.burial_latitude ?? null, data.burial_longitude ?? null,
-    data.marga_asal || null, data.tempat_asal || null,
-    data.pendidikan || null, data.pekerjaan || null, data.keterangan || null
+    data.marga_asal ?? '', data.tempat_asal ?? '',
+    data.pendidikan ?? '', data.pekerjaan ?? '', data.keterangan ?? ''
   );
 
   if (father_id) {
@@ -577,7 +589,8 @@ export function getUserById(db: Database.Database, id: string) {
 }
 
 export function getUserByEmail(db: Database.Database, email: string) {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email) as (import('@/types').User & { password_hash: string }) | undefined;
+  // Case-insensitive agar email dengan kapitalisasi berbeda tidak membuat akun ganda
+  return db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email) as (import('@/types').User & { password_hash: string }) | undefined;
 }
 
 export function createUser(db: Database.Database, data: import('@/types').UserCreate & { id: string; password_hash: string }) {
@@ -808,4 +821,127 @@ export function wouldCreateCycle(db: Database.Database, parentId: string, childI
     return false;
   }
   return walkUp(parentId);
+}
+
+// ============================================================================
+// DALIHAN NA TOLU — relasi adat dihitung dari data silsilah nyata
+// ============================================================================
+
+/** Satu entri relasi Dalihan Na Tolu */
+export interface DalihanRelationEntry {
+  id: string;
+  nama: string;
+  marga: string;
+  /** Label hubungan dalam bahasa Indonesia */
+  relation: string;
+  /** Label hubungan dalam istilah adat Batak */
+  relationBatak: string;
+}
+
+export interface DalihanRelations {
+  /** Pihak pemberi istri: orang tua pasangan + saudara laki-laki ibu (tulang) */
+  hulahula: DalihanRelationEntry[];
+  /** Pihak penerima istri: suami anak perempuan + suami saudara perempuan */
+  boru: DalihanRelationEntry[];
+  /** Sesama marga (dongan sabutuha) */
+  donganSabutuha: { marga: string | null; total: number };
+}
+
+function toEntry(p: import('@/types').Person, relation: string, relationBatak: string): DalihanRelationEntry {
+  return { id: p.id, nama: p.nama_panggilan || p.nama, marga: p.marga_asal || '', relation, relationBatak };
+}
+
+/** Cari pasangan (suami/istri) aktif seseorang */
+function getSpousesOf(db: Database.Database, personId: string): import('@/types').Person[] {
+  const rows = db.prepare(`
+    SELECT p.* FROM persons p
+    JOIN partnerships ps ON (p.id = CASE WHEN ps.person1_id = ? THEN ps.person2_id ELSE ps.person1_id END)
+    WHERE (ps.person1_id = ? OR ps.person2_id = ?)
+  `).all(personId, personId, personId) as import('@/types').Person[];
+  return rows;
+}
+
+/**
+ * Menghitung relasi Dalihan Na Tolu seseorang dari data silsilah:
+ * - Hula-hula (Tulang): orang tua dari pasangan, serta saudara laki-laki ibu.
+ * - Boru: suami dari anak perempuan, serta suami dari saudara perempuan.
+ * - Dongan Sabutuha: jumlah kerabat semarga (marga patrilineal).
+ */
+export function getDalihanRelations(db: Database.Database, personId: string): DalihanRelations {
+  const empty: DalihanRelations = { hulahula: [], boru: [], donganSabutuha: { marga: null, total: 0 } };
+  const ego = getPersonById(db, personId);
+  if (!ego) return empty;
+
+  const hulahula: DalihanRelationEntry[] = [];
+  const boru: DalihanRelationEntry[] = [];
+  const seen = new Set<string>();
+  const push = (list: DalihanRelationEntry[], e: DalihanRelationEntry) => {
+    if (e.id === ego.id || seen.has(`${list === hulahula ? 'h' : 'b'}:${e.id}`)) return;
+    seen.add(`${list === hulahula ? 'h' : 'b'}:${e.id}`);
+    list.push(e);
+  };
+
+  // --- HULA-HULA: orang tua pasangan ---
+  for (const spouse of getSpousesOf(db, ego.id)) {
+    const sp = getParentsOf(db, spouse.id);
+    if (sp.father) push(hulahula, toEntry(sp.father, `Ayah ${spouse.nama_panggilan || spouse.nama}`, 'Tulang / Hula-hula'));
+    if (sp.mother) push(hulahula, toEntry(sp.mother, `Ibu ${spouse.nama_panggilan || spouse.nama}`, 'Nantulang / Hula-hula'));
+  }
+
+  // --- HULA-HULA (TULANG): saudara laki-laki ibu ---
+  const { mother } = getParentsOf(db, ego.id);
+  if (mother) {
+    const motherParents = getParentsOf(db, mother.id);
+    for (const gp of [motherParents.father, motherParents.mother]) {
+      if (!gp) continue;
+      for (const sibling of getChildrenOf(db, gp.id)) {
+        if (sibling.id !== mother.id && sibling.jenis_kelamin === 'L') {
+          push(hulahula, toEntry(sibling, 'Saudara laki-laki ibu', 'Tulang'));
+        }
+      }
+    }
+  }
+
+  // --- BORU: suami dari anak perempuan ---
+  for (const child of getChildrenOf(db, ego.id)) {
+    if (child.jenis_kelamin !== 'P') continue;
+    for (const spouse of getSpousesOf(db, child.id)) {
+      if (spouse.jenis_kelamin === 'L') {
+        push(boru, toEntry(spouse, `Suami ${child.nama_panggilan || child.nama}`, 'Tunggane'));
+      }
+    }
+  }
+
+  // --- BORU: suami dari saudara perempuan ---
+  const { father } = getParentsOf(db, ego.id);
+  if (father || mother) {
+    const parentIds = [father?.id, mother?.id].filter((x): x is string => !!x);
+    const siblingIds = new Set<string>();
+    for (const pid of parentIds) {
+      for (const sibling of getChildrenOf(db, pid)) siblingIds.add(sibling.id);
+    }
+    siblingIds.delete(ego.id);
+    for (const sid of siblingIds) {
+      const sibling = getPersonById(db, sid);
+      if (!sibling || sibling.jenis_kelamin !== 'P') continue;
+      for (const spouse of getSpousesOf(db, sibling.id)) {
+        if (spouse.jenis_kelamin === 'L') {
+          push(boru, toEntry(spouse, `Suami ${sibling.nama_panggilan || sibling.nama}`, 'Tunggane'));
+        }
+      }
+    }
+  }
+
+  // --- DONGAN SABUTUHA: sesama marga ---
+  let dongan = { marga: null as string | null, total: 0 };
+  const egoMarga = normalizeMarga(ego.marga_asal);
+  if (egoMarga) {
+    const allPersons = getPersons(db);
+    const same = allPersons.filter(
+      (p) => p.id !== ego.id && normalizeMarga(p.marga_asal) === egoMarga,
+    );
+    dongan = { marga: ego.marga_asal, total: same.length };
+  }
+
+  return { hulahula, boru, donganSabutuha: dongan };
 }

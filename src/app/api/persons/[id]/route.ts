@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf, wouldCreateCycle } from '@/lib/db';
+import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf, wouldCreateCycle, getDalihanRelations } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateFieldLength } from '@/lib/validation';
 import type { PersonUpdate } from '@/types';
@@ -9,8 +9,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const session = await getAuthUserAsync(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const db = getDb();
+    if (!hasPermission(db, session.role, 'view_tree')) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    }
+
+    const { id } = await params;
     const person = getPersonById(db, id);
 
     if (!person) {
@@ -20,11 +29,13 @@ export async function GET(
     const parents = getParentsOf(db, id);
     const children = getChildrenOf(db, id);
     const spouse = getActiveSpouseOf(db, id);
+    // Panduan Adat: relasi Dalihan Na Tolu dihitung dari data silsilah nyata
+    const dalihan = getDalihanRelations(db, id);
 
-    return NextResponse.json({ ...person, parents, children, spouse });
+    return NextResponse.json({ ...person, parents, children, spouse, dalihan });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/persons/:id GET]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -119,12 +130,24 @@ export async function PUT(
       return NextResponse.json({ error: 'Tidak bisa menambahkan orang tua yang menyebabkan lingkaran silsilah' }, { status: 400 });
     }
 
+    // --- Panduan Adat: marga patrilineal saat edit ---
+    // Jika marga dikosongkan secara eksplisit dan ayah diketahui (baru ataupun lama),
+    // marga mengikuti marga ayah secara otomatis.
+    if (body.marga_asal !== undefined && !(body.marga_asal || '').trim()) {
+      const fatherId = body.father_id || getParentsOf(db, id).father?.id;
+      if (fatherId) {
+        const father = getPersonById(db, fatherId);
+        const fatherMarga = (father?.marga_asal || '').trim();
+        if (fatherMarga) body.marga_asal = fatherMarga;
+      }
+    }
+
     const person = updatePerson(db, id, body);
 
     return NextResponse.json(person);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/persons/:id PUT]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
@@ -152,7 +175,7 @@ export async function DELETE(
     const result = deletePerson(db, id);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error('[api/persons/:id DELETE]', error);
+    return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }

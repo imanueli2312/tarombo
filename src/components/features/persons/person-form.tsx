@@ -17,6 +17,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { MARGA_BATAK } from '@/lib/batak-culture';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
@@ -496,10 +497,17 @@ export function PersonForm({ person, open, onOpenChange }: PersonFormProps) {
                   <Input
                     id="marga_asal"
                     placeholder="Contoh: Siregar, Simatupang..."
+                    list="marga-suggestions"
                     {...register('marga_asal')}
                   />
+                  <datalist id="marga-suggestions">
+                    {MARGA_BATAK.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
                   <p className="text-[11px] text-muted-foreground">
-                    Marga klan. Untuk keturunan Hariandja, biarkan kosong.
+                    Marga klan (diwariskan patrilineal — anak mengikuti marga ayah).
+                    Jika dikosongkan dan ayah dipilih, marga otomatis mengikuti marga ayah.
                   </p>
                 </div>
 
