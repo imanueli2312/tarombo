@@ -6,7 +6,8 @@ import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TreePine, Search, Users, Heart, Settings, LogOut, LogIn,
-  Sun, Moon, UserPlus, Menu, X, Download, UserCircle, BarChart3, BookOpen
+  Sun, Moon, UserPlus, Menu, X, Download, UserCircle, BarChart3, BookOpen,
+  Library, ArrowRightLeft
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -31,11 +32,13 @@ import { StatisticsPanel } from '@/components/features/statistics/statistics-pan
 import { HeritagePanel } from '@/components/features/heritage/heritage-panel'
 import { LoginForm } from '@/components/features/auth/login-form'
 import { AdatGuideDialog } from '@/components/features/adat/adat-guide-dialog'
+import { MargaBookPanel } from '@/components/features/marga-book/marga-book-panel'
+import { TransferPanel } from '@/components/features/transfer/transfer-panel'
 
 import { useAuthStore } from '@/store/auth'
 import type { TreeNode } from '@/types'
 
-type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'warisan' | 'statistik' | 'admin'
+type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'warisan' | 'bukumarga' | 'transfer' | 'statistik' | 'admin'
 
 function AdminPanel() {
   const [section, setSection] = useState<'users' | 'perms'>('users')
@@ -83,6 +86,12 @@ export default function Home() {
   }
   if (hasPermission('view_heritage')) {
     tabs.push({ value: 'warisan', label: 'Warisan Budaya', icon: <BookOpen className='h-4 w-4' /> })
+  }
+  if (hasPermission('view_marga_book')) {
+    tabs.push({ value: 'bukumarga', label: 'Buku Marga', icon: <Library className='h-4 w-4' /> })
+  }
+  if (hasPermission('transfer_data')) {
+    tabs.push({ value: 'transfer', label: 'Transfer', icon: <ArrowRightLeft className='h-4 w-4' /> })
   }
   if (hasPermission('view_marriages')) {
     tabs.push({ value: 'statistik', label: 'Statistik', icon: <BarChart3 className='h-4 w-4' /> })
@@ -164,6 +173,12 @@ export default function Home() {
 
       case 'warisan':
         return <HeritagePanel />
+
+      case 'bukumarga':
+        return <MargaBookPanel />
+
+      case 'transfer':
+        return <TransferPanel />
 
       case 'statistik':
         return <StatisticsPanel />

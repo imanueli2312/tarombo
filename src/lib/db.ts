@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { DEFAULT_PERMISSIONS } from '@/types';
+import { DEFAULT_PERMISSIONS, ALL_PERMISSIONS } from '@/types';
 import { sanitizeLikePattern } from '@/lib/validation';
 import { normalizeMarga } from '@/lib/batak-culture';
 
@@ -167,6 +167,17 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_oral_histories_category ON oral_histories(category);
     CREATE INDEX IF NOT EXISTS idx_pusaka_person ON pusaka_items(person_id);
     CREATE INDEX IF NOT EXISTS idx_pusaka_type ON pusaka_items(type);
+
+    -- Audit trail untuk semua operasi transfer data (ekspor/impor/pusaka)
+    CREATE TABLE IF NOT EXISTS transfer_log (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL CHECK(kind IN ('export_json','export_gedcom','import_json','import_csv','import_gedcom','pusaka_transfer','marga_book_export','generasi_recompute')),
+      actor_email TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_transfer_log_created ON transfer_log(created_at);
   `);
 }
 
@@ -175,12 +186,10 @@ let seeded = false;
 function seedDefaultData(db: Database.Database) {
   if (seeded) return;
 
-  const permCount = db.prepare('SELECT COUNT(*) as c FROM rbac_permissions').get() as { c: number };
-  if (permCount.c > 0) {
-    seeded = true;
-    return;
-  }
-
+  // INSERT OR IGNORE memakai constraint UNIQUE(role, permission):
+  // - database baru: semua permission default terisi
+  // - database lama: permission baru (mis. view_marga_book, transfer_data)
+  //   otomatis ditambahkan tanpa menimpa penyesuaian admin
   const insertPerm = db.prepare(
     'INSERT OR IGNORE INTO rbac_permissions (id, role, permission, allowed) VALUES (?, ?, ?, ?)'
   );
@@ -193,7 +202,7 @@ function seedDefaultData(db: Database.Database) {
   const allPerms: { role: string; permission: string; allowed: boolean }[] = [];
   for (const [role, permissions] of Object.entries(DEFAULT_PERMISSIONS)) {
     const permSet = new Set(permissions);
-    for (const perm of ['view_tree','search','view_profile','view_bagans','view_marriages','create_person','edit_person','delete_person','create_marriage','edit_marriage','delete_marriage','export','manage_users','manage_permissions','view_admin','view_heritage','create_heritage','edit_heritage','delete_heritage']) {
+    for (const perm of ALL_PERMISSIONS) {
       allPerms.push({ role, permission: perm, allowed: permSet.has(perm) });
     }
   }
@@ -673,7 +682,7 @@ export function createOralHistory(db: Database.Database, data: import('@/types')
   db.prepare(`
     INSERT INTO oral_histories (id, person_id, category, title, content, source_person_name, recorded_date, is_verified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(data.id, data.person_id, data.category, data.title, data.content, data.source_person_name || null, data.recorded_date ?? null, data.is_verified ? 1 : 0);
+  `).run(data.id, data.person_id, data.category, data.title, data.content ?? '', data.source_person_name || null, data.recorded_date ?? null, data.is_verified ? 1 : 0);
   return getOralHistoryById(db, data.id);
 }
 
@@ -733,7 +742,7 @@ export function createPusakaItem(db: Database.Database, data: import('@/types').
   db.prepare(`
     INSERT INTO pusaka_items (id, person_id, name, type, description, origin, image, passed_from_person_id, year_acquired, is_sacred)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(data.id, data.person_id, data.name, data.type, data.description, data.origin, data.image ?? null, data.passed_from_person_id ?? null, data.year_acquired ?? null, data.is_sacred ? 1 : 0);
+  `).run(data.id, data.person_id, data.name, data.type, data.description ?? '', data.origin ?? '', data.image ?? null, data.passed_from_person_id ?? null, data.year_acquired ?? null, data.is_sacred ? 1 : 0);
   return getPusakaById(db, data.id);
 }
 
@@ -821,6 +830,150 @@ export function wouldCreateCycle(db: Database.Database, parentId: string, childI
     return false;
   }
   return walkUp(parentId);
+}
+
+// ============================================================================
+// TRANSFER LOG — audit trail operasi transfer (ekspor/impor/pusaka)
+// ============================================================================
+
+export function addTransferLog(
+  db: Database.Database,
+  data: { kind: import('@/types').TransferLogKind; actor_email: string; summary: string; details?: Record<string, unknown> },
+): import('@/types').TransferLogEntry {
+  const id = crypto.randomUUID();
+  db.prepare(
+    'INSERT INTO transfer_log (id, kind, actor_email, summary, details) VALUES (?, ?, ?, ?, ?)'
+  ).run(id, data.kind, data.actor_email, data.summary, JSON.stringify(data.details ?? {}));
+  const row = db.prepare('SELECT * FROM transfer_log WHERE id = ?').get(id) as import('@/types').TransferLogEntry;
+  return row;
+}
+
+export function getTransferLogs(db: Database.Database, limit = 100): import('@/types').TransferLogEntry[] {
+  return db.prepare('SELECT * FROM transfer_log ORDER BY created_at DESC, id DESC LIMIT ?').all(limit) as import('@/types').TransferLogEntry[];
+}
+
+/**
+ * Transfer kepemilikan pusaka ke pemegang baru.
+ * Pemegang lama otomatis tercatat sebagai passed_from (riwayat pewarisan).
+ * Setiap transfer tercatat di transfer_log (audit trail).
+ */
+export function transferPusakaItem(db: Database.Database, pusakaId: string, toPersonId: string, actorEmail: string) {
+  const pusaka = getPusakaById(db, pusakaId);
+  if (!pusaka) return { error: 'Pusaka tidak ditemukan' as const };
+
+  const to = getPersonById(db, toPersonId);
+  if (!to) return { error: 'Orang tujuan tidak ditemukan' as const };
+  if (pusaka.person_id === toPersonId) return { error: 'Pusaka sudah berada pada pemegang tersebut' as const };
+
+  const from = getPersonById(db, pusaka.person_id);
+
+  const tx = db.transaction(() => {
+    db.prepare(`
+      UPDATE pusaka_items
+      SET passed_from_person_id = person_id, person_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(toPersonId, pusakaId);
+    addTransferLog(db, {
+      kind: 'pusaka_transfer',
+      actor_email: actorEmail,
+      summary: `Pusaka "${pusaka.name}" dipindahkan dari ${from?.nama ?? '?'} ke ${to.nama}`,
+      details: {
+        pusaka_id: pusakaId,
+        pusaka_nama: pusaka.name,
+        dari_person_id: pusaka.person_id,
+        dari_nama: from?.nama ?? null,
+        ke_person_id: toPersonId,
+        ke_nama: to.nama,
+      },
+    });
+  });
+  tx();
+
+  return { item: getPusakaById(db, pusakaId) };
+}
+
+// ============================================================================
+// BUKU MARGA — statistik direktori marga & rekomputasi generasi
+// ============================================================================
+
+/**
+ * Direktori marga: statistik agregat per marga (dari data persons).
+ * Marga dinormalisasi untuk pengelompokan, label asli dipertahankan.
+ */
+export function getMargaDirectory(db: Database.Database, margaUtama: string): import('@/types').MargaDirectoryEntry[] {
+  const rows = db.prepare(`
+    SELECT marga_asal, COUNT(*) as jumlah,
+      SUM(CASE WHEN jenis_kelamin = 'L' THEN 1 ELSE 0 END) as laki_laki,
+      SUM(CASE WHEN jenis_kelamin = 'P' THEN 1 ELSE 0 END) as perempuan,
+      SUM(CASE WHEN tanggal_kematian IS NOT NULL THEN 1 ELSE 0 END) as wafat,
+      SUM(CASE WHEN tanggal_kematian IS NULL THEN 1 ELSE 0 END) as hidup,
+      MIN(nomor_generasi) as generasi_min,
+      MAX(nomor_generasi) as generasi_max
+    FROM persons
+    WHERE TRIM(marga_asal) != ''
+    GROUP BY LOWER(REPLACE(REPLACE(TRIM(marga_asal), ' ', ''), '-', ''))
+    ORDER BY jumlah DESC, marga_asal ASC
+  `).all() as (Omit<import('@/types').MargaDirectoryEntry, 'subetnis' | 'is_utama'> & { marga_asal: string })[];
+
+  const utamaNorm = normalizeMarga(margaUtama);
+  return rows.map((r) => ({
+    marga: r.marga_asal,
+    jumlah: r.jumlah,
+    laki_laki: r.laki_laki,
+    perempuan: r.perempuan,
+    hidup: r.hidup,
+    wafat: r.wafat,
+    generasi_min: r.generasi_min,
+    generasi_max: r.generasi_max,
+    subetnis: null,
+    is_utama: utamaNorm ? normalizeMarga(r.marga_asal) === utamaNorm : false,
+  }));
+}
+
+/**
+ * Rekomputasi nomor_generasi seluruh silsilah:
+ * generasi = 1 + max(generasi orang tua). Akar (tanpa orang tua) = 1.
+ * Mengembalikan jumlah baris yang dikoreksi — menjaga konsistensi Buku Marga.
+ */
+export function recomputeGenerations(db: Database.Database): { checked: number; corrected: number } {
+  const persons = getPersons(db);
+  const parentsOf = new Map<string, string[]>();
+  for (const pc of db.prepare('SELECT parent_id, child_id FROM parent_child').all() as { parent_id: string; child_id: string }[]) {
+    const list = parentsOf.get(pc.child_id) || [];
+    list.push(pc.parent_id);
+    parentsOf.set(pc.child_id, list);
+  }
+
+  const genCache = new Map<string, number>();
+  const visiting = new Set<string>();
+
+  function genOf(id: string): number {
+    const cached = genCache.get(id);
+    if (cached != null) return cached;
+    if (visiting.has(id)) return 1; // pengaman siklus (seharusnya tak mungkin)
+    visiting.add(id);
+    const parents = parentsOf.get(id) || [];
+    let g = 1;
+    for (const pid of parents) g = Math.max(g, genOf(pid) + 1);
+    visiting.delete(id);
+    genCache.set(id, g);
+    return g;
+  }
+
+  let corrected = 0;
+  const tx = db.transaction(() => {
+    const upd = db.prepare("UPDATE persons SET nomor_generasi = ?, updated_at = datetime('now') WHERE id = ?");
+    for (const p of persons) {
+      const g = genOf(p.id);
+      if (g !== p.nomor_generasi) {
+        upd.run(g, p.id);
+        corrected++;
+      }
+    }
+  });
+  tx();
+
+  return { checked: persons.length, corrected };
 }
 
 // ============================================================================

@@ -170,9 +170,9 @@ export interface PersonDetailResponse extends Person {
 }
 
 export const DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
-  viewer: ['view_tree', 'search'],
-  editor: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage'],
-  admin: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'manage_users', 'manage_permissions', 'view_admin', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage'],
+  viewer: ['view_tree', 'search', 'view_marga_book'],
+  editor: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage', 'view_marga_book'],
+  admin: ['view_tree', 'search', 'view_profile', 'view_bagans', 'view_marriages', 'create_person', 'edit_person', 'delete_person', 'create_marriage', 'edit_marriage', 'delete_marriage', 'export', 'manage_users', 'manage_permissions', 'view_admin', 'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage', 'view_marga_book', 'transfer_data'],
 };
 
 export const ALL_PERMISSIONS = [
@@ -181,6 +181,7 @@ export const ALL_PERMISSIONS = [
   'create_marriage', 'edit_marriage', 'delete_marriage',
   'export', 'manage_users', 'manage_permissions', 'view_admin',
   'view_heritage', 'create_heritage', 'edit_heritage', 'delete_heritage',
+  'view_marga_book', 'transfer_data',
 ];
 
 // ---- Oral History (Turian) ----
@@ -283,4 +284,153 @@ export const PERMISSION_LABELS: Record<string, string> = {
   create_heritage: 'Tambah Warisan Budaya',
   edit_heritage: 'Edit Warisan Budaya',
   delete_heritage: 'Hapus Warisan Budaya',
+  view_marga_book: 'Lihat Buku Marga',
+  transfer_data: 'Transfer Data (Ekspor/Impor)',
 };
+
+// ============================================================================
+// BUKU MARGA — buku silsilah digital (format buku tarombo tradisional)
+// ============================================================================
+
+/** Satu entri dalam Buku Marga (anggota garis marga) */
+export interface MargaBookEntry {
+  id: string;
+  /** Penomoran hierarkis ala buku tarombo, mis. "1.2.3" (jalur keturunan) */
+  nomor_buku: string;
+  nama: string;
+  nama_panggilan: string;
+  jenis_kelamin: Gender;
+  marga: string;
+  tanggal_lahir: string | null;
+  tempat_lahir: string;
+  tanggal_kematian: string | null;
+  status_pernikahan: MaritalStatus;
+  ayah_id: string | null;
+  ayah_nama: string | null;
+  /** Pasangan aktif (boru/doli dari marga lain) */
+  pasangan: { id: string; nama: string; marga: string } | null;
+  jumlah_anak: number;
+}
+
+/** Satu generasi dalam Buku Marga */
+export interface MargaBookGeneration {
+  generasi: number;
+  /** Label generasi, mis. "Generasi I — Leluhur Marga" */
+  label: string;
+  jumlah: number;
+  jumlah_laki: number;
+  jumlah_perempuan: number;
+  jumlah_wafat: number;
+  entries: MargaBookEntry[];
+}
+
+/** Buku Marga lengkap untuk satu marga */
+export interface MargaBook {
+  marga: string;
+  subetnis: string | null;
+  total_anggota: number;
+  jumlah_generasi: number;
+  lahir_terawal: string | null;
+  lahir_terakhir: string | null;
+  generations: MargaBookGeneration[];
+}
+
+/** Entri direktori marga (statistik per marga dari data) */
+export interface MargaDirectoryEntry {
+  marga: string;
+  jumlah: number;
+  laki_laki: number;
+  perempuan: number;
+  hidup: number;
+  wafat: number;
+  generasi_min: number;
+  generasi_max: number;
+  subetnis: string | null;
+  is_utama: boolean;
+}
+
+// ============================================================================
+// TRANSFER — ekspor/impor data & transfer pusaka
+// ============================================================================
+
+/** Jenis operasi transfer yang tercatat di log */
+export type TransferLogKind =
+  | 'export_json'
+  | 'export_gedcom'
+  | 'import_json'
+  | 'import_csv'
+  | 'import_gedcom'
+  | 'pusaka_transfer'
+  | 'marga_book_export'
+  | 'generasi_recompute';
+
+/** Satu baris riwayat transfer (audit trail) */
+export interface TransferLogEntry {
+  id: string;
+  kind: TransferLogKind;
+  actor_email: string;
+  summary: string;
+  details: string;
+  created_at: string;
+}
+
+/** Payload ekspor lengkap (backup) — versi 2 */
+export interface TransferExportData {
+  format: 'tarombo-export';
+  version: 2;
+  exported_at: string;
+  app: { nama: string; marga_utama: string };
+  counts: {
+    persons: number;
+    partnerships: number;
+    parent_child: number;
+    oral_histories: number;
+    pusaka_items: number;
+  };
+  persons: Person[];
+  partnerships: Partnership[];
+  parent_child: ParentChild[];
+  oral_histories: OralHistory[];
+  pusaka_items: PusakaItem[];
+}
+
+/** Satu masalah (error/peringatan) hasil validasi impor */
+export interface ImportIssue {
+  index: number;
+  entity: string;
+  field?: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+/** Laporan validasi/terapkan impor */
+export interface ImportReport {
+  ok: boolean;
+  summary: {
+    persons: number;
+    partnerships: number;
+    parent_child: number;
+    oral_histories: number;
+    pusaka_items: number;
+    persons_baru: number;
+    persons_duplikat: number;
+  };
+  issues: ImportIssue[];
+}
+
+/** Hasil penerapan impor (mode apply) */
+export interface ImportResult extends ImportReport {
+  applied: boolean;
+  inserted: {
+    persons: number;
+    partnerships: number;
+    parent_child: number;
+    oral_histories: number;
+    pusaka_items: number;
+  };
+  updated: { persons: number };
+  skipped: { persons: number; partnerships: number; parent_child: number; oral_histories: number; pusaka_items: number };
+}
+
+/** Strategi penanganan konflik ID saat impor */
+export type ImportStrategy = 'skip' | 'overwrite';

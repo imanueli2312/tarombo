@@ -9,7 +9,7 @@ export function parseDate(value: string | null | undefined): Date | null {
   // Reject invalid dates (NaN) and dates that don't match the input
   if (isNaN(d.getTime())) return null;
   // Ensure the date string is a valid ISO-like date (YYYY-MM-DD)
-  if (!/^\\d{4}-\d{2}-\d{2}\b$/.test(value)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   return d;
 }
 
@@ -89,6 +89,11 @@ export const FIELD_LIMITS: Record<string, { max: number; label: string }> = {
   photo: { max: 500, label: 'Foto' },
   burial_nama: { max: 200, label: 'Nama tempat pemakaman' },
   burial_alamat: { max: 500, label: 'Alamat pemakaman' },
+  marga_asal: { max: 100, label: 'Marga asal' },
+  tempat_asal: { max: 200, label: 'Tempat asal' },
+  pendidikan: { max: 200, label: 'Pendidikan' },
+  pekerjaan: { max: 200, label: 'Pekerjaan' },
+  keterangan: { max: 2000, label: 'Keterangan' },
 };
 
 /** Validate a text field's length */

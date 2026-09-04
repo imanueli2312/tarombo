@@ -79,12 +79,13 @@ export async function POST(request: NextRequest) {
       person_id,
       name,
       type,
-      description,
-      origin,
-      image,
-      passed_from_person_id,
-      year_acquired,
-      is_sacred,
+      // Normalisasi undefined → nilai aman untuk binding SQLite
+      description: description ?? '',
+      origin: origin ?? '',
+      image: image ?? null,
+      passed_from_person_id: passed_from_person_id ?? null,
+      year_acquired: year_acquired ?? null,
+      is_sacred: is_sacred ?? false,
     });
 
     return NextResponse.json(created, { status: 201 });

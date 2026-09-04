@@ -10,19 +10,33 @@ dan shadcn/ui. Autentikasi JWT + RBAC tiga peran (viewer/editor/admin).
 ## Fitur Utama
 
 - **Pohon keluarga interaktif** (D3) dengan pasangan & generasi otomatis.
+- **Buku Marga** — buku silsilah digital ala tarombo tradisional: anggota
+  garis marga per generasi dengan penomoran hierarkis keturunan, direktori
+  marga beserta statistik, sinkronisasi generasi, serta ekspor siap-cetak
+  (HTML/PDF) dan JSON.
+- **Transfer data** — backup JSON lengkap, impor JSON/CSV/GEDCOM 5.5.1
+  dengan validasi ketat & mode dry-run, serta kompatibel dengan aplikasi
+  genealogi dunia. Lihat
+  [docs/BUKU_MARGA_TRANSFER.md](docs/BUKU_MARGA_TRANSFER.md).
+- **Transfer pusaka + audit trail** — pemindahan kepemilikan pusaka dengan
+  riwayat pewarisan otomatis dan log seluruh operasi transfer.
 - **Validasi Panduan Adat** — pernikahan semarga, saudara kandung, sepupu
   sejajar (dongan sabutuha), dan garis leluhur ditolak; pernikahan pariban
-  ditandai. Lihat [docs/PANDUAN_ADAT.md](docs/PANDUAN_ADAT.md).
+  ditandai (juga diberlakukan pada impor data). Lihat
+  [docs/PANDUAN_ADAT.md](docs/PANDUAN_ADAT.md).
 - **Pewarisan marga patrilineal** — marga anak otomatis mengikuti marga ayah.
 - **Dalihan Na Tolu hidup** — relasi Hula-hula/Boru/Dongan Sabutuha dihitung
   dari data silsilah dan tampil di detail setiap anggota.
 - **Warisan budaya** — pencatatan Turian (sejarah lisan) dan Pusaka benda
   warisan, termasuk penanda sakral dan rantai pewaris.
 - **Statistik keluarga** — distribusi generasi, usia, status pernikahan, marga.
-- **RBAC lengkap** — manajemen pengguna dan hak akses per peran.
+- **RBAC lengkap** — manajemen pengguna dan hak akses per peran (termasuk izin
+  baru `view_marga_book` & `transfer_data`, dimigrasikan otomatis ke basis
+  data lama tanpa menimpa penyesuaian admin).
 - **PWA** — dapat dipasang di perangkat; aset statis di-cache, **data API
   tidak pernah di-cache**.
-- **Ekspor** — PDF/PNG pohon keluarga.
+- **Ekspor** — PDF/PNG pohon keluarga, JSON backup, GEDCOM, dan Buku Marga
+  siap cetak.
 
 ## Setup Cepat
 
@@ -67,6 +81,9 @@ Ringkasan yang diterapkan di versi ini:
   meninggalkan jejak di Cache Storage setelah logout).
 - **Manajemen pengguna**: validasi email/password (min 8, huruf+angka),
   proteksi admin terakhir, email unik case-insensitive.
+- **Impor data (transfer)**: izin khusus + rate limit, batas ukuran 5 MB &
+  10.000 entitas, mode dry-run, transaksi atomik, validasi lintas-referensi
+  (termasuk siklus, monogami, dan adat eksogami marga).
 - **Kebersihan repo**: database SQLite, `.env*`, dan berkas kerja tidak
   lagi dilacak git.
 - **Error handling**: detail internal tidak dibocorkan ke klien (log sisi server).
@@ -81,11 +98,15 @@ Ringkasan yang diterapkan di versi ini:
 
 ```
 src/
-  app/api/            # Route handlers (persons, partnerships, heritage, auth, rbac)
-  components/features # UI per fitur (tree, search, heritage, adat, admin, ...)
-  lib/                # batak-culture, adat-rules, auth, db, validation, rate-limit
+  app/api/            # Route handlers (persons, partnerships, heritage, auth,
+                      # rbac, marga-book, transfer, pusaka transfer)
+  components/features # UI per fitur (tree, search, heritage, adat, marga-book,
+                      # transfer, admin, ...)
+  lib/                # batak-culture, adat-rules, auth, db, validation,
+                      # rate-limit, marga-book, transfer
   types/              # Tipe bersama + matriks RBAC default
-docs/PANDUAN_ADAT.md  # Panduan Adat lengkap (rujukan aturan yang divalidasi)
+docs/PANDUAN_ADAT.md           # Panduan Adat lengkap (rujukan aturan yang divalidasi)
+docs/BUKU_MARGA_TRANSFER.md    # Dokumentasi fitur Buku Marga & Transfer
 ```
 
 ## Skrip
