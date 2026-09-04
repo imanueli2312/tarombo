@@ -1,0 +1,27 @@
+# Normalisasi akhir baris — menjaga konsistensi lintas Windows/Linux/macOS.
+# Latar: pengguna Windows (Git for Windows default autocrlf) mendapatkan CRLF
+# di file teks saat checkout. File di bawah WAJIB tetap LF karena dieksekusi
+# di Linux/container (WSL, Dockerfile, Caddyfile, skrip .sh/.mjs).
+
+# Git mendeteksi teks vs biner secara otomatis; commit selalu dinormalisasi LF.
+* text=auto
+
+# Wajib LF di checkout (dieksekusi oleh bash / docker / caddy di Linux):
+*.sh   text eol=lf
+*.mjs  text eol=lf
+Dockerfile   text eol=lf
+Caddyfile    text eol=lf
+docker-compose.yml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+
+# File konfigurasi yang sensitif terhadap trailing whitespace:
+*.editorconfig text eol=lf
+*.gitattributes text eol=lf
+*.gitignore text eol=lf
+
+# Biner — jangan pernah dinormalisasi:
+*.png  binary
+*.jpg  binary
+*.db   binary
+*.node binary

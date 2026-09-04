@@ -55,16 +55,21 @@ bun run dev
 Buka `http://localhost:3000`. Saat pertama kali dimuat, admin awal dan leluhur
 akar (Raja Hariandja) dibuat otomatis.
 
+> Bekerja dari **Windows 11 + VS Code**? Mulai dari panduan khusus:
+> [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) → *Opsi D* (WSL2, native bun,
+> dan Remote-SSH).
+
 ## Go-Live / Produksi
 
-Aplikasi ini siap produksi. Tiga opsi deployment — panduan lengkap langkah
-per langkah di **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**:
+Aplikasi ini siap produksi. Panduan lengkap langkah per langkah di
+**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**:
 
 | Opsi | Cocok untuk | Ringkas |
 |---|---|---|
 | **Docker Compose** (direkomendasikan) | VPS/server sendiri | `cp .env.example .env` → isi 2 variabel wajib → `docker compose up -d --build`. Termasuk Caddy + TLS otomatis, healthcheck, dan rotasi log. |
 | **Server/VPS langsung** | Tanpa Docker | `bun run build` + `start:prod`, contoh unit systemd tersedia. |
 | **Serverless (Vercel dll.)** | Demo/staging SAJA | SQLite filesystem efemeral — data tidak persisten. |
+| **Windows 11 + VS Code** | Bekerja dari PC Windows | Workstation WSL2/native bun + deploy via Remote-SSH — lihat *Opsi D* di panduan deployment. |
 
 Infrastruktur produksi yang sudah tersedia di repo:
 
@@ -74,6 +79,9 @@ Infrastruktur produksi yang sudah tersedia di repo:
 - `scripts/backup-db.mjs` — backup online SQLite (aman saat app berjalan) + prune otomatis
 - `.github/workflows/ci.yml` — CI: typecheck + lint + build setiap push/PR
 - `/api/health` — endpoint monitoring (status DB, uptime, versi)
+- `.vscode/extensions.json` + `.gitattributes` — dukungan workstation
+  Windows 11/VS Code (ekstensi direkomendasikan otomatis, akhir baris aman
+  lintas OS)
 
 ## Environment
 

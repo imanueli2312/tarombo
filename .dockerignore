@@ -1,10 +1,12 @@
 # Berkas yang tidak perlu masuk konteks build Docker.
 # Menjaga image kecil dan build cepat + mencegah data sensitif ter-copy.
 
-# VCS
+# VCS & konfigurasi editor
 .git
 .gitignore
+.gitattributes
 .github
+.vscode
 
 # Dependensi & hasil build (diproduksi ulang di dalam image)
 node_modules

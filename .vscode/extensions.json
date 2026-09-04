@@ -1,0 +1,14 @@
+{
+  // Ekstensi VS Code yang direkomendasikan untuk proyek Tarombo.
+  // VS Code menawarkan instalasi otomatis saat pertama kali membuka folder ini.
+  // Panduan lengkap: docs/DEPLOYMENT.md (Opsi D — Windows 11 + VS Code).
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "oven.bun-vscode",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-ssh",
+    "ms-vscode-remote.remote-wsl",
+    "eamodio.gitlens"
+  ]
+}

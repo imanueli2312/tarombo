@@ -743,3 +743,24 @@ Stage Summary:
 - Runtime container Node LTS (build tetap bun) — dipilih setelah bukti smoke test (node stabil, bun SIGILL di beberapa kernel sandbox)
 - Monitoring siap: /api/health + healthcheck Docker + panduan uptime monitor
 - Data keluarga terlindungi: volume persisten + skrip backup online + panduan restore yang teruji
+
+---
+Task ID: docs-windows-vscode-1
+Agent: Main
+Task: Perbarui dokumentasi dengan panduan deploy menggunakan Visual Studio Code IDE dan Windows 11
+
+Work Log:
+- Tambah seksi baru "5. Opsi D — Deploy dari Windows 11 dengan Visual Studio Code" di docs/DEPLOYMENT.md (8 subseksi: prasyarat winget, ekstensi VS Code, kloning WSL2/native, environment & secret PowerShell/Git Bash, development lokal, uji produksi lokal via native + Docker Desktop dengan compose override, deploy Remote-SSH / git push, troubleshooting Windows)
+- Renumbering seksi 5-10 menjadi 6-11 + Daftar Isi diperbarui (11 entri, semua anchor terverifikasi dengan algoritma slug GitHub)
+- Perbaiki referensi silang §6 → §7 (pulihkan dari backup)
+- Buat .vscode/extensions.json (7 ekstensi direkomendasikan: ESLint, Tailwind CSS IntelliSense, Bun, Docker, Remote-SSH, Remote-WSL, GitLens) — JSONC valid
+- Buat .gitattributes (LF wajib untuk *.sh/*.mjs/Dockerfile/Caddyfile/*.yml/*.json, biner untuk png/db/node; mencegah CRLF Windows merusak skrip Linux/container)
+- Update .gitignore: tambah docker-compose.override.yml (file override lokal untuk uji port di PC, tidak di-commit)
+- Update .dockerignore: keluarkan .git, .gitattributes, .vscode dari konteks build image
+- Update README.md: baris opsi "Windows 11 + VS Code" di tabel deployment + catatan blokquote di Setup Cepat + bullet infrastruktur (.vscode/extensions.json + .gitattributes)
+- Validasi: JSONC extensions.json valid, 11 anchor TOC cocok semua heading, tsc --noEmit 0 error, git status bersih (tanpa diff renormalisasi CRLF)
+
+Stage Summary:
+- docs/DEPLOYMENT.md kini memuat 4 opsi deployment (A Docker Compose, B VPS langsung, C Serverless, D Windows 11 + VS Code)
+- Workstation Windows 11 + VS Code kini didukung penuh: ekstensi direkomendasikan otomatis, akhir baris aman lintas OS, override compose lokal di-gitignore
+- Panduan mencakup 3 jalur kerja (WSL2 direkomendasikan, native bun, Remote-SSH untuk operasional produksi) + 9 baris troubleshooting spesifik Windows

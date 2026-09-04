@@ -1,8 +1,9 @@
 # Panduan Go-Live / Deployment Produksi
 
 Panduan lengkap membawa Tarombo dari repositori ke produksi, termasuk
-deployment Docker, reverse proxy TLS, backup terjadwal, dan checklist
-sebelum (serta sesudah) go-live.
+deployment Docker, reverse proxy TLS, backup terjadwal, checklist sebelum
+(serta sesudah) go-live, dan panduan khusus bekerja dari **Windows 11 dengan
+Visual Studio Code**.
 
 > **Prasyarat baca**: [README.md](../README.md) untuk gambaran aplikasi dan
 > [BUKU_MARGA_TRANSFER.md](BUKU_MARGA_TRANSFER.md) untuk fitur transfer data.
@@ -15,12 +16,13 @@ sebelum (serta sesudah) go-live.
 2. [Opsi A — Docker Compose (Direkomendasikan)](#2-opsi-a--docker-compose-direkomendasikan)
 3. [Opsi B — Server/VPS Langsung](#3-opsi-b--servervps-langsung)
 4. [Opsi C — Platform Serverless (Vercel dll.)](#4-opsi-c--platform-serverless-vercel-dll)
-5. [Monitoring & Health Check](#5-monitoring--health-check)
-6. [Backup & Restore Database](#6-backup--restore-database)
-7. [Upgrade Aplikasi (Zero Data Loss)](#7-upgrade-aplikasi-zero-data-loss)
-8. [Checklist Go-Live](#8-checklist-go-live)
-9. [Sesudah Go-Live (Hari-1)](#9-sesudah-go-live-hari-1)
-10. [Pemecahan Masalah](#10-pemecahan-masalah)
+5. [Opsi D — Deploy dari Windows 11 dengan Visual Studio Code](#5-opsi-d--deploy-dari-windows-11-dengan-visual-studio-code)
+6. [Monitoring & Health Check](#6-monitoring--health-check)
+7. [Backup & Restore Database](#7-backup--restore-database)
+8. [Upgrade Aplikasi (Zero Data Loss)](#8-upgrade-aplikasi-zero-data-loss)
+9. [Checklist Go-Live](#9-checklist-go-live)
+10. [Sesudah Go-Live (Hari-1)](#10-sesudah-go-live-hari-1)
+11. [Pemecahan Masalah](#11-pemecahan-masalah)
 
 ---
 
@@ -231,7 +233,264 @@ dengan antarmuka yang sama.
 
 ---
 
-## 5. Monitoring & Health Check
+## 5. Opsi D — Deploy dari Windows 11 dengan Visual Studio Code
+
+Panduan khusus bagi pengembang/pengelola yang bekerja dari PC **Windows 11**
+dengan **Visual Studio Code (VS Code)**. Prinsip dasarnya: Windows + VS Code
+adalah *workstation* (menulis kode, menguji, dan mengoperasikan server dari
+jauh), sementara *runtime produksi* tetap server Linux (Opsi A/B) — sehingga
+lingkungan build dan cara kerja aplikasi identik dengan produksi.
+
+Tiga jalur kerja yang dibahas di bagian ini:
+
+| Jalur | Cocok untuk | Keterangan |
+|---|---|---|
+| **WSL2 + VS Code** (direkomendasikan) | Development & build di PC | Ubuntu di dalam Windows; toolchain identik dengan server |
+| **Native Windows (bun)** | Development cepat tanpa WSL | bun menyediakan shell lintas-platform untuk skrip repo |
+| **Remote-SSH ke server** | Operasional & deploy produksi | VS Code tersambung langsung ke VPS |
+
+### 5.1 Instalasi prasyarat (Windows 11)
+
+Semua prasyarat dapat dipasang lewat `winget` dari PowerShell (jalankan
+sebagai user biasa; buka PowerShell dari Start menu):
+
+```powershell
+# Visual Studio Code
+winget install Microsoft.VisualStudioCode
+
+# Git for Windows (menyertakan Git Bash + openssl)
+winget install Git.Git
+
+# WSL2 + Ubuntu (wajib restart PC sekali setelahnya)
+wsl --install -d Ubuntu-24.04
+
+# Runtime: bun (instaler resmi untuk PowerShell)
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+# ... dan/atau Node.js LTS (menjalankan hasil build secara native)
+winget install OpenJS.NodeJS.LTS
+
+# Docker Desktop (opsional — untuk uji stack compose secara lokal)
+winget install Docker.DockerDesktop
+```
+
+Catatan instalasi:
+
+- **WSL2**: setelah `wsl --install`, restart PC lalu buka aplikasi Ubuntu
+  sekali untuk membuat user Linux. Virtualisasi harus aktif (biasanya sudah
+  default pada PC modern; cek di BIOS/UEFI bila gagal).
+- **Docker Desktop**: pilih backend **WSL 2** saat diminta. Jalankan
+  `wsl --update` bila Docker Desktop melaporkan masalah WSL.
+- **bun vs Node**: keduanya boleh terpasang bersamaan — bun untuk
+  `bun install`/`bun run build` (identik dengan CI dan image Docker), Node
+  opsional untuk menjalankan `server.js` secara native.
+- **curl**: Windows 11 sudah menyertakan `curl.exe` asli (bukan alias
+  PowerShell). Di PowerShell, ketik `curl.exe` secara eksplisit agar tidak
+  teralihkan ke `Invoke-WebRequest`.
+
+### 5.2 Ekstensi VS Code yang direkomendasikan
+
+Repositori menyertakan `.vscode/extensions.json` — saat pertama kali membuka
+folder proyek, VS Code menampilkan notifikasi *"Do you trust the authors..."*
+pilih **Yes, I trust**, lalu tawaran *"Do you want to install the recommended
+extensions?"* → pilih **Install**. Semua ekstensi penting terpasang otomatis:
+
+| Ekstensi | ID | Fungsi |
+|---|---|---|
+| ESLint | `dbaeumer.vscode-eslint` | Sorot error lint langsung di editor |
+| Tailwind CSS IntelliSense | `bradlc.vscode-tailwindcss` | Autocomplete class Tailwind 4 |
+| Bun for Visual Studio Code | `oven.bun-vscode` | Runner & debugger untuk proses bun |
+| Docker | `ms-azuretools.vscode-docker` | Kelola image/container/compose dari sidebar |
+| Remote - SSH | `ms-vscode-remote.remote-ssh` | Buka folder di server produksi (§5.7) |
+| Remote - WSL | `ms-vscode-remote.remote-wsl` | Integrasi editor ↔ WSL2 |
+| GitLens | `eamodio.gitlens` | Histori git, blame, dan compare di editor |
+
+Instalasi manual (bila notifikasi tidak muncul): buka Command Palette
+(`F1` atau `Ctrl+Shift+P`) → **Extensions: Show Recommended Extensions**.
+
+### 5.3 Mengkloning dan membuka proyek
+
+**Jalur WSL2 (direkomendasikan)** — simpan repo di filesystem Linux
+(di dalam `~/`), bukan di `\\wsl$\...` dari sisi Windows, agar I/O cepat:
+
+```bash
+# dari terminal Ubuntu (aplikasi "Ubuntu" di Start menu)
+git clone https://github.com/imanueli2312/tarombo.git ~/tarombo
+cd ~/tarombo
+code .        # VS Code terbuka terhubung ke WSL (WSL: Reopen in WSL)
+```
+
+**Jalur native Windows:**
+
+```powershell
+git clone https://github.com/imanueli2312/tarombo.git C:\dev\tarombo
+cd C:\dev\tarombo
+code .
+```
+
+> **Akhir baris (CRLF/LF)**: repositori menyertakan `.gitattributes` yang
+> memaksa LF untuk `*.sh`, `Dockerfile`, `Caddyfile`, dan `*.mjs` — skrip
+> tetap valid dieksekusi di Linux/container meski dikloning dari Windows.
+
+### 5.4 Environment & secret dari Windows
+
+Salin template lalu isi (gunakan VS Code atau perintah berikut):
+
+```powershell
+copy .env.example .env.local    # untuk development
+copy .env.example .env          # untuk docker compose lokal
+```
+
+Generate `JWT_SECRET` minimal 32 karakter — dua cara setara:
+
+```bash
+# Git Bash (openssl bawaan Git for Windows):
+openssl rand -hex 32
+```
+
+```powershell
+# PowerShell — tanpa dependensi, memakai CSPRNG Windows:
+$b = New-Object byte[] 32
+[Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($b)
+-join ($b | ForEach-Object { $_.ToString('x2') })
+```
+
+Perbedaan sintaks variabel lingkungan yang sering menjegal pengguna baru:
+
+| Aksi | bash (WSL / Git Bash / server) | PowerShell |
+|---|---|---|
+| Set untuk sesi terminal | `export NODE_ENV=production` | `$env:NODE_ENV = "production"` |
+| Jalankan satu perintah | `NODE_ENV=production node server.js` | `$env:NODE_ENV="production"; node server.js` |
+| Baca nilai | `echo $NODE_ENV` | `$env:NODE_ENV` |
+
+> Catatan: `bun run start:prod` tetap bisa dijalankan langsung dari
+> PowerShell — bun memakai shell bawaannya sendiri yang memahami prefix
+> `VAR=nilai` lintas-platform, jadi skrip `package.json` tidak perlu diubah.
+
+### 5.5 Menjalankan development di PC
+
+```bash
+bun install
+bun run dev          # buka http://localhost:3000
+```
+
+Saat pertama kali dimuat, admin development + leluhur akar (Raja Hariandja)
+dibuat otomatis (lihat [README](../README.md)). Untuk debugging:
+
+- **Sisi klien**: Chrome/Edge DevTools (`F12` → Sources → breakpoint).
+- **Sisi server (bun)**: gunakan ekstensi *Bun for Visual Studio Code*
+  (Run & Debug → jalankan dengan bun) atau Chrome DevTools via `--inspect`.
+
+### 5.6 Menguji produksi secara lokal (sebelum go-live)
+
+**a) Build + jalankan native (WSL, atau Windows dengan bun):**
+
+```bash
+bun run build
+bun run start:prod                     # via shell bun
+```
+
+```powershell
+# alternatif PowerShell + Node (hasil build yang sama):
+$env:NODE_ENV="production"
+node .next/standalone/server.js
+```
+
+Database lokal dibuat di `db/tarombo.db` (sudah di-`.gitignore`, tidak akan
+ter-commit). Verifikasi: buka `http://localhost:3000/api/health`.
+
+**b) Uji stack lengkap dengan Docker Desktop:**
+
+Service `app` di `docker-compose.yml` hanya `expose` (internal) — untuk uji
+lokal, buat `docker-compose.override.yml` di root proyek (file ini khusus
+PC Anda, **tidak di-commit** — sudah masuk `.gitignore`):
+
+```yaml
+services:
+  app:
+    ports:
+      - "3000:3000"
+```
+
+Lalu jalankan hanya service `app` (tanpa Caddy):
+
+```powershell
+docker compose up -d --build app
+
+# cek kesehatan (pakai curl.exe eksplisit di PowerShell):
+curl.exe http://localhost:3000/api/health
+
+# seed data UJI (bukan produksi):
+docker compose exec app node -e "fetch('http://localhost:3000/api/seed',{method:'POST'}).then(r=>r.json()).then(console.log)"
+```
+
+Login di `http://localhost:3000` tetap berfungsi meskipun cookie bertanda
+`Secure` — browser memperlakukan `localhost` sebagai konteks aman.
+
+Setelah selesai menguji: `docker compose down`. Volume `app-data` lokal hanya
+berisi data uji dan boleh dihapus dengan `docker compose down -v` —
+**jangan pernah menjalankan `down -v` di server produksi**.
+
+### 5.7 Deploy ke server produksi dari VS Code
+
+Server produksi tetap disiapkan mengikuti **Opsi A** (Docker Compose) atau
+**Opsi B** (VPS langsung). Dari Windows, ada dua jalur operasional:
+
+**Jalur 1 — Remote-SSH (paling nyaman, direkomendasikan):**
+
+1. Siapkan kunci SSH sekali di PC (Windows 11 sudah menyertakan OpenSSH
+   client): `ssh-keygen -t ed25519` lalu salin kunci publik ke server —
+   dari **Git Bash**: `ssh-copy-id user@ip-server` (jika `ssh-copy-id`
+   tidak tersedia, dari **cmd**: `type %USERPROFILE%\.ssh\id_ed25519.pub |
+   ssh user@ip-server "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`).
+2. Di VS Code: `F1` → **Remote-SSH: Connect to Host** → `user@ip-server`.
+3. **File → Open Folder** → `/opt/tarombo`.
+4. Terminal terintegrasi VS Code kini berjalan **di server** — lanjutkan
+   langkah Opsi A: edit `deploy/Caddyfile`, `git pull`,
+   `docker compose up -d --build`, seeding, dan cek `/api/health`.
+
+Editor, lint, dan terminal bekerja seolah-olah lokal, tetapi semua perintah
+dieksekusi di server produksi — tidak ada file yang perlu disalin manual.
+
+**Jalur 2 — git push + terminal SSH biasa:**
+
+```powershell
+# di PC Windows (folder proyek)
+git add -A
+git commit -m "perubahan terbaru"
+git push origin main
+ssh user@ip-server
+```
+
+```bash
+# di server (sesi SSH)
+cd /opt/tarombo
+git pull origin main
+docker compose up -d --build
+curl -s localhost:3000/api/health
+```
+
+> **Kebijakan secret**: generate `JWT_SECRET` **di server** (via sesi SSH:
+> `openssl rand -hex 32`) — jangan membuat secret produksi di file yang
+> tersinkron cloud atau ter-commit di repo.
+
+### 5.8 Masalah khas Windows & solusinya
+
+| Gejala | Penyebab & solusi |
+|---|---|
+| `docker` tidak jalan setelah install Docker Desktop | Backend WSL2 belum siap: jalankan `wsl --update`, restart Docker Desktop; pastikan virtualisasi aktif di BIOS/UEFI. |
+| Build gagal terkait `better-sqlite3`/MSVC di native Windows | Prebuilt `win32-x64` biasanya terpasang otomatis oleh `bun install`; bila terpaksa kompilasi (butuh VS Build Tools), solusi termudah: gunakan WSL2. |
+| Skrip `.sh` gagal: `bad interpreter ^M` | File lama ter-cache CRLF sebelum `.gitattributes` ada. Dari Git Bash/WSL: `git add --renormalize . && git checkout -- .` |
+| `NODE_ENV=production node ...` gagal di PowerShell | Prefix env hanya berlaku di bash/bun-shell → `$env:NODE_ENV="production"; node ...` |
+| Port 3000 sibuk | Cari pemakai: `netstat -ano | findstr :3000` → `taskkill /PID <pid> /F`, atau ganti `PORT`. |
+| WSL terasa lambat di VS Code | Repo dibuka dari sisi Windows (`\\wsl$\...`). Selalu buka dari dalam WSL: `cd ~/tarombo && code .` |
+| Login gagal saat uji Docker via IP LAN (bukan localhost) | Cookie `Secure` hanya dikirim lewat HTTPS/localhost — uji lewat `http://localhost:3000`, atau lewat Caddy+domain dengan TLS. |
+| `openssl` tidak dikenali di PowerShell | Git Bash punya openssl; atau pakai snippet PowerShell di §5.4. |
+| `curl` di PowerShell mengembalikan objek aneh | Itu alias `Invoke-WebRequest` — gunakan `curl.exe` eksplisit. |
+
+---
+
+## 6. Monitoring & Health Check
 
 ### Endpoint `/api/health`
 
@@ -274,7 +533,7 @@ saja — klien hanya pesan generik).
 
 ---
 
-## 6. Backup & Restore Database
+## 7. Backup & Restore Database
 
 ### Backup manual / terjadwal
 
@@ -326,7 +585,7 @@ curl -s https://domain-anda/api/health
 
 ---
 
-## 7. Upgrade Aplikasi (Zero Data Loss)
+## 8. Upgrade Aplikasi (Zero Data Loss)
 
 Data keluarga hidup di volume `app-data`, terpisah dari image — upgrade
 hanya mengganti kode:
@@ -356,7 +615,7 @@ keluarga; cukup jendela maintenance singkat.
 
 ---
 
-## 8. Checklist Go-Live
+## 9. Checklist Go-Live
 
 Tandai semua sebelum membuka akses publik:
 
@@ -389,7 +648,7 @@ Tandai semua sebelum membuka akses publik:
 
 ---
 
-## 9. Sesudah Go-Live (Hari-1)
+## 10. Sesudah Go-Live (Hari-1)
 
 1. **Ganti password admin** segera setelah login pertama.
 2. **Buat akun per-peran** untuk anggota keluarga (viewer/editor) — jangan
@@ -401,7 +660,7 @@ Tandai semua sebelum membuka akses publik:
 
 ---
 
-## 10. Pemecahan Masalah
+## 11. Pemecahan Masalah
 
 | Gejala | Kemungkinan & Solusi |
 |---|---|
@@ -411,7 +670,7 @@ Tandai semua sebelum membuka akses publik:
 | Sertifikat TLS tidak terbit | DNS domain belum menunjuk ke server, atau port 80/443 diblokir firewall. Cek `docker compose logs caddy`. |
 | `429 Terlalu banyak permintaan` setelah deploy | Rate limiter in-memory ter-reset saat restart — cukup tunggu 15 menit atau restart ulang. |
 | Impor transfer ditolak (5 MB / 10.000 entitas) | Batas by design; pecah file atau lakukan dry-run untuk melihat laporan validasi. |
-| Database terlihat "hilang" setelah `down` | `docker compose down` tidak menghapus volume. Bila terlanjur `down -v`, pulihkan dari backup (§6). |
+| Database terlihat "hilang" setelah `down` | `docker compose down` tidak menghapus volume. Bila terlanjur `down -v`, pulihkan dari backup (§7). |
 | Build Docker gagal di `bun install` | Prebuilt better-sqlite3 tidak tersedia untuk arsitektur Anda; gunakan image dasar yang sama (debian-based `oven/bun:1-slim`). |
 
 ---

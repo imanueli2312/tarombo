@@ -68,6 +68,10 @@ backups/
 .env*
 !.env.example
 
+# Override compose lokal (publish port untuk uji di PC — mis. Windows/Docker Desktop).
+# File khusus mesin, tidak untuk repo.
+docker-compose.override.yml
+
 # Artefak audit/alat & unggahan lokal
 tool-results/
 upload/
