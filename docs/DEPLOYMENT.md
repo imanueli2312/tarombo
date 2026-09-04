@@ -422,6 +422,15 @@ dan instalasi selesai dalam hitungan detik. `npm install` menghasilkan
 `package-lock.json` yang sengaja di-`.gitignore` (repo memakai `bun.lock`);
 biarkan file itu ada, jangan di-commit.
 
+> **Soal `npm audit`**: warning `deprecated` dan `allow-scripts` pada output
+> npm aman diabaikan (yang terakhir justru fitur keamanan — skrip instalasi
+> dilewati, binary tetap terpasang via *optionalDependencies*). Repo ini
+> dipelihara agar `npm audit` **0 vulnerability** — versi 0.5.0+ memakai
+> `sharp` 0.35.4 dan tanpa dependensi rentan yang tak terpakai. **Jangan**
+> menjalankan `npm audit fix --force`: bump mayor paket (recharts 3,
+> MDXEditor 4) dapat merusak aplikasi. Bila muncul temuan baru, naikkan
+> versi paket terkait secara terarah di `package.json` (lihat `overrides`).
+
 **Solusi 2 — bun dengan melewati skrip instalasi:**
 
 ```powershell
