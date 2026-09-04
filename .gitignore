@@ -60,6 +60,10 @@ db/*.db-shm
 db/*.db-wal
 db/*.sqlite*
 
+# Backup database lokal (JANGAN masuk repo — berisi data keluarga)
+backups/
+*.db.tmp
+
 # Environment (kecuali template contoh)
 .env*
 !.env.example

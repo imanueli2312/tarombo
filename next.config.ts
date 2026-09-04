@@ -2,10 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Produksi: error TypeScript harus menggagalkan build (tipe sudah bersih).
+  // Jangan matikan ini kembali — bug tipe akan lolos ke produksi.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
+  // Catatan: lint dijalankan terpisah (`bun run lint` / CI) — Next.js 16
+  // tidak lagi menjalankan ESLint saat build.
   reactStrictMode: true,
+  // Nonaktifkan telemetry saat build produksi
+  poweredByHeader: false,
   async headers() {
     return [
       {

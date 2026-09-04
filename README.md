@@ -38,7 +38,7 @@ dan shadcn/ui. Autentikasi JWT + RBAC tiga peran (viewer/editor/admin).
 - **Ekspor** — PDF/PNG pohon keluarga, JSON backup, GEDCOM, dan Buku Marga
   siap cetak.
 
-## Setup Cepat
+## Setup Cepat (Development)
 
 ```bash
 # 1. Install dependensi
@@ -54,6 +54,26 @@ bun run dev
 
 Buka `http://localhost:3000`. Saat pertama kali dimuat, admin awal dan leluhur
 akar (Raja Hariandja) dibuat otomatis.
+
+## Go-Live / Produksi
+
+Aplikasi ini siap produksi. Tiga opsi deployment — panduan lengkap langkah
+per langkah di **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**:
+
+| Opsi | Cocok untuk | Ringkas |
+|---|---|---|
+| **Docker Compose** (direkomendasikan) | VPS/server sendiri | `cp .env.example .env` → isi 2 variabel wajib → `docker compose up -d --build`. Termasuk Caddy + TLS otomatis, healthcheck, dan rotasi log. |
+| **Server/VPS langsung** | Tanpa Docker | `bun run build` + `start:prod`, contoh unit systemd tersedia. |
+| **Serverless (Vercel dll.)** | Demo/staging SAJA | SQLite filesystem efemeral — data tidak persisten. |
+
+Infrastruktur produksi yang sudah tersedia di repo:
+
+- `Dockerfile` — multi-stage, non-root, healthcheck `/api/health`
+- `docker-compose.yml` — app + Caddy reverse proxy (TLS otomatis)
+- `deploy/Caddyfile` — konfigurasi reverse proxy produksi
+- `scripts/backup-db.mjs` — backup online SQLite (aman saat app berjalan) + prune otomatis
+- `.github/workflows/ci.yml` — CI: typecheck + lint + build setiap push/PR
+- `/api/health` — endpoint monitoring (status DB, uptime, versi)
 
 ## Environment
 
@@ -99,7 +119,7 @@ Ringkasan yang diterapkan di versi ini:
 ```
 src/
   app/api/            # Route handlers (persons, partnerships, heritage, auth,
-                      # rbac, marga-book, transfer, pusaka transfer)
+                      # rbac, marga-book, transfer, pusaka transfer, health)
   components/features # UI per fitur (tree, search, heritage, adat, marga-book,
                       # transfer, admin, ...)
   lib/                # batak-culture, adat-rules, auth, db, validation,
@@ -107,15 +127,23 @@ src/
   types/              # Tipe bersama + matriks RBAC default
 docs/PANDUAN_ADAT.md           # Panduan Adat lengkap (rujukan aturan yang divalidasi)
 docs/BUKU_MARGA_TRANSFER.md    # Dokumentasi fitur Buku Marga & Transfer
+docs/DEPLOYMENT.md             # Panduan go-live produksi (Docker/VPS/monitoring/backup)
+Dockerfile, docker-compose.yml, deploy/Caddyfile   # Infrastruktur deployment
+scripts/backup-db.mjs           # Backup online SQLite + prune
+.github/workflows/ci.yml       # CI: typecheck + lint + build
 ```
 
 ## Skrip
 
 ```bash
-bun run dev     # Development
-bun run build   # Build produksi (standalone)
-bun run start   # Jalankan hasil build
-bun run lint    # ESLint
+bun run dev         # Development
+bun run build       # Build produksi (standalone, strict typecheck aktif)
+bun run start       # Jalankan hasil build (dengan log tee)
+bun run start:prod  # Jalankan hasil build (signal langsung, untuk Docker/systemd)
+bun run lint        # ESLint
+bun run typecheck   # TypeScript --noEmit
+bun run db:backup   # Backup database (online, aman saat app berjalan)
+bun run verify      # Gate pra-deploy: typecheck + lint + build
 ```
 
 ## Semboyan

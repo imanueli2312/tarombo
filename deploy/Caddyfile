@@ -1,0 +1,42 @@
+###############################################################################
+# Tarombo — konfigurasi Caddy untuk produksi
+#
+# Caddy otomatis mengurus sertifikat TLS (Let's Encrypt) untuk domain publik.
+#
+# LANGKAH GO-LIVE:
+#   1. Ganti "tarombo.example.com" di bawah dengan domain Anda (baris 12).
+#      - Email opsional di baris berikutnya untuk notifikasi Let's Encrypt.
+#   2. Pastikan DNS domain sudah menunjuk ke server ini (A/AAAA record).
+#   3. Pastikan port 80 & 443 terbuka di firewall.
+#   4. Jalankan: docker compose up -d
+#
+# Jika belum punya domain, ganti baris domain menjadi ":443" atau ":80"
+# ( sertifikat self-signed internal atau HTTP saja — hanya untuk pengujian,
+#   JANGAN untuk produksi karena cookie login butuh HTTPS ).
+###############################################################################
+
+tarombo.example.com {
+	# Alamat email untuk peringatan kedaluwarsa sertifikat (opsional)
+	# tls admin@example.com
+
+	# Kompresi respons (gzip/zstd) — hemat bandwidth untuk halaman & JSON
+	encode zstd gzip
+
+	# Reverse proxy ke service "app" (jaringan docker compose)
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {remote_host}
+		# Timeouts longgar untuk ekspor Buku Marga / PDF besar
+		transport http {
+			response_header_timeout 120s
+		}
+	}
+
+	# Security headers utama sudah ditambahkan oleh Next.js (CSP, HSTS,
+	# X-Frame-Options, dst.) — tidak diduplikasi di sini.
+
+	# Akses log berguna untuk audit produksi (rotate otomatis oleh Docker)
+	log {
+		output stdout
+		format console
+	}
+}

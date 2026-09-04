@@ -1,0 +1,57 @@
+###############################################################################
+# Tarombo — CI (GitHub Actions)
+#
+# Quality gate otomatis untuk setiap push & pull request ke main:
+#   1. Install dependensi (bun, cache otomatis)
+#   2. Typecheck  — `tsc --noEmit` (error tipe = gagal)
+#   3. Lint       — ESLint
+#   4. Build      — `next build` standalone (error tipe/lint build = gagal)
+#
+# Jika CI merah, JANGAN deploy. Perbaiki dulu.
+###############################################################################
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint + Typecheck + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependensi
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build produksi (standalone)
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: bun run build
+
+      - name: Sanity check output standalone
+        run: |
+          test -f .next/standalone/server.js || { echo "::error::server.js standalone tidak ditemukan"; exit 1; }
+          echo "OK — .next/standalone/server.js dihasilkan"

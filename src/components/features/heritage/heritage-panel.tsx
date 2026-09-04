@@ -18,7 +18,7 @@ import {
   User,
   Landmark,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -139,7 +139,7 @@ const PUSAKA_TYPE_BADGE_STYLES: Record<string, string> = {
 // Animation variants
 // ============================================================================
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   visible: (i: number) => ({
     opacity: 1,

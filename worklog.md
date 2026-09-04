@@ -715,3 +715,31 @@ Stage Summary:
 - 3 dokumen baru: docs/PANDUAN_ADAT.md, README.md, .env.example
 - 18 file dimodifikasi, 12 file dilepas dari tracking git
 - Push ke main sebagai "feat: Panduan Adat & Hardening audit — implementasi lengkap"
+
+---
+Task ID: prod-golive-1
+Agent: Main
+Task: Konfigurasi proyek agar siap go-live/produksi (audit + implementasi + push)
+
+Work Log:
+- Audit kesiapan produksi: ditemukan 7 gap utama (strict build, health check, Docker, CI, Caddy produksi, backup DB, panduan deployment)
+- Perbaiki 19 error TypeScript di 7 file (persons route, statistics route, heritage-panel, person-detail, person-form) — semua casting tidak perlu diganti akses tipe langsung + typing Variants framer-motion
+- Aktifkan strict build: typescript.ignoreBuildErrors=false + poweredByHeader=false di next.config.ts
+- Buat endpoint /api/health (GET, publik, deep-check SQLite SELECT 1, versi dari package.json, 503 saat DB down, Cache-Control no-store)
+- Buat Dockerfile multi-stage (bun install/build → node:22-slim runtime, non-root user node, HEALTHCHECK /api/health, volume /data, build-arg NEXT_PUBLIC_MARGA_UTAMA)
+- Buat .dockerignore (database, env, log, artefak tidak masuk image)
+- Buat docker-compose.yml (app + Caddy reverse proxy, guard env wajib ${VAR:?}, log rotation 10m×3, memory limit 512M)
+- Buat deploy/Caddyfile produksi (TLS otomatis Let's Encrypt, kompresi zstd/gzip, timeout ekspor 120s)
+- Buat scripts/backup-db.mjs — online backup SQLite (await db.backup — bug promise diperbaiki saat pengujian), gzip opsional, prune KEEP_DAYS, berjalan di bun & node
+- Buat .github/workflows/ci.yml — typecheck + lint + build + sanity check standalone setiap push/PR ke main
+- Buat docs/DEPLOYMENT.md — panduan go-live lengkap (3 opsi deployment, monitoring, backup/restore, upgrade, checklist go-live, troubleshooting)
+- Update package.json (v0.5.0, skrip start:prod/typecheck/db:backup/verify, engines)
+- Update README.md (bagian Go-Live/Produksi), .env.example (variabel backup), .gitignore (backups/), tsconfig.json (exclude examples/tests)
+- Smoke test produksi lulus: health 200 + versi, seed dengan SEED_ADMIN_PASSWORD, login 200 + cookie Secure;HttpOnly, rate limit 429 di percobaan ke-6, fail-fast JWT_SECRET (500 generik ke klien + detail di log), backup 144KB → 10KB gzip, restore + login dari DB hasil restore → 200, security headers lengkap (CSP, HSTS, X-Frame-Options, dsb.)
+
+Stage Summary:
+- Proyek kini siap go-live: deployment Docker satu perintah (`docker compose up -d --build`) atau VPS langsung dengan systemd
+- Quality gate otomatis via GitHub Actions; build strict (error tipe = gagal build)
+- Runtime container Node LTS (build tetap bun) — dipilih setelah bukti smoke test (node stabil, bun SIGILL di beberapa kernel sandbox)
+- Monitoring siap: /api/health + healthcheck Docker + panduan uptime monitor
+- Data keluarga terlindungi: volume persisten + skrip backup online + panduan restore yang teruji

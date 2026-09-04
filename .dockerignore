@@ -1,0 +1,47 @@
+# Berkas yang tidak perlu masuk konteks build Docker.
+# Menjaga image kecil dan build cepat + mencegah data sensitif ter-copy.
+
+# VCS
+.git
+.gitignore
+.github
+
+# Dependensi & hasil build (diproduksi ulang di dalam image)
+node_modules
+.next
+out
+build
+
+# Database & backup (JANGAN pernah masuk image — berisi data keluarga)
+db
+backups
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+
+# Environment & rahasia
+.env
+.env.*
+!.env.example
+
+# Log & artefak kerja
+*.log
+dev.log
+server.log
+tool-results
+upload
+download
+mini-services
+.zscripts
+.claude
+.z-ai-config
+skills
+
+# Dokumentasi & contoh (tidak dibutuhkan runtime)
+docs
+examples
+tests
+worklog.md
+docker-compose*.yml
+deploy

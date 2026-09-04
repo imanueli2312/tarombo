@@ -47,7 +47,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import type { Person, PersonDetailResponse , DalihanRelationEntry } from '@/types';
+import type { Person, PersonDetailResponse } from '@/types';
 import { getMargaLabel, MARGA_UTAMA, MARITAL_STATUS_BATAK, getKinshipTerm, ORAL_HISTORY_CATEGORIES, PUSAKA_TYPES, getOralHistoryCategoryLabel, getPusakaTypeLabel } from '@/lib/batak-culture';
 
 interface PersonDetailProps {
@@ -251,8 +251,8 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
   const isDeceased = !!person.tanggal_kematian;
   const father = person.parents?.father;
   const mother = person.parents?.mother;
-  const margaDisplay = getMargaLabel((person as Record<string, unknown>).marga_asal as string);
-  const isDifferentMarga = !!(person as Record<string, unknown>).marga_asal;
+  const margaDisplay = getMargaLabel(person.marga_asal);
+  const isDifferentMarga = !!person.marga_asal;
 
   return (
     <Card className={isDeceased ? 'opacity-80' : ''}>
@@ -391,8 +391,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
 
         {/* --- Data Budaya Batak --- */}
         {(() => {
-          const p = person as Record<string, unknown>;
-          const hasBatakData = p.marga_asal || p.tempat_asal || p.pendidikan || p.pekerjaan || p.keterangan;
+          const hasBatakData = person.marga_asal || person.tempat_asal || person.pendidikan || person.pekerjaan || person.keterangan;
           if (!hasBatakData) return null;
           return (
             <div>
@@ -401,13 +400,13 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <InfoRow label="Marga" value={margaDisplay !== MARGA_UTAMA ? margaDisplay : undefined} />
-                <InfoRow label="Tempat Asal (Huta)" value={(p.tempat_asal as string) || undefined} />
-                <InfoRow label="Pendidikan" value={(p.pendidikan as string) || undefined} />
-                <InfoRow label="Pekerjaan" value={(p.pekerjaan as string) || undefined} />
-                {p.keterangan && (
+                <InfoRow label="Tempat Asal (Huta)" value={person.tempat_asal || undefined} />
+                <InfoRow label="Pendidikan" value={person.pendidikan || undefined} />
+                <InfoRow label="Pekerjaan" value={person.pekerjaan || undefined} />
+                {person.keterangan && (
                   <div className="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-3">
                     <span className="text-xs text-muted-foreground">Keterangan</span>
-                    <span className="text-sm font-medium">{p.keterangan as string}</span>
+                    <span className="text-sm font-medium">{person.keterangan}</span>
                   </div>
                 )}
               </div>
@@ -419,9 +418,7 @@ export function PersonDetail({ personId, onEdit, onDelete }: PersonDetailProps) 
 
         {/* --- Dalihan Na Tolu (relasi adat dihitung dari silsilah) --- */}
         {(() => {
-          const dalihan = (person as Record<string, unknown>).dalihan as
-            | { hulahula: DalihanRelationEntry[]; boru: DalihanRelationEntry[]; donganSabutuha: { marga: string | null; total: number } }
-            | undefined;
+          const dalihan = person.dalihan;
           if (!dalihan) return null;
           const hasHulahula = dalihan.hulahula?.length > 0;
           const hasBoru = dalihan.boru?.length > 0;

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Field length validation
     for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat', 'marga_asal', 'tempat_asal', 'pendidikan', 'pekerjaan', 'keterangan'] as const) {
-      const lenErr = validateFieldLength(field, (body as Record<string, unknown>)[field] as string | null);
+      const lenErr = validateFieldLength(field, (body as unknown as Record<string, unknown>)[field] as string | null);
       if (lenErr) return NextResponse.json({ error: lenErr }, { status: 400 });
     }
 

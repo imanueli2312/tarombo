@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       .filter((p) => p.tanggal_lahir && !p.tanggal_kematian)
       .sort(
         (a, b) =>
-          new Date(a.tanggal_lahir).getTime() - new Date(b.tanggal_lahir).getTime()
+          new Date(a.tanggal_lahir as string).getTime() - new Date(b.tanggal_lahir as string).getTime()
       );
 
     const oldestLiving = livingPersonsWithBirth[0] || null;
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       .filter((p) => p.tanggal_lahir)
       .sort(
         (a, b) =>
-          new Date(b.tanggal_lahir).getTime() - new Date(a.tanggal_lahir).getTime()
+          new Date(b.tanggal_lahir as string).getTime() - new Date(a.tanggal_lahir as string).getTime()
       );
 
     const youngest = allWithBirth[0] || null;

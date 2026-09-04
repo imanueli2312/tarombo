@@ -1,0 +1,74 @@
+###############################################################################
+# Tarombo — docker-compose produksi
+#
+# Menjalankan:
+#   1. app    — Next.js standalone (Node runtime) + SQLite di volume persisten
+#   2. caddy  — reverse proxy dengan TLS otomatis (Let's Encrypt)
+#
+# Cara pakai:
+#   cp .env.example .env          # lalu isi JWT_SECRET & SEED_ADMIN_PASSWORD
+#   docker compose up -d --build
+#   docker compose exec app node -e "fetch('http://localhost:3000/api/seed',{method:'POST'}).then(r=>r.json()).then(console.log)"
+#
+# Akses: https://<domain-anda> (set di deploy/Caddyfile)
+###############################################################################
+
+name: tarombo
+
+services:
+  app:
+    build:
+      context: .
+      # Override marga garis utama (di-inline ke bundle klien saat build):
+      # args:
+      #   NEXT_PUBLIC_MARGA_UTAMA: Hariandja
+    image: tarombo:latest
+    restart: unless-stopped
+    # Jangan di-scale > 1: SQLite + rate limiter in-memory = single instance
+    environment:
+      NODE_ENV: production
+      DATABASE_PATH: /data/tarombo.db
+      # Guard: compose gagal start jika variabel berikut tidak diisi di .env
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET di file .env (buat: openssl rand -hex 32)}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD di file .env}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@tarombo.local}
+    volumes:
+      # Data keluarga persisten antar deploy/upgrade
+      - app-data:/data
+    expose:
+      - "3000"
+    # Batas sumber daya (opsional, sesuaikan beban)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data           # sertifikat TLS — WAJIB persisten
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_started
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

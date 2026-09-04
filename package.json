@@ -1,12 +1,19 @@
 {
   "name": "tarombo-hariandja",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
-    "lint": "eslint ."
+    "start:prod": "NODE_ENV=production bun .next/standalone/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:backup": "bun scripts/backup-db.mjs",
+    "verify": "bun run typecheck && bun run lint && bun run build"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
