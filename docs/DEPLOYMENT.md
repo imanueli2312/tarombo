@@ -52,6 +52,8 @@ Karakteristik penting yang memengaruhi deployment:
 | `output: "standalone"` | Image runtime hanya butuh `.next/standalone` + `public` + `.next/static`. |
 | `NEXT_PUBLIC_MARGA_UTAMA` | Di-inline **saat build** ke bundle klien — override via `--build-arg`, bukan env runtime. |
 | `JWT_SECRET`, `SEED_ADMIN_PASSWORD` | Env **runtime** — aplikasi menolak jalan di produksi tanpa ini. |
+| `LOG_LEVEL` | Env runtime opsional: `debug`/`info`/`warn`/`error` (default `info` di produksi). Log terstruktur JSON per baris + `X-Request-ID`. |
+| `GET /api/metrics` | Endpoint admin: jumlah request, error rate, latensi rata-rata per endpoint (in-memory, reset saat restart). Uptime jangka panjang tetap disarankan lewat monitor eksternal ke `/api/health`. |
 | Cookie login `Secure`+`httpOnly` | **HTTPS wajib** (disediakan Caddy). |
 
 ---
@@ -106,6 +108,10 @@ curl -s http://localhost:3000/api/health | head -c 200
 docker compose exec app bash -c \
   'node -e "fetch(\"http://localhost:3000/api/seed\",{method:\"POST\"}).then(r=>r.json()).then(console.log)"'
 ```
+
+> Sejak v0.6.0 klien TIDAK lagi memanggil POST /api/seed pada setiap page
+> load — seeding sepenuhnya urusan deploy (sekali, seperti contoh di atas).
+> Endpoint tetap idempoten: hanya berefek saat database masih kosong.
 
 Buka `https://domain-anda` → login sebagai admin → **segera ganti password**
 (Panel Admin → Manajemen Pengguna).
@@ -379,7 +385,10 @@ Perbedaan sintaks variabel lingkungan yang sering menjegal pengguna baru:
 
 > Catatan: `bun run start:prod` tetap bisa dijalankan langsung dari
 > PowerShell — bun memakai shell bawaannya sendiri yang memahami prefix
-> `VAR=nilai` lintas-platform, jadi skrip `package.json` tidak perlu diubah.
+> `VAR=nilai` lintas-platform. Skrip tersebut kini menjalankan server dengan
+> **runtime Node** (bukan bun) — modul native better-sqlite3 crash NAPI bila
+> server dijalankan langsung di bawah bun; Node adalah runtime yang sama
+> dengan kontainer produksi.
 
 ### 5.5 Menjalankan development di PC
 
@@ -471,7 +480,14 @@ dibuat otomatis (lihat [README](../README.md)). Untuk debugging:
 
 ```bash
 bun run build
-bun run start:prod                     # via shell bun
+bun run start:prod                     # via shell bun (server berjalan di Node)
+```
+
+**b) Smoke test API (gerbang pra-go-live):**
+
+```bash
+bash tests/smoke-api.sh   # 23 asersi E2E: auth, guard body, CSRF, rate limit,
+                          # revocasi sesi, adat — prasyarat: bun run build
 ```
 
 ```powershell

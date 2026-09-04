@@ -146,15 +146,33 @@ scripts/backup-db.mjs           # Backup online SQLite + prune
 ## Skrip
 
 ```bash
-bun run dev         # Development
+bun run dev         # Development (men-generate sw.js otomatis)
 bun run build       # Build produksi (standalone, strict typecheck aktif)
-bun run start       # Jalankan hasil build (dengan log tee)
+bun run start       # Jalankan hasil build (runtime Node, dengan log tee)
 bun run start:prod  # Jalankan hasil build (signal langsung, untuk Docker/systemd)
 bun run lint        # ESLint
 bun run typecheck   # TypeScript --noEmit
+bun run test        # Unit test (bun test — murni TS, tanpa NAPI)
 bun run db:backup   # Backup database (online, aman saat app berjalan)
-bun run verify      # Gate pra-deploy: typecheck + lint + build
+bun run verify      # Gate pra-deploy: typecheck + lint + test + build
 ```
+
+> Runtime `start`/`start:prod` adalah **Node 22** (sama seperti kontainer
+> produksi). Jangan menjalankan server langsung dengan `bun
+> .next/standalone/server.js` — modul native better-sqlite3 crash NAPI pada
+> runtime bun. `bun` tetap dipakai sebagai package manager, script runner,
+> dan test runner.
+
+Pengujian:
+
+```bash
+bun test                    # 84 unit test (validasi, skema zod, http, rate-limit, logger)
+bash tests/smoke-api.sh     # 23 smoke test E2E: server standalone + 401/403/400/413/429/
+                            # 200, revocasi sesi, adat 422 (prasyarat: bun run build)
+```
+
+Lihat `CHANGELOG.md` untuk riwayat versi, `CONTRIBUTING.md` untuk alur
+kontribusi, dan `SECURITY.md` untuk pelaporan kerentanan.
 
 ## Semboyan
 
