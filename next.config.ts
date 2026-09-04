@@ -13,7 +13,18 @@ const nextConfig: NextConfig = {
   // Nonaktifkan telemetry saat build produksi
   poweredByHeader: false,
   async headers() {
+    const isDev = process.env.NODE_ENV === "development";
+
     return [
+      {
+        // Audit T-06: sw.js tidak boleh di-cache peramban — SW lama bisa
+        // bertahan via heuristic caching ±24 jam dan menahan pengunjung di
+        // versi aplikasi lawas.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
       {
         source: "/(.*)",
         headers: [
@@ -33,12 +44,14 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
           },
-          // Content Security Policy — pragmatis untuk Next.js
+          // Content Security Policy — pragmatis untuk Next.js.
+          // Audit R-04: 'unsafe-eval' hanya dibutuhkan React Refresh/HMR di
+          // development; di produksi dihilangkan.
           {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self' data:",

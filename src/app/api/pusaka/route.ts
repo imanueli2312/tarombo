@@ -1,26 +1,12 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPusakaItems, getPusakaByPerson, createPusakaItem, hasPermission } from '@/lib/db';
+import { getDb, getPusakaItems, countPusakaItems, getPusakaByPerson, createPusakaItem, hasPermission, getPersonById } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import type { PusakaType } from '@/types';
+import { readJsonBody, assertSameOrigin, parsePageParams } from '@/lib/http';
+import { pusakaCreateSchema, firstIssueMessage } from '@/lib/schemas';
+import type { PusakaCreate } from '@/types';
 
-const VALID_PUSAKA_TYPES: PusakaType[] = [
-  'tombak',
-  'ulos',
-  'tunggal_panaluan',
-  'gorga',
-  'gabe',
-  'hasangapon',
-  'rattan_box',
-  'kalung_bulan',
-  'gutar_guar',
-  'tali_tiga',
-  'porhala',
-  'jamita',
-  'sial_solam_sial_sao',
-  'lainnya',
-];
-
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -39,15 +25,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(getPusakaByPerson(db, personId));
     }
 
-    return NextResponse.json(getPusakaItems(db));
+    // Paginasi opsional (audit S-06)
+    const page = parsePageParams(request);
+    return NextResponse.json(getPusakaItems(db, page), {
+      headers: { 'X-Total-Count': String(countPusakaItems(db)) },
+    });
   } catch (error) {
     console.error('[api/pusaka]', error);
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -58,19 +52,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const body = await request.json();
+    // Audit S-03: guard JSON 400/413; audit S-01/S-02: validasi zod lengkap
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = pusakaCreateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
+    }
+    const body: PusakaCreate = validated.data;
     const { person_id, name, type, description, origin, image, passed_from_person_id, year_acquired, is_sacred } = body;
 
-    if (!person_id) {
-      return NextResponse.json({ error: 'person_id wajib diisi' }, { status: 400 });
+    // Audit S-16: person_id dicek eksistensinya — pelanggaran FK dulunya 500
+    const person = getPersonById(db, person_id);
+    if (!person) {
+      return NextResponse.json({ error: 'Orang (person_id) tidak ditemukan' }, { status: 404 });
     }
-
-    if (!name || typeof name !== 'string' || name.trim().length < 1) {
-      return NextResponse.json({ error: 'name minimal 1 karakter' }, { status: 400 });
-    }
-
-    if (!type || !VALID_PUSAKA_TYPES.includes(type)) {
-      return NextResponse.json({ error: 'type tidak valid' }, { status: 400 });
+    if (passed_from_person_id && !getPersonById(db, passed_from_person_id)) {
+      return NextResponse.json({ error: 'Orang (passed_from_person_id) tidak ditemukan' }, { status: 404 });
     }
 
     const id = crypto.randomUUID();
@@ -94,3 +92,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /pusaka');
+export const POST = withApiLogging(POSTHandler, 'POST /pusaka');

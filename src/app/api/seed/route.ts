@@ -1,3 +1,4 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getUsers, createUser, createPerson, getPersons } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
@@ -13,7 +14,7 @@ import { consumeRateLimit, getClientIp } from '@/lib/rate-limit';
  *   + peringatan untuk segera diganti.
  * - Rate-limited agar endpoint tidak bisa dihammer.
  */
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
     const rl = consumeRateLimit(`seed:${getClientIp(request)}`, {
       limit: 10,
@@ -84,3 +85,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const POST = withApiLogging(POSTHandler, 'POST /seed');

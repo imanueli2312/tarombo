@@ -5,9 +5,18 @@
 #   1. Install dependensi (bun, cache otomatis)
 #   2. Typecheck  — `tsc --noEmit` (error tipe = gagal)
 #   3. Lint       — ESLint
-#   4. Build      — `next build` standalone (error tipe/lint build = gagal)
+#   4. Unit test  — `bun test` (audit T-01: 84 test validasi/skema/http/
+#                   rate-limit/logger — murni TS tanpa NAPI)
+#   5. Build      — `next build` standalone (error tipe/lint build = gagal)
+#   6. Smoke test — server standalone dijalankan (runtime Node, sama seperti
+#                   Docker produksi) lalu endpoint inti diverifikasi:
+#                   401/403/400/413/429/200, revocasi sesi E2E, adat 422.
 #
 # Jika CI merah, JANGAN deploy. Perbaiki dulu.
+#
+# Catatan: unit test sengaja tidak mengimpor better-sqlite3 — NAPI module
+# itu crash pada runtime `bun test` di beberapa versi (lihat CONTRIBUTING.md);
+# semua jalur DB diuji lewat smoke test yang berjalan di bawah Node.
 ###############################################################################
 
 name: CI
@@ -24,9 +33,9 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint + Typecheck + Build
+    name: Lint + Typecheck + Test + Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -37,6 +46,11 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup node (runtime standalone untuk smoke test)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install dependensi
         run: bun install --frozen-lockfile
 
@@ -45,6 +59,9 @@ jobs:
 
       - name: Lint
         run: bun run lint
+
+      - name: Unit test
+        run: bun test
 
       - name: Build produksi (standalone)
         env:
@@ -55,3 +72,6 @@ jobs:
         run: |
           test -f .next/standalone/server.js || { echo "::error::server.js standalone tidak ditemukan"; exit 1; }
           echo "OK — .next/standalone/server.js dihasilkan"
+
+      - name: Smoke test API (server standalone di bawah Node)
+        run: bash tests/smoke-api.sh

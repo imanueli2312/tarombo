@@ -73,9 +73,13 @@ export function validateChildAfterParent(parentBirth: string | null | undefined,
 
 /** Sanitize a string for use in SQL LIKE patterns (escape % and _) */
 export function sanitizeLikePattern(q: string): string {
+  // Catatan: '\\%' (backslash literal) — BUKAN '\%' yang di JS dievaluasi
+  // menjadi '%' polos. Bentuk lama secara diam-diam tidak meng-escape apa pun
+  // (pencarian '%'/'_' cocok dengan semua baris); ditemukan oleh unit test
+  // saat audit mendalam dan kini benar-benar di-escape.
   return q
-    .replace(/%/g, '\%')
-    .replace(/_/g, '\_');
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
 }
 
 /** Field length limits */

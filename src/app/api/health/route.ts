@@ -1,3 +1,4 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -34,7 +35,7 @@ function getAppVersion(): string {
   return _cachedVersion;
 }
 
-export async function GET() {
+async function GETHandler() {
   const checks: Record<string, { ok: boolean; latencyMs?: number; error?: string }> = {};
 
   // --- Database (SQLite) ---
@@ -46,7 +47,10 @@ export async function GET() {
     db.prepare('SELECT 1').get();
     checks.database = { ok: true, latencyMs: Date.now() - t0 };
   } catch (error) {
-    checks.database = { ok: false, error: error instanceof Error ? error.message : 'unknown' };
+    // Detail error hanya ke log server (audit S-05) — respons publik cukup
+    // pesan generik agar tidak membocorkan path/konfigurasi internal.
+    console.error('[api/health] database check gagal:', error);
+    checks.database = { ok: false, error: 'database unavailable' };
   }
 
   const allOk = Object.values(checks).every((c) => c.ok);
@@ -63,3 +67,6 @@ export async function GET() {
     headers: { 'Cache-Control': 'no-store, max-age=0' },
   });
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /health');

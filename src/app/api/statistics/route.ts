@@ -1,9 +1,10 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPersons, getHeritageStats, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { MARGA_UTAMA } from '@/lib/batak-culture';
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -180,3 +181,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /statistics');

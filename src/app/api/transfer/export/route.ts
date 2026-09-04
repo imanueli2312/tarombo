@@ -1,3 +1,4 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, hasPermission, addTransferLog } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
@@ -10,7 +11,7 @@ import { consumeRateLimit, getClientIp } from '@/lib/rate-limit';
  * Query: ?format=json (backup lengkap) | gedcom (standar genealogi 5.5.1).
  * Butuh izin transfer_data (default: admin).
  */
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -73,3 +74,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /transfer/export');

@@ -1,6 +1,8 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getUserById, updateUser, deleteUser, hasPermission } from '@/lib/db';
 import { getAuthUserAsync, hashPassword } from '@/lib/auth';
+import { readJsonBody, assertSameOrigin } from '@/lib/http';
 import type { UserRole } from '@/types';
 
 const VALID_ROLES: UserRole[] = ['viewer', 'editor', 'admin'];
@@ -19,11 +21,15 @@ function validatePasswordStrength(password: unknown): string | null {
   return null;
 }
 
-export async function PUT(
+async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -40,12 +46,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 });
     }
 
-    let body: { name?: unknown; role?: unknown; password?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Format permintaan tidak valid' }, { status: 400 });
-    }
+    // Guard JSON seragam (S-03) + batas body 1 MB (S-07)
+    const parsed = await readJsonBody<{ name?: unknown; role?: unknown; password?: unknown }>(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const { name, role, password } = body;
 
     const updateData: { name?: string; role?: UserRole; password_hash?: string } = {};
@@ -89,7 +93,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -133,3 +137,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const PUT = withApiLogging(PUTHandler, 'PUT /rbac/users/[id]');
+export const DELETE = withApiLogging(DELETEHandler, 'DELETE /rbac/users/[id]');

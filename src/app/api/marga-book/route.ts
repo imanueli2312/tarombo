@@ -1,3 +1,4 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, hasPermission, getMargaDirectory, recomputeGenerations, addTransferLog } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
@@ -10,7 +11,7 @@ import { consumeRateLimit, getClientIp } from '@/lib/rate-limit';
  * Buku Marga digital (format buku tarombo tradisional) + direktori marga.
  * Query: ?marga=<nama> — pilih marga (default: marga utama / terbesar).
  */
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
  * Rekomputasi nomor_generasi seluruh silsilah (konsistensi Buku Marga).
  * Butuh izin edit_person (editor/admin).
  */
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -79,3 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /marga-book');
+export const POST = withApiLogging(POSTHandler, 'POST /marga-book');

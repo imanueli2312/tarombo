@@ -1,6 +1,8 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getUsers, createUser, hasPermission, getUserByEmail } from '@/lib/db';
+import { getDb, getUsers, countUsers, createUser, hasPermission, getUserByEmail } from '@/lib/db';
 import { getAuthUserAsync, hashPassword } from '@/lib/auth';
+import { readJsonBody, assertSameOrigin, parsePageParams } from '@/lib/http';
 import type { UserRole } from '@/types';
 
 const VALID_ROLES: UserRole[] = ['viewer', 'editor', 'admin'];
@@ -26,7 +28,7 @@ function countAdmins(db: ReturnType<typeof getDb>): number {
   return row.c;
 }
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -38,16 +40,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const users = getUsers(db);
-    return NextResponse.json(users);
+    // Paginasi opsional (audit S-06)
+    const page = parsePageParams(request);
+    const users = getUsers(db, page);
+    return NextResponse.json(users, {
+      headers: { 'X-Total-Count': String(countUsers(db)) },
+    });
   } catch (error) {
     console.error('[api/rbac/users GET]', error);
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -58,12 +68,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    let body: { email?: unknown; password?: unknown; name?: unknown; role?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Format permintaan tidak valid' }, { status: 400 });
-    }
+    // Guard JSON seragam (S-03) + batas body 1 MB (S-07)
+    const parsed = await readJsonBody<{ email?: unknown; password?: unknown; name?: unknown; role?: unknown }>(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -104,3 +112,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /rbac/users');
+export const POST = withApiLogging(POSTHandler, 'POST /rbac/users');

@@ -1,7 +1,9 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, hasPermission, transferPusakaItem } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { consumeRateLimit, getClientIp } from '@/lib/rate-limit';
+import { assertSameOrigin } from '@/lib/http';
 
 /**
  * POST /api/pusaka/[id]/transfer
@@ -15,11 +17,15 @@ import { consumeRateLimit, getClientIp } from '@/lib/rate-limit';
  *
  * Butuh izin edit_heritage (editor/admin).
  */
-export async function POST(
+async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -70,3 +76,6 @@ export async function POST(
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const POST = withApiLogging(POSTHandler, 'POST /pusaka/[id]/transfer');

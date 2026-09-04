@@ -1,10 +1,13 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPersonById, updatePerson, deletePerson, hasPermission, getParentsOf, getChildrenOf, getActiveSpouseOf, wouldCreateCycle, getDalihanRelations } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateFieldLength } from '@/lib/validation';
+import { validateDeathAfterBirth, validateNotFuture } from '@/lib/validation';
+import { readJsonBody, assertSameOrigin } from '@/lib/http';
+import { personUpdateSchema, firstIssueMessage } from '@/lib/schemas';
 import type { PersonUpdate } from '@/types';
 
-export async function GET(
+async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -39,11 +42,15 @@ export async function GET(
   }
 }
 
-export async function PUT(
+async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -60,7 +67,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Orang tidak ditemukan' }, { status: 404 });
     }
 
-    const body: PersonUpdate = await request.json();
+    // Audit S-03 + R-01: guard JSON (400/413) + validasi zod menggantikan cast
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = personUpdateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
+    }
+    const body: PersonUpdate = validated.data;
 
     // Validate nama (if provided)
     if (body.nama !== undefined) {
@@ -69,20 +83,6 @@ export async function PUT(
         return NextResponse.json({ error: 'Nama tidak boleh kosong' }, { status: 400 });
       }
       body.nama = trimmed;
-    }
-
-    // Field length validation
-    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat', 'marga_asal', 'tempat_asal', 'pendidikan', 'pekerjaan'] as const) {
-      const val = (body as Record<string, unknown>)[field];
-      if (val != null && val !== '') {
-        const lenErr = validateFieldLength(field, val as string);
-        if (lenErr) return NextResponse.json({ error: lenErr }, { status: 400 });
-      }
-    }
-
-    // Validate jenis_kelamin (if provided)
-    if (body.jenis_kelamin && !['L', 'P'].includes(body.jenis_kelamin)) {
-      return NextResponse.json({ error: 'Jenis kelamin tidak valid' }, { status: 400 });
     }
 
     // Date validations (merge with existing values for partial updates)
@@ -106,21 +106,11 @@ export async function PUT(
       if (mother.jenis_kelamin !== 'P') return NextResponse.json({ error: 'Ibu harus berjenis kelamin perempuan' }, { status: 400 });
     }
 
-    // Validate nomor_generasi
+    // Validate nomor_generasi & nomor_urut_lahir (zod sudah mengecek bentuk;
+    // cek null-vs-undefined tetap untuk konsistensi pesan)
     if (body.nomor_generasi != null && (body.nomor_generasi < 1 || !Number.isInteger(body.nomor_generasi))) {
       return NextResponse.json({ error: 'Nomor generasi harus bilangan bulat positif' }, { status: 400 });
     }
-
-    // Validate nomor_urut_lahir
-    if (body.nomor_urut_lahir != null && (body.nomor_urut_lahir < 1 || !Number.isInteger(body.nomor_urut_lahir))) {
-      return NextResponse.json({ error: 'Nomor urut kelahiran harus bilangan bulat positif' }, { status: 400 });
-    }
-
-    // Validate burial coordinates
-    const latErr = validateLatitude(body.burial_latitude);
-    if (latErr) return NextResponse.json({ error: latErr }, { status: 400 });
-    const lngErr = validateLongitude(body.burial_longitude);
-    if (lngErr) return NextResponse.json({ error: lngErr }, { status: 400 });
 
     // Cycle detection
     if (body.father_id && wouldCreateCycle(db, body.father_id, id)) {
@@ -151,7 +141,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -179,3 +169,8 @@ export async function DELETE(
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /persons/[id]');
+export const PUT = withApiLogging(PUTHandler, 'PUT /persons/[id]');
+export const DELETE = withApiLogging(DELETEHandler, 'DELETE /persons/[id]');

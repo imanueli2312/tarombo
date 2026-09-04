@@ -1,3 +1,4 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 
 /**
@@ -5,7 +6,7 @@ import { NextResponse } from 'next/server';
  * Cookie httpOnly tidak dapat dihapus oleh JavaScript klien, sehingga
  * logout WAJIB dilakukan lewat endpoint ini — jika tidak, sesi tetap aktif.
  */
-export async function POST() {
+async function POSTHandler() {
   try {
     const response = NextResponse.json({ ok: true });
     response.cookies.set('token', '', {
@@ -21,3 +22,6 @@ export async function POST() {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const POST = withApiLogging(POSTHandler, 'POST /auth/logout');

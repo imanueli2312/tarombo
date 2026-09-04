@@ -16,27 +16,32 @@
 ###############################################################################
 
 tarombo.example.com {
-	# Alamat email untuk peringatan kedaluwarsa sertifikat (opsional)
-	# tls admin@example.com
+        # Alamat email untuk peringatan kedaluwarsa sertifikat (opsional)
+        # tls admin@example.com
 
-	# Kompresi respons (gzip/zstd) — hemat bandwidth untuk halaman & JSON
-	encode zstd gzip
+        # Kompresi respons (gzip/zstd) — hemat bandwidth untuk halaman & JSON
+        encode zstd gzip
 
-	# Reverse proxy ke service "app" (jaringan docker compose)
-	reverse_proxy app:3000 {
-		header_up X-Real-IP {remote_host}
-		# Timeouts longgar untuk ekspor Buku Marga / PDF besar
-		transport http {
-			response_header_timeout 120s
-		}
-	}
+        # Reverse proxy ke service "app" (jaringan docker compose)
+        reverse_proxy app:3000 {
+                header_up X-Real-IP {remote_host}
+                # Timpa X-Forwarded-For dengan remote host koneksi fisik (audit T-03):
+                # perilaku default Caddy menambahkan IP klien ke XFF yang sudah ada,
+                # sehingga entri pertama bisa dipalsukan klien untuk mem-bypass
+                # rate limiter. Menimpa penuh menghapus header palsu tersebut.
+                header_up X-Forwarded-For {remote_host}
+                # Timeouts longgar untuk ekspor Buku Marga / PDF besar
+                transport http {
+                        response_header_timeout 120s
+                }
+        }
 
-	# Security headers utama sudah ditambahkan oleh Next.js (CSP, HSTS,
-	# X-Frame-Options, dst.) — tidak diduplikasi di sini.
+        # Security headers utama sudah ditambahkan oleh Next.js (CSP, HSTS,
+        # X-Frame-Options, dst.) — tidak diduplikasi di sini.
 
-	# Akses log berguna untuk audit produksi (rotate otomatis oleh Docker)
-	log {
-		output stdout
-		format console
-	}
+        # Akses log berguna untuk audit produksi (rotate otomatis oleh Docker)
+        log {
+                output stdout
+                format console
+        }
 }

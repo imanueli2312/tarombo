@@ -1,13 +1,20 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getPartnershipById, updatePartnership, deletePartnership, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { validateDivorceAfterMarriage } from '@/lib/validation';
+import { readJsonBody, assertSameOrigin } from '@/lib/http';
+import { partnershipUpdateSchema, firstIssueMessage } from '@/lib/schemas';
 
-export async function PUT(
+async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -24,8 +31,14 @@ export async function PUT(
       return NextResponse.json({ error: 'Pernikahan tidak ditemukan' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { marriage_date, divorce_date } = body as { marriage_date?: string | null; divorce_date?: string | null };
+    // Audit S-03 + R-01: guard JSON + zod menggantikan cast `as` mentah
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = partnershipUpdateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
+    }
+    const { marriage_date, divorce_date } = validated.data;
 
     // Validate divorce >= marriage (merge with existing values for partial updates)
     const effectiveMarriage = marriage_date ?? existing.marriage_date;
@@ -41,7 +54,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -69,3 +82,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const PUT = withApiLogging(PUTHandler, 'PUT /partnerships/[id]');
+export const DELETE = withApiLogging(DELETEHandler, 'DELETE /partnerships/[id]');

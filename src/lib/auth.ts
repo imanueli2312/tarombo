@@ -46,8 +46,21 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export async function createToken(payload: { id: string; email: string; name: string; role: string }): Promise<string> {
-  return new SignJWT(payload as unknown as import('jose').JWTPayload)
+export async function createToken(payload: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  /** Versi token sesi — naik saat role/password berubah (revocasi, audit T-02) */
+  tokenVersion: number;
+}): Promise<string> {
+  return new SignJWT({
+    id: payload.id,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    tv: payload.tokenVersion,
+  } as unknown as import('jose').JWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setIssuer(JWT_ISSUER)
@@ -62,7 +75,15 @@ export async function verifyToken(token: string) {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     });
-    return payload as unknown as { id: string; email: string; name: string; role: string; exp: number; iat: number };
+    return payload as unknown as {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      tv?: number;
+      exp: number;
+      iat: number;
+    };
   } catch {
     return null;
   }
@@ -82,8 +103,43 @@ export function getTokenFromRequest(request: Request): string | null {
   return null;
 }
 
-export async function getAuthUserAsync(request: Request) {
+/** Sesi terautentikasi — role SELALU dibaca ulang dari database (terkini). */
+export interface AuthSession {
+  id: string;
+  email: string;
+  name: string;
+  role: import('@/types').UserRole;
+}
+
+/**
+ * Ambil user terautentikasi dari request, dengan validasi sesi server-side
+ * (revocasi, audit T-02):
+ * 1. Verifikasi tanda tangan + expiry JWT (jose).
+ * 2. Muat ulang user dari DB berdasarkan id di klaim — akun yang sudah
+ *    dihapus langsung ditolak, role yang dipakai otorisasi selalu terkini
+ *    (demote berlaku seketika, bukan menunggu token 7 hari hangus).
+ * 3. Bandingkan klaim `tv` dengan users.token_version — token yang diterbitkan
+ *    sebelum perubahan role/password ditolak.
+ *
+ * Dynamic import menghindari dependensi melingkar auth.ts ↔ db.ts
+ * (db.ts mengimpor hashPassword untuk seeding).
+ */
+export async function getAuthUserAsync(request: Request): Promise<AuthSession | null> {
   const token = getTokenFromRequest(request);
   if (!token) return null;
-  return verifyToken(token);
+
+  const payload = await verifyToken(token);
+  if (!payload?.id) return null;
+
+  try {
+    const { getDb, getUserSessionData } = await import('./db');
+    const user = getUserSessionData(getDb(), String(payload.id));
+    if (!user) return null;
+    if ((typeof payload.tv === 'number' ? payload.tv : 0) !== user.token_version) return null;
+    return { id: user.id, email: user.email, name: user.name, role: user.role };
+  } catch (error) {
+    // DB tidak bisa diakses — perlakukan sebagai tidak terautentikasi, log ke server
+    console.error('[auth] gagal memuat data sesi dari DB:', error);
+    return null;
+  }
 }

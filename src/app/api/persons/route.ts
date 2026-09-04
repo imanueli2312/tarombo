@@ -1,10 +1,13 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPersons, createPerson, getPersonById, hasPermission, wouldCreateCycle } from '@/lib/db';
+import { getDb, getPersons, countPersons, createPerson, getPersonById, hasPermission, wouldCreateCycle } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import { validateDeathAfterBirth, validateNotFuture, validateLatitude, validateLongitude, validateChildAfterParent, validateFieldLength } from '@/lib/validation';
+import { validateDeathAfterBirth, validateNotFuture, validateChildAfterParent } from '@/lib/validation';
+import { readJsonBody, assertSameOrigin, parsePageParams } from '@/lib/http';
+import { personCreateSchema, firstIssueMessage } from '@/lib/schemas';
 import type { PersonCreate } from '@/types';
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -16,16 +19,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const persons = getPersons(db);
-    return NextResponse.json(persons);
+    // Paginasi opsional (audit S-06): ?limit=&offset= + header X-Total-Count.
+    // Default 500 baris — perilaku UI untuk data keluarga normal tidak berubah.
+    const page = parsePageParams(request);
+    const persons = getPersons(db, page);
+    return NextResponse.json(persons, {
+      headers: { 'X-Total-Count': String(countPersons(db)) },
+    });
   } catch (error) {
     console.error('[api/persons GET]', error);
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -36,24 +48,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const body: PersonCreate = await request.json();
+    // Audit S-03 + R-01: guard JSON (400/413) + validasi zod menggantikan cast
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = personCreateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
+    }
+    const body: PersonCreate = validated.data;
 
-    // Validate nama (trimmed, non-empty)
+    // Validate nama (trimmed, non-empty — zod min(1) tidak menangkap spasi murni)
     const nama = (body.nama || '').trim();
     if (!nama) {
       return NextResponse.json({ error: 'Nama wajib diisi' }, { status: 400 });
     }
     body.nama = nama;
-
-    // Field length validation
-    for (const field of ['nama', 'nama_panggilan', 'tempat_lahir', 'alamat', 'agama', 'nomor_telepon', 'burial_nama', 'burial_alamat', 'marga_asal', 'tempat_asal', 'pendidikan', 'pekerjaan', 'keterangan'] as const) {
-      const lenErr = validateFieldLength(field, (body as unknown as Record<string, unknown>)[field] as string | null);
-      if (lenErr) return NextResponse.json({ error: lenErr }, { status: 400 });
-    }
-
-    if (!body.jenis_kelamin || !['L', 'P'].includes(body.jenis_kelamin)) {
-      return NextResponse.json({ error: 'Jenis kelamin tidak valid' }, { status: 400 });
-    }
 
     // Date validations
     const dateErr = validateDeathAfterBirth(body.tanggal_lahir, body.tanggal_kematian);
@@ -74,21 +83,10 @@ export async function POST(request: NextRequest) {
       if (mother.jenis_kelamin !== 'P') return NextResponse.json({ error: 'Ibu harus berjenis kelamin perempuan' }, { status: 400 });
     }
 
-    // Validate nomor_generasi
+    // Validate nomor_generasi (double-check null vs undefined setelah zod)
     if (body.nomor_generasi != null && (body.nomor_generasi < 1 || !Number.isInteger(body.nomor_generasi))) {
       return NextResponse.json({ error: 'Nomor generasi harus bilangan bulat positif' }, { status: 400 });
     }
-
-    // Validate nomor_urut_lahir
-    if (body.nomor_urut_lahir != null && (body.nomor_urut_lahir < 1 || !Number.isInteger(body.nomor_urut_lahir))) {
-      return NextResponse.json({ error: 'Nomor urut kelahiran harus bilangan bulat positif' }, { status: 400 });
-    }
-
-    // Validate burial coordinates
-    const latErr = validateLatitude(body.burial_latitude);
-    if (latErr) return NextResponse.json({ error: latErr }, { status: 400 });
-    const lngErr = validateLongitude(body.burial_longitude);
-    if (lngErr) return NextResponse.json({ error: lngErr }, { status: 400 });
 
     // Auto-calculate nomor_generasi from father if provided
     let nomor_generasi = body.nomor_generasi ?? 1;
@@ -142,3 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /persons');
+export const POST = withApiLogging(POSTHandler, 'POST /persons');

@@ -32,22 +32,66 @@ export function getDb(): Database.Database {
   return _db;
 }
 
+/**
+ * Kerangka migrasi skema terversi via PRAGMA user_version (audit S-08).
+ *
+ * Aturan:
+ * - Setiap langkah HARUS idempoten (aman dijalankan ulang) karena database
+ *   lama yang dibuat sebelum kerangka ini ada masih memiliki user_version = 0
+ *   dan akan menjalankan semua langkah sekaligus.
+ * - Version selalu naik monoton; jangan pernah menyisipkan nomor yang sudah
+ *   terpakai, tambahkan langkah baru di ekor array.
+ * - initializeSchema() tetap memakai CREATE TABLE IF NOT EXISTS untuk database
+ *   baru; migrasi menangani ALTER pada database yang sudah berisi data.
+ */
+interface SchemaMigration {
+  version: number;
+  description: string;
+  up: (db: Database.Database) => void;
+}
+
+const SCHEMA_MIGRATIONS: SchemaMigration[] = [
+  {
+    version: 1,
+    description: 'kolom kultural Batak pada persons (migrasi ad-hoc lama, kini terversi)',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(persons)').all() as { name: string }[];
+      const colNames = new Set(cols.map((c) => c.name));
+      const legacy: { col: string; def: string }[] = [
+        { col: 'marga_asal', def: "ALTER TABLE persons ADD COLUMN marga_asal TEXT NOT NULL DEFAULT ''" },
+        { col: 'tempat_asal', def: "ALTER TABLE persons ADD COLUMN tempat_asal TEXT NOT NULL DEFAULT ''" },
+        { col: 'pendidikan', def: "ALTER TABLE persons ADD COLUMN pendidikan TEXT NOT NULL DEFAULT ''" },
+        { col: 'pekerjaan', def: "ALTER TABLE persons ADD COLUMN pekerjaan TEXT NOT NULL DEFAULT ''" },
+        { col: 'keterangan', def: "ALTER TABLE persons ADD COLUMN keterangan TEXT NOT NULL DEFAULT ''" },
+      ];
+      for (const m of legacy) {
+        if (!colNames.has(m.col)) db.exec(m.def);
+      }
+    },
+  },
+  {
+    version: 2,
+    description: 'revocasi sesi (audit T-02) — kolom token_version pada users',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+      if (!cols.some((c) => c.name === 'token_version')) {
+        db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
+      }
+    },
+  },
+];
+
 function runMigrations(db: Database.Database) {
-  // Migration: Add Batak cultural columns (v0.4.0)
-  const cols = db.prepare("PRAGMA table_info(persons)").all() as { name: string }[];
-  const colNames = new Set(cols.map((c) => c.name));
-
-  const migrations: { col: string; def: string }[] = [
-    { col: 'marga_asal', def: "ALTER TABLE persons ADD COLUMN marga_asal TEXT NOT NULL DEFAULT ''" },
-    { col: 'tempat_asal', def: "ALTER TABLE persons ADD COLUMN tempat_asal TEXT NOT NULL DEFAULT ''" },
-    { col: 'pendidikan', def: "ALTER TABLE persons ADD COLUMN pendidikan TEXT NOT NULL DEFAULT ''" },
-    { col: 'pekerjaan', def: "ALTER TABLE persons ADD COLUMN pekerjaan TEXT NOT NULL DEFAULT ''" },
-    { col: 'keterangan', def: "ALTER TABLE persons ADD COLUMN keterangan TEXT NOT NULL DEFAULT ''" },
-  ];
-
-  for (const m of migrations) {
-    if (!colNames.has(m.col)) {
-      db.exec(m.def);
+  const current = Number(db.pragma('user_version', { simple: true })) || 0;
+  for (const m of SCHEMA_MIGRATIONS) {
+    if (m.version <= current) continue;
+    try {
+      m.up(db);
+      db.pragma(`user_version = ${m.version}`);
+      console.info(`[db] migrasi skema v${m.version} diterapkan: ${m.description}`);
+    } catch (error) {
+      console.error(`[db] migrasi skema v${m.version} GAGAL:`, error);
+      throw error;
     }
   }
 }
@@ -60,6 +104,7 @@ function initializeSchema(db: Database.Database) {
       password_hash TEXT NOT NULL,
       name TEXT NOT NULL DEFAULT '',
       role TEXT NOT NULL DEFAULT 'viewer' CHECK(role IN ('viewer','editor','admin')),
+      token_version INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -211,8 +256,23 @@ function seedDefaultData(db: Database.Database) {
 }
 
 // Person CRUD
-export function getPersons(db: Database.Database) {
-  return db.prepare('SELECT * FROM persons ORDER BY nomor_generasi, nama').all() as import('@/types').Person[];
+
+/** Parameter paginasi standar (audit S-06) */
+export interface PageOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export function getPersons(db: Database.Database, page?: PageOptions) {
+  const sql = 'SELECT * FROM persons ORDER BY nomor_generasi, nama';
+  if (page?.limit != null) {
+    return db.prepare(`${sql} LIMIT ? OFFSET ?`).all(page.limit, page.offset ?? 0) as import('@/types').Person[];
+  }
+  return db.prepare(sql).all() as import('@/types').Person[];
+}
+
+export function countPersons(db: Database.Database): number {
+  return (db.prepare('SELECT COUNT(*) as c FROM persons').get() as { c: number }).c;
 }
 
 export function getPersonById(db: Database.Database, id: string) {
@@ -373,8 +433,16 @@ function collectDescendantIds(db: Database.Database, personId: string): string[]
 }
 
 // Partnership CRUD
-export function getPartnerships(db: Database.Database) {
-  return db.prepare('SELECT * FROM partnerships ORDER BY marriage_date DESC NULLS LAST').all() as import('@/types').Partnership[];
+export function getPartnerships(db: Database.Database, page?: PageOptions) {
+  const sql = 'SELECT * FROM partnerships ORDER BY marriage_date DESC NULLS LAST';
+  if (page?.limit != null) {
+    return db.prepare(`${sql} LIMIT ? OFFSET ?`).all(page.limit, page.offset ?? 0) as import('@/types').Partnership[];
+  }
+  return db.prepare(sql).all() as import('@/types').Partnership[];
+}
+
+export function countPartnerships(db: Database.Database): number {
+  return (db.prepare('SELECT COUNT(*) as c FROM partnerships').get() as { c: number }).c;
 }
 
 export function getPartnershipById(db: Database.Database, id: string) {
@@ -589,8 +657,16 @@ export function hasPermission(db: Database.Database, role: string, permission: s
 }
 
 // Users
-export function getUsers(db: Database.Database) {
-  return db.prepare('SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at').all() as import('@/types').User[];
+export function getUsers(db: Database.Database, page?: PageOptions) {
+  const sql = 'SELECT id, email, name, role, created_at, updated_at FROM users ORDER BY created_at';
+  if (page?.limit != null) {
+    return db.prepare(`${sql} LIMIT ? OFFSET ?`).all(page.limit, page.offset ?? 0) as import('@/types').User[];
+  }
+  return db.prepare(sql).all() as import('@/types').User[];
+}
+
+export function countUsers(db: Database.Database): number {
+  return (db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number }).c;
 }
 
 export function getUserById(db: Database.Database, id: string) {
@@ -599,7 +675,22 @@ export function getUserById(db: Database.Database, id: string) {
 
 export function getUserByEmail(db: Database.Database, email: string) {
   // Case-insensitive agar email dengan kapitalisasi berbeda tidak membuat akun ganda
-  return db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email) as (import('@/types').User & { password_hash: string }) | undefined;
+  return db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email) as (import('@/types').User & { password_hash: string; token_version: number }) | undefined;
+}
+
+/**
+ * Data user untuk validasi sesi di getAuthUserAsync (revocasi, audit T-02).
+ * Dipisah dari getUserById agar tidak mengubah bentuk respons API publik.
+ */
+export function getUserSessionData(db: Database.Database, id: string) {
+  return db
+    .prepare('SELECT id, email, name, role, token_version FROM users WHERE id = ?')
+    .get(id) as { id: string; email: string; name: string; role: import('@/types').UserRole; token_version: number } | undefined;
+}
+
+/** Naikkan token_version — semua JWT yang diterbitkan sebelumnya langsung hangus. */
+export function bumpTokenVersion(db: Database.Database, id: string) {
+  db.prepare("UPDATE users SET token_version = token_version + 1, updated_at = datetime('now') WHERE id = ?").run(id);
 }
 
 export function createUser(db: Database.Database, data: import('@/types').UserCreate & { id: string; password_hash: string }) {
@@ -614,14 +705,22 @@ export function updateUser(db: Database.Database, id: string, data: import('@/ty
   }
   if (data.role !== undefined) {
     db.prepare("UPDATE users SET role = ?, updated_at = datetime('now') WHERE id = ?").run(data.role, id);
+    // Perubahan role = perubahan hak istimewa — invalidasi semua token lama
+    // (audit T-02: demote/promote harus berlaku seketika).
+    bumpTokenVersion(db, id);
   }
   if (data.password_hash) {
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(data.password_hash, id);
+    // Ganti password = kredensial baru — semua sesi lama wajib login ulang.
+    bumpTokenVersion(db, id);
   }
   return getUserById(db, id);
 }
 
 export function deleteUser(db: Database.Database, id: string) {
+  // Naikkan versi dulu (walau baris akan dihapus) agar token aktif yang beredar
+  // tidak lolos validasi iat-versi jika akun dengan id sama dibuat ulang nanti.
+  bumpTokenVersion(db, id);
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
   return { deleted: true };
 }
@@ -654,13 +753,21 @@ export function getActiveSpouseOf(db: Database.Database, personId: string) {
 }
 
 // Oral History CRUD
-export function getOralHistories(db: Database.Database) {
-  return db.prepare(`
+export function getOralHistories(db: Database.Database, page?: PageOptions) {
+  const sql = `
     SELECT oh.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal
     FROM oral_histories oh
     JOIN persons p ON oh.person_id = p.id
     ORDER BY oh.created_at DESC
-  `).all() as (import('@/types').OralHistory & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string })[];
+  `;
+  if (page?.limit != null) {
+    return db.prepare(`${sql} LIMIT ? OFFSET ?`).all(page.limit, page.offset ?? 0) as (import('@/types').OralHistory & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string })[];
+  }
+  return db.prepare(sql).all() as (import('@/types').OralHistory & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string })[];
+}
+
+export function countOralHistories(db: Database.Database): number {
+  return (db.prepare('SELECT COUNT(*) as c FROM oral_histories').get() as { c: number }).c;
 }
 
 export function getOralHistoryById(db: Database.Database, id: string) {
@@ -710,15 +817,23 @@ export function deleteOralHistory(db: Database.Database, id: string) {
 }
 
 // Pusaka CRUD
-export function getPusakaItems(db: Database.Database) {
-  return db.prepare(`
+export function getPusakaItems(db: Database.Database, page?: PageOptions) {
+  const sql = `
     SELECT pi.*, p.nama as person_nama, p.nama_panggilan as person_panggilan, p.jenis_kelamin as person_jenis_kelamin, p.marga_asal,
       pf.nama as passed_from_nama
     FROM pusaka_items pi
     JOIN persons p ON pi.person_id = p.id
     LEFT JOIN persons pf ON pi.passed_from_person_id = pf.id
     ORDER BY pi.created_at DESC
-  `).all() as (import('@/types').PusakaItem & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string; passed_from_nama: string | null })[];
+  `;
+  if (page?.limit != null) {
+    return db.prepare(`${sql} LIMIT ? OFFSET ?`).all(page.limit, page.offset ?? 0) as (import('@/types').PusakaItem & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string; passed_from_nama: string | null })[];
+  }
+  return db.prepare(sql).all() as (import('@/types').PusakaItem & { person_nama: string; person_panggilan: string; person_jenis_kelamin: string; marga_asal: string; passed_from_nama: string | null })[];
+}
+
+export function countPusakaItems(db: Database.Database): number {
+  return (db.prepare('SELECT COUNT(*) as c FROM pusaka_items').get() as { c: number }).c;
 }
 
 export function getPusakaById(db: Database.Database, id: string) {

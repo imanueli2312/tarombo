@@ -1,7 +1,10 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getPartnerships, createPartnership, getPersonById, hasPermission } from '@/lib/db';
+import { getDb, getPartnerships, countPartnerships, createPartnership, getPersonById, hasPermission } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
 import { validateNotFuture } from '@/lib/validation';
+import { readJsonBody, assertSameOrigin, parsePageParams } from '@/lib/http';
+import { partnershipCreateSchema, firstIssueMessage } from '@/lib/schemas';
 import { checkAdatMarriage } from '@/lib/adat-rules';
 
 type PopulatedPartnership = {
@@ -27,7 +30,7 @@ function populatePartnership(
   };
 }
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -39,16 +42,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const partnerships = getPartnerships(db);
-    return NextResponse.json(partnerships.map((p) => populatePartnership(db, p)));
+    // Paginasi opsional (audit S-06)
+    const page = parsePageParams(request);
+    const partnerships = getPartnerships(db, page);
+    return NextResponse.json(partnerships.map((p) => populatePartnership(db, p)), {
+      headers: { 'X-Total-Count': String(countPartnerships(db)) },
+    });
   } catch (error) {
     console.error('[api/partnerships GET]', error);
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -59,12 +70,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { person1_id, person2_id, marriage_date } = body;
-
-    if (!person1_id || !person2_id) {
-      return NextResponse.json({ error: 'Dua orang wajib diisi' }, { status: 400 });
+    // Audit S-03 + R-01: guard JSON 400/413 + zod menggantikan cast mentah
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = partnershipCreateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
     }
+    const { person1_id, person2_id, marriage_date } = validated.data;
 
     if (person1_id === person2_id) {
       return NextResponse.json({ error: 'Tidak bisa menikah dengan diri sendiri' }, { status: 400 });
@@ -119,3 +132,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /partnerships');
+export const POST = withApiLogging(POSTHandler, 'POST /partnerships');

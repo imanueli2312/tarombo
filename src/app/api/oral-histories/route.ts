@@ -1,20 +1,12 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, getOralHistories, getOralHistoriesByPerson, createOralHistory, hasPermission } from '@/lib/db';
+import { getDb, getOralHistories, countOralHistories, getOralHistoriesByPerson, createOralHistory, hasPermission, getPersonById } from '@/lib/db';
 import { getAuthUserAsync } from '@/lib/auth';
-import type { OralHistoryCategory } from '@/types';
+import { readJsonBody, assertSameOrigin, parsePageParams } from '@/lib/http';
+import { oralHistoryCreateSchema, firstIssueMessage } from '@/lib/schemas';
+import type { OralHistoryCreate } from '@/types';
 
-const VALID_CATEGORIES: OralHistoryCategory[] = [
-  'turian_asal_usul',
-  'turian_migrasi',
-  'turian_peristiwa',
-  'gondang',
-  'mangalahat',
-  'saur_matua',
-  'pesta_pernikahan',
-  'turian_umum',
-];
-
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const session = await getAuthUserAsync(request);
     if (!session) {
@@ -33,15 +25,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(getOralHistoriesByPerson(db, personId));
     }
 
-    return NextResponse.json(getOralHistories(db));
+    // Paginasi opsional (audit S-06)
+    const page = parsePageParams(request);
+    return NextResponse.json(getOralHistories(db, page), {
+      headers: { 'X-Total-Count': String(countOralHistories(db)) },
+    });
   } catch (error) {
     console.error('[api/oral-histories]', error);
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
+    // Lapis kedua CSRF (audit S-13)
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
     const session = await getAuthUserAsync(request);
     if (!session) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
@@ -52,20 +52,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { person_id, category, title, content, source_person_name, recorded_date, is_verified } = body;
+    // Audit S-03: guard JSON 400/413; audit S-01: validasi zod menggantikan
+    // destructure mentah body tanpa validasi.
+    const parsed = await readJsonBody<unknown>(request);
+    if (!parsed.ok) return parsed.response;
+    const validated = oralHistoryCreateSchema.safeParse(parsed.data);
+    if (!validated.success) {
+      return NextResponse.json({ error: firstIssueMessage(validated.error) }, { status: 400 });
+    }
+    const body: OralHistoryCreate = validated.data;
+    const { person_id, category, title, content, source_person_name, recorded_date } = body;
 
-    if (!person_id) {
-      return NextResponse.json({ error: 'person_id wajib diisi' }, { status: 400 });
+    // Audit S-16: person_id dicek eksistensinya — pelanggaran FK dulunya
+    // melempar 500 dari constraint DB, kini 404 yang informatif.
+    const person = getPersonById(db, person_id);
+    if (!person) {
+      return NextResponse.json({ error: 'Orang (person_id) tidak ditemukan' }, { status: 404 });
     }
 
-    if (!title || typeof title !== 'string' || title.trim().length < 1) {
-      return NextResponse.json({ error: 'title minimal 1 karakter' }, { status: 400 });
-    }
-
-    if (!category || !VALID_CATEGORIES.includes(category)) {
-      return NextResponse.json({ error: 'category tidak valid' }, { status: 400 });
-    }
+    // Audit S-15: penandaan terverifikasi adalah kewenangan admin —
+    // editor merekam turian, admin yang memverifikasinya.
+    const isAdmin = session.role === 'admin';
 
     const id = crypto.randomUUID();
     const created = createOralHistory(db, {
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
       content,
       source_person_name,
       recorded_date,
-      is_verified,
+      is_verified: isAdmin ? body.is_verified ?? false : false,
     });
 
     return NextResponse.json(created, { status: 201 });
@@ -85,3 +92,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const GET = withApiLogging(GETHandler, 'GET /oral-histories');
+export const POST = withApiLogging(POSTHandler, 'POST /oral-histories');

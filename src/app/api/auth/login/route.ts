@@ -1,7 +1,9 @@
+import { withApiLogging } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, getUserByEmail, getPermissionsForRole } from '@/lib/db';
 import { verifyPassword, createToken } from '@/lib/auth';
-import { consumeRateLimit, resetRateLimit, getClientIp } from '@/lib/rate-limit';
+import { consumeRateLimit, resetRateLimit, getClientIp, DEFAULT_LOGIN_RATE_LIMIT, LOGIN_IP_RATE_LIMIT } from '@/lib/rate-limit';
+import { readJsonBody, assertSameOrigin } from '@/lib/http';
 
 // Hash dummy agar waktu respons tetap setara ketika email tidak ditemukan
 // (mitigasi timing attack untuk mencocokkan keberadaan akun).
@@ -9,14 +11,15 @@ const DUMMY_HASH = '$2b$12$C6UzMDM.H6dfI/f/IKcEe.pQ0GdJ7XWZxRr7RQ5xJ0y1m7RZy2N9u
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
-    let body: { email?: unknown; password?: unknown };
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Format permintaan tidak valid' }, { status: 400 });
-    }
+    // Lapis kedua CSRF (audit S-13): tolak POST lintas-origin
+    const originErr = assertSameOrigin(request);
+    if (originErr) return originErr;
+
+    const parsed = await readJsonBody<{ email?: unknown; password?: unknown }>(request);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const password = typeof body.password === 'string' ? body.password : '';
@@ -31,9 +34,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password tidak valid' }, { status: 400 });
     }
 
-    // Rate limit per kombinasi IP + email (mitigasi brute force)
-    const rateKey = `login:${getClientIp(request)}:${email}`;
-    const rl = consumeRateLimit(rateKey);
+    // Rate limit berlapis (audit T-03/T-04):
+    // 1. Cap per-IP murni — menutup password spraying (memutar-mutar email
+    //    korban untuk menghindari bucket per-akun).
+    // 2. Bucket per kombinasi IP + email — brute force satu akun.
+    // IP diambil dari X-Real-IP/entri terakhir XFF yang sudah diperbaiki
+    // (spoofing entri pertama XFF tidak lagi efektif).
+    const ip = getClientIp(request);
+    const ipRateKey = `login-ip:${ip}`;
+    const ipRl = consumeRateLimit(ipRateKey, LOGIN_IP_RATE_LIMIT);
+    if (!ipRl.ok) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak percobaan login dari perangkat ini. Coba lagi nanti.' },
+        { status: 429, headers: { 'Retry-After': String(ipRl.retryAfterSec || 900) } },
+      );
+    }
+
+    const rateKey = `login:${ip}:${email}`;
+    const rl = consumeRateLimit(rateKey, DEFAULT_LOGIN_RATE_LIMIT);
     if (!rl.ok) {
       const retryMin = Math.ceil((rl.retryAfterSec || 900) / 60);
       return NextResponse.json(
@@ -53,15 +71,17 @@ export async function POST(request: NextRequest) {
     }
 
     resetRateLimit(rateKey);
+    resetRateLimit(ipRateKey);
 
     const token = await createToken({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      tokenVersion: user.token_version,
     });
 
-    const { password_hash: _, ...safeUser } = user;
+    const { password_hash: _, token_version: __, ...safeUser } = user;
     const perms = getPermissionsForRole(db, user.role);
     const permissions = perms.filter((p) => p.allowed).map((p) => p.permission);
 
@@ -83,3 +103,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Terjadi kesalahan internal' }, { status: 500 });
   }
 }
+
+// Terbungkus withApiLogging (audit R-08): request-id, log terstruktur, metrik latensi.
+export const POST = withApiLogging(POSTHandler, 'POST /auth/login');
