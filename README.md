@@ -57,7 +57,9 @@ akar (Raja Hariandja) dibuat otomatis.
 
 > Bekerja dari **Windows 11 + VS Code**? Mulai dari panduan khusus:
 > [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) → *Opsi D* (WSL2, native bun,
-> dan Remote-SSH).
+> dan Remote-SSH). Catatan: bila `bun install` di PowerShell gagal di
+> `better-sqlite3` (`gyp ERR! find Python`), solusi tercepat adalah
+> `npm install` — rincian di *Opsi D §5.5*.
 
 ## Go-Live / Produksi
 

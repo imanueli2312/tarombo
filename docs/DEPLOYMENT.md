@@ -272,6 +272,13 @@ winget install OpenJS.NodeJS.LTS
 
 # Docker Desktop (opsional — untuk uji stack compose secara lokal)
 winget install Docker.DockerDesktop
+
+# (Opsional) Toolchain modul native: Python 3 + VS 2022 Build Tools (C++).
+# TIDAK wajib untuk proyek ini — better-sqlite3 v13 membundel binary jadi
+# (prebuilt) untuk Windows; hanya relevan bila Anda ingin tetap memakai
+# `bun install` murni di native Windows. Rincian: subseksi §5.5.
+# winget install -e --id Python.Python.3.13
+# winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 ```
 
 Catatan instalasi:
@@ -328,6 +335,13 @@ cd C:\dev\tarombo
 code .
 ```
 
+> **Hindari folder tersinkron OneDrive** (`Documents`, `Desktop`): proses
+> sinkronisasi dapat mengunci file `node_modules`/database dan memperlambat
+> I/O secara signifikan. Gunakan path biasa seperti `C:\dev\tarombo`. Bila
+> repo sudah terlanjur di `Documents`, nonaktifkan sinkron untuk folder itu
+> (OneDrive → Settings → Sync and backup → Manage backup) atau pindahkan
+> folder proyek.
+
 > **Akhir baris (CRLF/LF)**: repositori menyertakan `.gitattributes` yang
 > memaksa LF untuk `*.sh`, `Dockerfile`, `Caddyfile`, dan `*.mjs` — skrip
 > tetap valid dieksekusi di Linux/container meski dikloning dari Windows.
@@ -373,6 +387,67 @@ Perbedaan sintaks variabel lingkungan yang sering menjegal pengguna baru:
 bun install
 bun run dev          # buka http://localhost:3000
 ```
+
+#### `bun install` gagal di Windows native (`gyp ERR! find Python`)
+
+Di WSL2 masalah ini tidak ada. Di **PowerShell native** (tanpa WSL), bun bisa
+berhenti di tengah instalasi dengan galat seperti ini:
+
+```text
+gyp ERR! find Python You need to install the latest version of Python.
+gyp ERR! stack Error: Could not find any Python installation to use
+error: install script from "better-sqlite3" exited with 1
+```
+
+**Ini bukan cacat proyek** — `better-sqlite3` v13 sebenarnya sudah membundel
+binary jadi untuk Windows x64/ARM64 **di dalam paket npm-nya**
+(`prebuilds/win32-x64.node`), sehingga kompilasi tidak diperlukan sama
+sekali. Namun bun di Windows otomatis menjalankan *node-gyp* untuk paket
+ber-`binding.gyp` (perilaku yang tidak muncul di Linux/macOS), dan node-gyp
+menuntut Python 3 + Visual Studio Build Tools yang memang belum terpasang.
+
+Solusinya — pilih **salah satu** (urut dari yang termudah):
+
+**Solusi 1 — instal dependensi lewat `npm` (tanpa Python, tanpa Build
+Tools; tercepat & tanpa dependensi tambahan):**
+
+```powershell
+Remove-Item -Recurse -Force node_modules
+npm install
+bun run dev          # skrip proyek tetap dijalankan lewat shell bun
+```
+
+npm tidak memicu node-gyp untuk paket ini — binary prebuilt langsung dipakai
+dan instalasi selesai dalam hitungan detik. `npm install` menghasilkan
+`package-lock.json` yang sengaja di-`.gitignore` (repo memakai `bun.lock`);
+biarkan file itu ada, jangan di-commit.
+
+**Solusi 2 — bun dengan melewati skrip instalasi:**
+
+```powershell
+Remove-Item -Recurse -Force node_modules
+bun install --ignore-scripts
+```
+
+**Solusi 3 — pasang toolchain kompilasi (opsional).** Hanya perlu bila kelak
+ada modul native lain yang benar-benar harus dikompilasi dari sumber:
+
+```powershell
+# Python 3 (disyaratkan node-gyp)
+winget install -e --id Python.Python.3.13
+
+# Visual Studio 2022 Build Tools + workload C++ (±3-6 GB)
+winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+Setelah keduanya terpasang **tutup lalu buka ulang PowerShell/VS Code**
+(PATH harus terbaca ulang), verifikasi `python --version` mengembalikan
+Python 3.13.x, baru ulangi `bun install`. Instalasi Python lama yang rusak
+(node-gyp melaporkan `version is ""`) akan tergantikan oleh instalasi baru
+di PATH.
+
+**Solusi 4 — pindah ke jalur WSL2** (§5.3): toolchain persis sama dengan
+server Linux produksi, terbebas dari seluruh masalah khas Windows.
 
 Saat pertama kali dimuat, admin development + leluhur akar (Raja Hariandja)
 dibuat otomatis (lihat [README](../README.md)). Untuk debugging:
@@ -479,7 +554,7 @@ curl -s localhost:3000/api/health
 | Gejala | Penyebab & solusi |
 |---|---|
 | `docker` tidak jalan setelah install Docker Desktop | Backend WSL2 belum siap: jalankan `wsl --update`, restart Docker Desktop; pastikan virtualisasi aktif di BIOS/UEFI. |
-| Build gagal terkait `better-sqlite3`/MSVC di native Windows | Prebuilt `win32-x64` biasanya terpasang otomatis oleh `bun install`; bila terpaksa kompilasi (butuh VS Build Tools), solusi termudah: gunakan WSL2. |
+| `bun install` gagal: `gyp ERR! find Python` → `install script from "better-sqlite3" exited with 1` | Bun di Windows memicu node-gyp meski binary prebuilt sudah dibundel dalam paket — lihat subseksi *"bun install gagal di Windows native"* di §5.5. Solusi tercepat: `npm install`. |
 | Skrip `.sh` gagal: `bad interpreter ^M` | File lama ter-cache CRLF sebelum `.gitattributes` ada. Dari Git Bash/WSL: `git add --renormalize . && git checkout -- .` |
 | `NODE_ENV=production node ...` gagal di PowerShell | Prefix env hanya berlaku di bash/bun-shell → `$env:NODE_ENV="production"; node ...` |
 | Port 3000 sibuk | Cari pemakai: `netstat -ano | findstr :3000` → `taskkill /PID <pid> /F`, atau ganti `PORT`. |

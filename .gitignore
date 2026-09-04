@@ -79,3 +79,7 @@ upload/
 dev.log
 dev.out.log
 server.log
+
+# Lockfile npm — repo memakai bun.lock; npm hanya untuk jalur instalasi
+# Windows native (lihat docs/DEPLOYMENT.md §5.5). Jangan di-commit.
+package-lock.json
