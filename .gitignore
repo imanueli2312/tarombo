@@ -83,3 +83,7 @@ server.log
 # Lockfile npm — repo memakai bun.lock; npm hanya untuk jalur instalasi
 # Windows native (lihat docs/DEPLOYMENT.md §5.5). Jangan di-commit.
 package-lock.json
+
+# Service worker dihasilkan scripts/gen-sw.mjs dari scripts/sw-template.js
+# saat `bun run dev` / `bun run build` — versi cache terikat build (audit T-06).
+public/sw.js

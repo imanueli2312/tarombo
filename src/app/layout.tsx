@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -51,11 +52,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Petunjuk sesi dari server (audit R-06): cookie token httpOnly tidak bisa
+  // dibaca JS — layout membocorkan HANYA keberadaannya ke AuthProvider agar
+  // pengunjung tanpa sesi tidak menunggu spinner /api/auth/me yang sia-sia.
+  const cookieStore = await cookies();
+  const hasSessionCookie = cookieStore.has("token");
+
   return (
     <html lang="id" suppressHydrationWarning>
       <body
@@ -64,7 +71,7 @@ export default function RootLayout({
         <ServiceWorkerProvider>
           <ThemeProvider>
             <QueryProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider initialHasSession={hasSessionCookie}>{children}</AuthProvider>
             </QueryProvider>
           </ThemeProvider>
         </ServiceWorkerProvider>

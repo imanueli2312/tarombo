@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
-import * as d3 from 'd3';
-import type { TreeNode } from '@/types';
-import { getMargaLabel, MARGA_UTAMA } from '@/lib/batak-culture';
-import { TreePine, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { useEffect, useRef, useCallback, useState, memo } from 'react';
+// d3 modular (audit T-05): hanya sub-modul yang benar-benar dipakai —
+// import * as d3 menarik seluruh pustaka d3 ke bundel awal.
+import { select, type Selection, type BaseType } from 'd3-selection';
+import { hierarchy, tree, type HierarchyPointNode, type HierarchyPointLink } from 'd3-hierarchy';
+import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
+import { linkVertical } from 'd3-shape';
+import 'd3-transition'; // side-effect: mengaktifkan selection.transition()
 
-type HierarchyPointNode = d3.HierarchyPointNode<TreeNode>;
+import type { TreeNode } from '@/types';
+import { MARGA_UTAMA } from '@/lib/batak-culture';
+import { TreePine, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 
 interface TreeViewProps {
   data: TreeNode[];
@@ -23,6 +28,13 @@ const H_SPACE = 120;
 const V_SPACE = 200;
 const MAX_NAME_LEN = 18;
 
+/** Debounce resize (audit T-05b) dalam milidetik */
+const RESIZE_DEBOUNCE_MS = 150;
+/** Culling hanya aktif untuk pohon di atas ambang ini (node) */
+const CULL_THRESHOLD = 120;
+/** Margin buffer sekitar viewport saat culling (px) */
+const CULL_MARGIN = 250;
+
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '\u2026' : s;
 }
@@ -32,21 +44,68 @@ function getDisplayName(node: TreeNode): string {
   return truncate(name, MAX_NAME_LEN);
 }
 
-export default function TreeView({ data, onNodeClick, className }: TreeViewProps) {
+/** Label aksesibel (audit S-12) — dibaca pembaca layar untuk tiap node */
+function nodeAriaLabel(node: TreeNode): string {
+  const nama = node.nama_panggilan || node.nama;
+  const gender = node.jenis_kelamin === 'L' ? 'laki-laki' : 'perempuan';
+  let label = `${nama}, ${gender}, generasi ${node.nomor_generasi}`;
+  if (node.tanggal_lahir) label += `, lahir ${node.tanggal_lahir}`;
+  if (node.tanggal_kematian) label += `, wafat ${node.tanggal_kematian}`;
+  if (node.spouse) {
+    label += `, pasangan ${node.spouse.nama_panggilan || node.spouse.nama}`;
+  }
+  return label;
+}
+
+function TreeViewInner({ data, onNodeClick, className }: TreeViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gRef = useRef<SVGGElement>(null);
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Referensi untuk culling (audit T-05b): sembunyikan node di luar viewport
+  // saat zoom/pan pada pohon besar — tanpa membangun ulang DOM.
+  type NodeSel = Selection<SVGGElement | BaseType, HierarchyPointNode<TreeNode>, SVGGElement | BaseType, unknown>;
+  const nodeGroupsRef = useRef<NodeSel | null>(null);
+  const cullRafRef = useRef<number | null>(null);
+
+  const applyCulling = useCallback((t: ZoomTransform) => {
+    const nodeSel = nodeGroupsRef.current;
+    const container = containerRef.current;
+    if (!nodeSel || !container) return;
+    const nodes = nodeSel.data();
+    if (!nodes || nodes.length < CULL_THRESHOLD) return;
+
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    nodeSel.each(function (d) {
+      const [sx, sy] = t.apply([d.x ?? 0, d.y ?? 0]);
+      const visible = sx > -CULL_MARGIN && sx < w + CULL_MARGIN && sy > -CULL_MARGIN && sy < h + CULL_MARGIN;
+      (this as SVGGElement).style.display = visible ? '' : 'none';
+    });
+  }, []);
+
+  const scheduleCull = useCallback(
+    (t: ZoomTransform) => {
+      if (cullRafRef.current != null) return;
+      cullRafRef.current = requestAnimationFrame(() => {
+        cullRafRef.current = null;
+        applyCulling(t);
+      });
+    },
+    [applyCulling],
+  );
 
   const renderTree = useCallback(
     (containerW: number, containerH: number) => {
-      const svg = d3.select(svgRef.current);
-      const g = d3.select(gRef.current);
+      const svg = select(svgRef.current);
+      const g = select(gRef.current);
       if (!svg.node() || !g.node()) return;
 
       // Clear previous
       g.selectAll('*').remove();
+      nodeGroupsRef.current = null;
 
       if (!data || data.length === 0) return;
 
@@ -65,17 +124,17 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         children: data,
       };
 
-      const root = d3.hierarchy<TreeNode>(virtualRoot, (d) => d.children);
+      const root = hierarchy<TreeNode>(virtualRoot, (d) => d.children);
 
       // 2. Tree layout
-      const treeLayout = d3.tree<TreeNode>()
+      const treeLayout = tree<TreeNode>()
         .nodeSize([H_SPACE, V_SPACE])
         .separation((a, b) => (a.parent === b.parent ? 1 : 1.2));
 
       treeLayout(root);
 
       // 3. Link generator
-      const linkGen = d3.linkVertical<any, any>()
+      const linkGen = linkVertical<any, any>()
         .x((d: any) => d.x ?? 0)
         .y((d: any) => d.y ?? 0);
 
@@ -105,8 +164,8 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       minX -= 80;
 
       // 6. Draw links (only from real nodes to their children)
-      const links = (root.links() as unknown as d3.HierarchyPointLink<TreeNode>[]).filter(
-        (l) => l.source.data.id !== '__virtual_root__'
+      const links = (root.links() as unknown as HierarchyPointLink<TreeNode>[]).filter(
+        (l) => l.source.data.id !== '__virtual_root__',
       );
 
       g.append('g')
@@ -121,14 +180,25 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         .attr('stroke-opacity', 0.35);
 
       // 7. Draw node groups
+      // Aksesibilitas (audit S-12): tiap node kartu bisa difokuskan (roving
+      // tabindex — container svg memegang tabindex 0), punya role treeitem
+      // dan label yang dibaca pembaca layar.
       const nodeGroups = g
         .append('g')
         .attr('class', 'tree-nodes')
+        .attr('role', 'group')
+        .attr('aria-label', `Daftar ${realNodes.length} anggota keluarga`)
         .selectAll('g')
         .data(realNodes)
         .join('g')
+        .attr('class', 'tree-node')
+        .attr('role', 'treeitem')
+        .attr('tabindex', -1)
+        .attr('aria-label', (d) => nodeAriaLabel(d.data))
         .attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`)
         .style('cursor', onNodeClick ? 'pointer' : 'default');
+
+      nodeGroupsRef.current = nodeGroups as unknown as NodeSel;
 
       // 8. Main node card
       const cardGroup = nodeGroups
@@ -160,7 +230,6 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         .attr('opacity', 0.35);
 
       // Photo circle or placeholder
-      // Placeholder circle (always drawn, image on top if exists)
       cardGroup
         .append('circle')
         .attr('cx', 22)
@@ -211,7 +280,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         .attr('fill', (d) =>
           d.data.jenis_kelamin === 'L'
             ? 'oklch(0.6 0.2 250)'
-            : 'oklch(0.65 0.2 350)'
+            : 'oklch(0.65 0.2 350)',
         );
 
       // Name text
@@ -250,7 +319,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         .filter((d) => !!d.data.spouse)
         .each(function (d) {
           const spouse = d.data.spouse!;
-          const sel = d3.select(this);
+          const sel = select(this);
           const isDivorced = spouse.status_pernikahan === 'cerai';
 
           // Connection line
@@ -332,7 +401,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
             .attr('fill', 'var(--muted-foreground)')
             .text(() => {
               if (isBoru) {
-                return isDivorced ? `(Cerai · ${spouse.marga_asal})` : `(Boru · ${spouse.marga_asal})`;
+                return isDivorced ? `(Cerai \u00B7 ${spouse.marga_asal})` : `(Boru \u00B7 ${spouse.marga_asal})`;
               }
               return isDivorced ? '(Cerai)' : '(Pasangan)';
             });
@@ -340,7 +409,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
 
       // 10. Generation level labels
       const genNodes = root.descendants().filter(
-        (d) => d.data.id !== '__virtual_root__'
+        (d) => d.data.id !== '__virtual_root__',
       );
       const genYs = new Map<number, number>();
       for (const n of genNodes) {
@@ -367,26 +436,26 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       // 10b. Hover + click on node cards
       cardGroup
         .on('mouseenter', function () {
-          d3.select(this)
+          select(this)
             .select('rect')
             .transition()
             .duration(150)
             .attr('stroke', 'var(--primary)')
             .attr('stroke-width', 2);
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .style('transform-origin', `${NODE_W / 2}px ${NODE_H / 2}px`)
             .style('transform', 'scale(1.04)');
         })
         .on('mouseleave', function () {
-          d3.select(this)
+          select(this)
             .select('rect')
             .transition()
             .duration(150)
             .attr('stroke', 'var(--border)')
             .attr('stroke-width', 1);
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .style('transform', 'scale(1)');
@@ -398,7 +467,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         });
       }
 
-      // 11. Zoom + fit
+      // 11. Zoom + fit + culling
       const padding = 80;
       const treeW = maxX - minX + padding * 2;
       const treeH = maxY - minY + padding * 2;
@@ -406,29 +475,75 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       const centerX = (minX + maxX) / 2;
       const centerY = (minY + maxY) / 2;
 
-      const zoom = d3
-        .zoom<SVGSVGElement, unknown>()
+      const zoom = d3zoom<SVGSVGElement, unknown>()
         .scaleExtent([0.1, 4])
         .on('zoom', (event) => {
           g.attr('transform', event.transform.toString());
+          // Culling node di luar viewport (audit T-05b) — di-throttle rAF
+          scheduleCull(event.transform);
         });
 
       const svgEl = svgRef.current;
       if (!svgEl) return;
 
-      const svgSel = d3.select(svgEl);
+      const svgSel = select(svgEl);
       svgSel.call(zoom);
       zoomRef.current = zoom;
 
       svgSel.call(
         zoom.transform,
-        d3.zoomIdentity
+        zoomIdentity
           .translate(containerW / 2, containerH / 2)
           .scale(scale)
-          .translate(-centerX, -centerY)
+          .translate(-centerX, -centerY),
       );
     },
-    [data, onNodeClick]
+    [data, onNodeClick, scheduleCull],
+  );
+
+  // Navigasi keyboard pohon (audit S-12): container svg difokuskan dengan Tab,
+  // tombol panah berpindah antar node, Enter/Space membuka node terfokus.
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<SVGSVGElement>) => {
+      const nodeEls = Array.from(gRef.current?.querySelectorAll<SVGGElement>('g.tree-node') ?? []);
+      if (nodeEls.length === 0) return;
+
+      const focusedIdx = nodeEls.findIndex((el) => el === document.activeElement);
+      let target = -1;
+
+      switch (e.key) {
+        case 'ArrowDown':
+        case 'ArrowRight':
+          target = focusedIdx < 0 ? 0 : focusedIdx + 1;
+          break;
+        case 'ArrowUp':
+        case 'ArrowLeft':
+          target = focusedIdx < 0 ? nodeEls.length - 1 : focusedIdx - 1;
+          break;
+        case 'Home':
+          target = 0;
+          break;
+        case 'End':
+          target = nodeEls.length - 1;
+          break;
+        case 'Enter':
+        case ' ':
+          if (focusedIdx >= 0 && onNodeClick) {
+            const d = (nodeEls[focusedIdx] as SVGGElement & { __data__?: HierarchyPointNode<TreeNode> }).__data__;
+            if (d) onNodeClick(d.data.id);
+            e.preventDefault();
+          }
+          return;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      if (target >= 0 && target < nodeEls.length) {
+        nodeEls[target].focus();
+      }
+    },
+    [onNodeClick],
   );
 
   // Zoom controls
@@ -436,7 +551,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
     const el = svgRef.current;
     const z = zoomRef.current;
     if (el && z) {
-      d3.select<SVGSVGElement, unknown>(el).transition().duration(300).call(z.scaleBy, 1.3);
+      select<SVGSVGElement, unknown>(el).transition().duration(300).call(z.scaleBy, 1.3);
     }
   }, []);
 
@@ -444,7 +559,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
     const el = svgRef.current;
     const z = zoomRef.current;
     if (el && z) {
-      d3.select<SVGSVGElement, unknown>(el).transition().duration(300).call(z.scaleBy, 0.7);
+      select<SVGSVGElement, unknown>(el).transition().duration(300).call(z.scaleBy, 0.7);
     }
   }, []);
 
@@ -461,7 +576,8 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
     }
   }, [renderTree, dimensions]);
 
-  // Resize observer
+  // Resize observer — didebounce 150 ms (audit T-05b): drag/rescale jendela
+  // tidak lagi memicu rebuild pohon pada setiap piksel perubahan.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -469,11 +585,25 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
     const updateSize = () => {
       setDimensions({ width: container.clientWidth, height: container.clientHeight });
     };
-
     updateSize();
-    const observer = new ResizeObserver(updateSize);
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new ResizeObserver(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(updateSize, RESIZE_DEBOUNCE_MS);
+    });
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  // Bersihkan rAF tertunda saat unmount
+  useEffect(() => {
+    return () => {
+      if (cullRafRef.current != null) cancelAnimationFrame(cullRafRef.current);
+    };
   }, []);
 
   // Empty state
@@ -495,7 +625,15 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
       className={`tree-container relative w-full overflow-hidden ${className || ''}`}
       style={{ height: 'calc(100vh - 180px)' }}
     >
-      <svg ref={svgRef} className="h-full w-full" style={{ display: 'block' }}>
+      <svg
+        ref={svgRef}
+        className="h-full w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ display: 'block' }}
+        role="tree"
+        tabIndex={0}
+        aria-label={`Pohon keluarga, ${data.length} cabang. Gunakan tombol panah untuk berpindah antar anggota dan Enter untuk membuka.`}
+        onKeyDown={handleKeyDown}
+      >
         <defs>
           <filter id="node-shadow" x="-10%" y="-10%" width="130%" height="140%">
             <feDropShadow
@@ -510,12 +648,13 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
         <g ref={gRef} />
       </svg>
 
-      {/* Zoom controls */}
+      {/* Zoom controls — aria-label menambah title (audit S-12) */}
       <div className="absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-lg backdrop-blur-sm bottom-2 right-2 sm:bottom-4 sm:right-4">
         <button
           onClick={handleZoomIn}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Perbesar"
+          aria-label="Perbesar tampilan pohon"
           type="button"
         >
           <ZoomIn className="h-4 w-4" />
@@ -524,6 +663,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
           onClick={handleZoomOut}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Perkecil"
+          aria-label="Perkecil tampilan pohon"
           type="button"
         >
           <ZoomOut className="h-4 w-4" />
@@ -532,6 +672,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
           onClick={handleReset}
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:h-8 sm:w-8"
           title="Reset tampilan"
+          aria-label="Kembalikan tampilan pohon ke posisi awal"
           type="button"
         >
           <Maximize className="h-4 w-4" />
@@ -540,3 +681,7 @@ export default function TreeView({ data, onNodeClick, className }: TreeViewProps
     </div>
   );
 }
+
+// React.memo (audit T-05b): dengan onNodeClick stabil dari page.tsx,
+// re-render Home (ganti tab, buka menu) tidak lagi memicu rebuild pohon.
+export default memo(TreeViewInner);

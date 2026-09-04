@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,17 +27,47 @@ import { SearchPanel } from '@/components/features/search/search-panel'
 import { ProfilePanel } from '@/components/features/profile/profile-panel'
 import PartnershipList from '@/components/features/partnerships/partnership-list'
 import { ExportDialog } from '@/components/features/export/export-dialog'
-import { RBACPanel } from '@/components/features/admin/rbac-panel'
-import { UserManagement } from '@/components/features/admin/user-management'
-import { StatisticsPanel } from '@/components/features/statistics/statistics-panel'
 import { HeritagePanel } from '@/components/features/heritage/heritage-panel'
 import { LoginForm } from '@/components/features/auth/login-form'
 import { AdatGuideDialog } from '@/components/features/adat/adat-guide-dialog'
-import { MargaBookPanel } from '@/components/features/marga-book/marga-book-panel'
-import { TransferPanel } from '@/components/features/transfer/transfer-panel'
-
 import { useAuthStore } from '@/store/auth'
 import type { TreeNode } from '@/types'
+
+// Code-splitting (audit T-05): panel berat dimuat malas lewat next/dynamic
+// sehingga recharts (statistik), jsPDF pipeline (transfer), dan kode admin
+// tidak lagi membebani bundel awal halaman pohon.
+const StatisticsPanel = dynamic(
+  () => import('@/components/features/statistics/statistics-panel').then(m => m.StatisticsPanel),
+  { loading: () => <PanelLoading /> },
+)
+const TransferPanel = dynamic(
+  () => import('@/components/features/transfer/transfer-panel').then(m => m.TransferPanel),
+  { loading: () => <PanelLoading /> },
+)
+const RBACPanel = dynamic(
+  () => import('@/components/features/admin/rbac-panel').then(m => m.RBACPanel),
+  { loading: () => <PanelLoading /> },
+)
+const UserManagement = dynamic(
+  () => import('@/components/features/admin/user-management').then(m => m.UserManagement),
+  { loading: () => <PanelLoading /> },
+)
+const MargaBookPanel = dynamic(
+  () => import('@/components/features/marga-book/marga-book-panel').then(m => m.MargaBookPanel),
+  { loading: () => <PanelLoading /> },
+)
+
+function PanelLoading() {
+  return (
+    <div className='flex items-center justify-center py-24' aria-busy='true' aria-label='Memuat panel'>
+      <div className='text-center space-y-3'>
+        <Skeleton className='h-8 w-56 mx-auto' />
+        <Skeleton className='h-4 w-40 mx-auto' />
+        <p className='text-sm text-muted-foreground'>Memuat...</p>
+      </div>
+    </div>
+  )
+}
 
 type TabValue = 'tree' | 'search' | 'profile' | 'bagan' | 'pernikahan' | 'warisan' | 'bukumarga' | 'transfer' | 'statistik' | 'admin'
 
@@ -120,16 +151,28 @@ export default function Home() {
     queryClient.invalidateQueries()
   }, [queryClient])
 
+  // Callback node pohon STABIL (audit T-05b): identitas fungsi tidak berubah
+  // antar render Home — TreeView yang di-memo tidak lagi rebuild DOM penuh
+  // hanya karena tab berganti / menu dibuka / state lain berubah.
+  const handleTreeNodeClick = useCallback((id: string) => {
+    setTreePersonId(id)
+    setTreeNavKey((k) => k + 1)
+    if (hasPermission('view_profile')) {
+      setActiveTab('profile')
+    } else {
+      setActiveTab('search')
+    }
+  }, [hasPermission])
+
   const handleLogout = useCallback(() => {
     logout()
     queryClient.invalidateQueries()
     setActiveTab('tree')
   }, [logout, queryClient])
 
-  // Seed the database on first load
-  useEffect(() => {
-    fetch('/api/seed', { method: 'POST' }).catch(() => {})
-  }, [])
+  // Catatan (audit S-04): POST /api/seed TIDAK lagi ditembak dari setiap
+  // page load. Seeding adalah urusan deploy (sekali saat instalasi) dan
+  // sudah didokumentasikan di docs/DEPLOYMENT.md — bukan urusan peramban.
 
   const tabContent = () => {
     switch (effectiveTab) {
@@ -147,15 +190,7 @@ export default function Home() {
         }
         return (
           <div id='tree-svg-container' className='w-full h-[calc(100vh-180px)] relative'>
-            <TreeView data={treeData || []} onNodeClick={(id) => {
-              setTreePersonId(id)
-              setTreeNavKey((k) => k + 1)
-              if (hasPermission('view_profile')) {
-                setActiveTab('profile')
-              } else {
-                setActiveTab('search')
-              }
-            }} />
+            <TreeView data={treeData || []} onNodeClick={handleTreeNodeClick} />
           </div>
         )
 
@@ -204,7 +239,7 @@ export default function Home() {
           >
             <LoginForm onSuccess={handleLoginSuccess} />
             <div className='absolute top-4 right-4'>
-              <Button variant='ghost' size='icon' onClick={() => setShowLogin(false)}>
+              <Button variant='ghost' size='icon' onClick={() => setShowLogin(false)} aria-label='Tutup form masuk'>
                 <X className='h-5 w-5' />
               </Button>
             </div>
@@ -261,7 +296,7 @@ export default function Home() {
               size='icon'
               className='h-8 w-8'
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label='Toggle theme'
+              aria-label='Ganti tema terang/gelap'
             >
               <Sun className='h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0' />
               <Moon className='absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100' />
@@ -301,7 +336,7 @@ export default function Home() {
             {/* Mobile Menu */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild className='md:hidden'>
-                <Button variant='ghost' size='icon' className='h-8 w-8'>
+                <Button variant='ghost' size='icon' className='h-8 w-8' aria-label='Buka menu navigasi'>
                   <Menu className='h-4 w-4' />
                 </Button>
               </SheetTrigger>

@@ -113,10 +113,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 placeholder="nama@email.com"
                 autoComplete="email"
                 aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'email-error' : undefined}
                 {...register('email')}
               />
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                <p id="email-error" role="alert" className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
 
@@ -128,10 +129,11 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 placeholder="••••••"
                 autoComplete="current-password"
                 aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'password-error' : undefined}
                 {...register('password')}
               />
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
+                <p id="password-error" role="alert" className="text-sm text-destructive">{errors.password.message}</p>
               )}
             </div>
 
