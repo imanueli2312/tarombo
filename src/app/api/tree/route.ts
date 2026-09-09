@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { buildFamilyTree, findRootAncestors, serializePerson } from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/** GET /api/tree
+/** GET /api/tree — butuh permission person:view
  *  - Tanpa param: kembalikan semua leluhur root + pohon masing-masing.
  *  - ?rootId=<id>: pohon dari orang tertentu.
  */
 export async function GET(req: NextRequest) {
   try {
+    await requirePermission("person:view");
     const { searchParams } = new URL(req.url);
     const rootId = searchParams.get("rootId");
 
@@ -32,6 +33,9 @@ export async function GET(req: NextRequest) {
       roots: roots.map(serializePerson),
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

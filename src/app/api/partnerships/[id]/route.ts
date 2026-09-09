@@ -7,13 +7,15 @@ import {
   serializePartnership,
   serializePerson,
 } from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/** GET /api/partnerships/[id] */
+/** GET /api/partnerships/[id] — butuh person:view */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("person:view");
     const { id } = await params;
     const partnership = await db.partnership.findUnique({
       where: { id },
@@ -30,11 +32,14 @@ export async function GET(
       },
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** PATCH /api/partnerships/[id]
+/** PATCH /api/partnerships/[id] — butuh partnership:edit
  *  Validasi: bila status diubah menjadi ACTIVE, pastikan keduanya belum
  *  memiliki pasangan aktif lain.
  */
@@ -43,6 +48,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("partnership:edit");
     const { id } = await params;
     const existing = await db.partnership.findUnique({ where: { id } });
     if (!existing)
@@ -99,16 +105,20 @@ export async function PATCH(
       },
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
 }
 
-/** DELETE /api/partnerships/[id] */
+/** DELETE /api/partnerships/[id] — butuh partnership:delete */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("partnership:delete");
     const { id } = await params;
     const existing = await db.partnership.findUnique({ where: { id } });
     if (!existing)
@@ -131,6 +141,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

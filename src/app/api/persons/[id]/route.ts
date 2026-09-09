@@ -6,13 +6,15 @@ import {
   handleDeathSideEffects,
   serializePerson,
 } from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/** GET /api/persons/[id] — detail satu orang + partnership-nya. */
+/** GET /api/persons/[id] — detail satu orang + partnership-nya. Butuh person:view */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("person:view");
     const { id } = await params;
     const person = await db.person.findUnique({
       where: { id },
@@ -47,11 +49,14 @@ export async function GET(
       ],
     }});
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** PATCH /api/persons/[id] — update orang.
+/** PATCH /api/persons/[id] — update orang. Butuh permission person:edit.
  *  Bila deathDate baru diset (sebelumnya null) dan ada pasangan aktif →
  *  otomatis set tanggal cerai & status pasangan menjadi WIDOWED.
  */
@@ -60,6 +65,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("person:edit");
     const { id } = await params;
     const existing = await db.person.findUnique({ where: { id } });
     if (!existing)
@@ -131,11 +137,14 @@ export async function PATCH(
     const refreshed = await db.person.findUnique({ where: { id } });
     return NextResponse.json({ data: serializePerson(refreshed!) });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** DELETE /api/persons/[id] — hapus orang.
+/** DELETE /api/persons/[id] — hapus orang. Butuh permission person:delete.
  *  Anak-anak akan set fatherId/motherId = null (onDelete: SetNull).
  */
 export async function DELETE(
@@ -143,6 +152,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await requirePermission("person:delete");
     const { id } = await params;
     const existing = await db.person.findUnique({ where: { id } });
     if (!existing)
@@ -151,6 +161,9 @@ export async function DELETE(
     await db.person.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

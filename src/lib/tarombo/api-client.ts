@@ -8,7 +8,10 @@ import type {
   TreeNodePerson,
   UserInput,
   UserPublic,
+  RolePublic,
+  ActiveUserPublic,
 } from "./types";
+import type { PermissionDef } from "./permissions";
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -179,20 +182,21 @@ export async function fetchUsers(): Promise<UserPublic[]> {
 }
 
 export async function fetchActiveUser(): Promise<{
-  data: UserPublic | null;
+  data: ActiveUserPublic | null;
   hasUsers: boolean;
 }> {
   const res = await fetch("/api/users/active", { cache: "no-store" });
-  return jsonOrThrow<{ data: UserPublic | null; hasUsers: boolean }>(res);
+  return jsonOrThrow<{ data: ActiveUserPublic | null; hasUsers: boolean }>(res);
 }
 
-export async function setActiveUser(userId: string): Promise<UserPublic> {
+export async function setActiveUser(userId: string): Promise<ActiveUserPublic> {
   const res = await fetch("/api/users/active", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId }),
   });
-  const data = await jsonOrThrow<{ data: UserPublic }>(res);
+  const data = await jsonOrThrow<{ data: ActiveUserPublic | null }>(res);
+  if (!data.data) throw new Error("Gagal mengaktifkan pengguna");
   return data.data;
 }
 
@@ -218,6 +222,64 @@ export async function updateUser(id: string, input: Partial<UserInput>): Promise
 
 export async function deleteUser(id: string): Promise<void> {
   const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+  await jsonOrThrow<{ success: boolean }>(res);
+}
+
+// ============================================================================
+// Roles (RBAC — dikustomisasi admin)
+// ============================================================================
+
+export async function fetchRoles(): Promise<{
+  roles: RolePublic[];
+  catalog: PermissionDef[];
+}> {
+  const res = await fetch("/api/roles", { cache: "no-store" });
+  const data = await jsonOrThrow<{
+    data: RolePublic[];
+    catalog: PermissionDef[];
+  }>(res);
+  return { roles: data.data, catalog: data.catalog };
+}
+
+export async function createRole(input: {
+  name: string;
+  description?: string | null;
+  color?: string;
+  icon?: string | null;
+  permissions: string[];
+  sortOrder?: number;
+}): Promise<RolePublic> {
+  const res = await fetch("/api/roles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await jsonOrThrow<{ data: RolePublic }>(res);
+  return data.data;
+}
+
+export async function updateRole(
+  id: string,
+  input: Partial<{
+    name: string;
+    description: string | null;
+    color: string;
+    icon: string | null;
+    permissions: string[];
+    sortOrder: number;
+  }>,
+): Promise<RolePublic> {
+  const res = await fetch(`/api/roles/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await jsonOrThrow<{ data: RolePublic }>(res);
+  return data.data;
+}
+
+export async function deleteRole(id: string): Promise<void> {
+  const res = await fetch(`/api/roles/${id}`, { method: "DELETE" });
   await jsonOrThrow<{ success: boolean }>(res);
 }
 

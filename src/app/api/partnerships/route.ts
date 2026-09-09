@@ -7,10 +7,12 @@ import {
   serializePartnership,
   serializePerson,
 } from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/** GET /api/partnerships — daftar semua pasangan. */
+/** GET /api/partnerships — daftar semua pasangan. Butuh person:view */
 export async function GET(req: NextRequest) {
   try {
+    await requirePermission("person:view");
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const personId = searchParams.get("personId");
@@ -39,11 +41,14 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** POST /api/partnerships — buat pasangan baru.
+/** POST /api/partnerships — buat pasangan baru. Butuh partnership:create.
  *  Validasi bisnis:
  *  - husband harus MALE, wife harus FEMALE
  *  - husbandId != wifeId
@@ -51,6 +56,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    await requirePermission("partnership:create");
     const body = await req.json();
     const parsed = partnershipSchema.safeParse(body);
     if (!parsed.success) {
@@ -127,6 +133,9 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     const msg = (e as Error).message;
     return NextResponse.json({ error: msg }, { status: 400 });
   }

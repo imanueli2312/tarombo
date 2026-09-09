@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useActiveUser } from "@/lib/tarombo/use-permissions";
 import {
   Pencil,
   Heart,
@@ -79,6 +80,12 @@ export function PersonDetailPanel({
   onDelete,
   onJumpToTree,
 }: Props) {
+  const { can } = useActiveUser();
+  const canEdit = can("person:edit");
+  const canDelete = can("person:delete");
+  const canAddChild = can("person:create");
+  const canAddPartner = can("partnership:create");
+
   const { data, isLoading } = useQuery({
     queryKey: ["person-detail", personId],
     queryFn: () => fetchPersonDetail(personId!),
@@ -196,37 +203,49 @@ export function PersonDetailPanel({
 
           {/* Aksi cepat */}
           <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <Button size="sm" variant="outline" onClick={() => onEdit(p.id)} className="h-8 text-xs">
-              <Pencil className="size-3.5 mr-1.5" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onAddChild(p.id)}
-              className="h-8 text-xs"
-            >
-              <Baby className="size-3.5 mr-1.5" />
-              Tambah Anak
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onAddPartner(p.id)}
-              className="h-8 text-xs"
-            >
-              <Heart className="size-3.5 mr-1.5" />
-              Pasangan
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onDelete(p.id)}
-              className="h-8 text-xs text-destructive hover:text-destructive"
-            >
-              <Trash2 className="size-3.5 mr-1.5" />
-              Hapus
-            </Button>
+            {canEdit ? (
+              <Button size="sm" variant="outline" onClick={() => onEdit(p.id)} className="h-8 text-xs">
+                <Pencil className="size-3.5 mr-1.5" />
+                Edit
+              </Button>
+            ) : (
+              <div className="h-8" />
+            )}
+            {canAddChild ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onAddChild(p.id)}
+                className="h-8 text-xs"
+              >
+                <Baby className="size-3.5 mr-1.5" />
+                Tambah Anak
+              </Button>
+            ) : (
+              <div className="h-8" />
+            )}
+            {canAddPartner && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onAddPartner(p.id)}
+                className="h-8 text-xs"
+              >
+                <Heart className="size-3.5 mr-1.5" />
+                Pasangan
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onDelete(p.id)}
+                className="h-8 text-xs text-destructive hover:text-destructive"
+              >
+                <Trash2 className="size-3.5 mr-1.5" />
+                Hapus
+              </Button>
+            )}
           </div>
         </Card>
 

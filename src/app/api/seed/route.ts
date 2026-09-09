@@ -1,21 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import {
+  ADMIN_DEFAULT_PERMISSIONS,
+  MEMBER_DEFAULT_PERMISSIONS,
+  serializePermissions,
+} from "@/lib/tarombo/permissions";
+import {
+  PermissionDeniedError,
+  requirePermission,
+} from "@/lib/tarombo/auth";
 
-/** POST /api/seed — isi data keluarga contoh (Batak-style) bila DB kosong.
+/**
+ * POST /api/seed — isi data keluarga contoh (Batak-style) bila DB kosong.
+ *  Butuh permission data:seed.
  *  Idempoten: bila sudah ada data Person, tidak membuat ulang Person.
- *  Tapi tetap memastikan ada minimal 1 User admin.
+ *  Tapi tetap memastikan ada role default (Administrator & Anggota) + user contoh.
  */
 export async function POST(_req: NextRequest) {
   try {
-    // --- Pastikan ada User admin default (terpisah dari Person) ---
-    let adminUser = await db.user.findFirst({ where: { role: "ADMIN" } });
+    // Bila sudah ada user aktif → cek permission data:seed.
+    // Bila belum ada user sama sekali → izinkan (first-run setup).
+    const userCount = await db.user.count();
+    if (userCount > 0) {
+      await requirePermission("data:seed");
+    }
+
+    // --- Pastikan ada Role default (Administrator & Anggota) ---
+    let adminRole = await db.role.findUnique({ where: { name: "Administrator" } });
+    if (!adminRole) {
+      adminRole = await db.role.create({
+        data: {
+          name: "Administrator",
+          description: "Akses penuh ke seluruh fitur aplikasi.",
+          color: "#7a1f1f",
+          icon: "shield",
+          permissions: serializePermissions(ADMIN_DEFAULT_PERMISSIONS),
+          isSystem: true,
+          sortOrder: 0,
+        },
+      });
+    } else {
+      // pastikan permission admin selalu lengkap (self-heal)
+      await db.role.update({
+        where: { id: adminRole.id },
+        data: { permissions: serializePermissions(ADMIN_DEFAULT_PERMISSIONS) },
+      });
+    }
+
+    let memberRole = await db.role.findUnique({ where: { name: "Anggota" } });
+    if (!memberRole) {
+      memberRole = await db.role.create({
+        data: {
+          name: "Anggota",
+          description: "Hanya bisa melihat pohon, menambah pasangan, dan export.",
+          color: "#d97706",
+          icon: "user",
+          permissions: serializePermissions(MEMBER_DEFAULT_PERMISSIONS),
+          isSystem: true,
+          sortOrder: 1,
+        },
+      });
+    }
+
+    // --- Pastikan ada User admin default ---
+    let adminUser = await db.user.findFirst({
+      where: { roleId: adminRole.id },
+    });
     if (!adminUser) {
       adminUser = await db.user.create({
         data: {
           email: "admin@tarombo.id",
           name: "Administrator Tarombo",
           password: "admin123",
-          role: "ADMIN",
+          roleId: adminRole.id,
         },
       });
     }
@@ -29,6 +86,7 @@ export async function POST(_req: NextRequest) {
         message: "Database sudah berisi data keluarga. Seed dilewati.",
         count,
         users: await db.user.count(),
+        roles: await db.role.count(),
       });
     }
 
@@ -330,47 +388,58 @@ export async function POST(_req: NextRequest) {
           email: "robby@tarombo.id",
           name: "Robby Adithama Sianipar",
           password: "robby123",
-          role: "MEMBER",
+          roleId: memberRole.id,
           linkedPersonId: grandChild1.id,
         },
       });
     } else {
-      // update link bila user sudah ada tapi belum ter-link
-      if (!memberUser.linkedPersonId) {
-        await db.user.update({
-          where: { id: memberUser.id },
-          data: { linkedPersonId: grandChild1.id },
-        });
-      }
+      // pastikan role & link ter-set
+      await db.user.update({
+        where: { id: memberUser.id },
+        data: {
+          roleId: memberRole.id,
+          linkedPersonId: memberUser.linkedPersonId ?? grandChild1.id,
+        },
+      });
     }
 
     const finalCount = await db.person.count();
     const partnershipCount = await db.partnership.count();
-    const userCount = await db.user.count();
+    const finalUserCount = await db.user.count();
+    const roleCount = await db.role.count();
 
     return NextResponse.json({
       seeded: true,
       message: "Data keluarga contoh berhasil dimuat.",
       persons: finalCount,
       partnerships: partnershipCount,
-      users: userCount,
+      users: finalUserCount,
+      roles: roleCount,
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** DELETE /api/seed — hapus SEMUA data (reset). */
+/** DELETE /api/seed — hapus SEMUA data (reset). Butuh permission data:reset. */
 export async function DELETE(_req: NextRequest) {
   try {
+    await requirePermission("data:reset");
     await db.partnership.deleteMany();
     await db.user.updateMany({
-      data: { linkedPersonId: null },
+      data: { linkedPersonId: null, roleId: null },
     });
     await db.person.deleteMany();
     await db.user.deleteMany();
+    await db.role.deleteMany();
     return NextResponse.json({ success: true, message: "Semua data dihapus." });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

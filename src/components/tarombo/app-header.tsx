@@ -17,8 +17,10 @@ import {
   Trash2,
   Heart,
   Download,
+  Lock,
 } from "lucide-react";
 import { UserMenuButton } from "./user-management-sheet";
+import { useActiveUser } from "@/lib/tarombo/use-permissions";
 
 interface Props {
   totalPersons: number;
@@ -28,6 +30,7 @@ interface Props {
   onReset: () => void;
   onExport: () => void;
   onManageUsers: () => void;
+  onManageRoles: () => void;
 }
 
 export function AppHeader({
@@ -38,7 +41,14 @@ export function AppHeader({
   onReset,
   onExport,
   onManageUsers,
+  onManageRoles,
 }: Props) {
+  const { can } = useActiveUser();
+  const canAddPerson = can("person:create");
+  const canAddPartnership = can("partnership:create");
+  const canExport = can("export:view");
+  const canSeed = can("data:seed");
+  const canReset = can("data:reset");
   return (
     <header className="no-print sticky top-0 z-30 border-b border-border/70 bg-card/85 backdrop-blur-md">
       <div className="uis-pattern absolute inset-0 opacity-60 pointer-events-none" />
@@ -68,32 +78,41 @@ export function AppHeader({
 
         {/* Aksi */}
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="hidden md:inline-flex"
-            onClick={onExport}
-          >
-            <Download className="size-4 mr-1.5" />
-            Export
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="hidden sm:inline-flex"
-            onClick={onAddPartnership}
-          >
-            <Heart className="size-4 mr-1.5" />
-            Pasangan
-          </Button>
-          <Button size="sm" onClick={onAddPerson}>
-            <UserPlus className="size-4 mr-1.5" />
-            <span className="hidden xs:inline sm:inline">Tambah Orang</span>
-            <span className="xs:hidden sm:hidden">Orang</span>
-          </Button>
+          {canExport && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden md:inline-flex"
+              onClick={onExport}
+            >
+              <Download className="size-4 mr-1.5" />
+              Export
+            </Button>
+          )}
+          {canAddPartnership && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden sm:inline-flex"
+              onClick={onAddPartnership}
+            >
+              <Heart className="size-4 mr-1.5" />
+              Pasangan
+            </Button>
+          )}
+          {canAddPerson && (
+            <Button size="sm" onClick={onAddPerson}>
+              <UserPlus className="size-4 mr-1.5" />
+              <span className="hidden xs:inline sm:inline">Tambah Orang</span>
+              <span className="xs:hidden sm:hidden">Orang</span>
+            </Button>
+          )}
 
           {/* User menu (akun pengguna — terpisah dari Person) */}
-          <UserMenuButton onOpenManage={onManageUsers} />
+          <UserMenuButton
+            onOpenManage={onManageUsers}
+            onOpenManageRoles={onManageRoles}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -102,26 +121,39 @@ export function AppHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={onExport} className="md:hidden">
-                <Download className="size-4 mr-2 text-primary" />
-                Export pohon
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onSeed}>
-                <Sparkles className="size-4 mr-2 text-amber-600" />
-                Muat data contoh
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onAddPartnership} className="sm:hidden">
-                <Heart className="size-4 mr-2 text-rose-600" />
-                Tambah pasangan
-              </DropdownMenuItem>
+              {canExport && (
+                <DropdownMenuItem onClick={onExport} className="md:hidden">
+                  <Download className="size-4 mr-2 text-primary" />
+                  Export pohon
+                </DropdownMenuItem>
+              )}
+              {canSeed && (
+                <DropdownMenuItem onClick={onSeed}>
+                  <Sparkles className="size-4 mr-2 text-amber-600" />
+                  Muat data contoh
+                </DropdownMenuItem>
+              )}
+              {canAddPartnership && (
+                <DropdownMenuItem onClick={onAddPartnership} className="sm:hidden">
+                  <Heart className="size-4 mr-2 text-rose-600" />
+                  Tambah pasangan
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onReset}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="size-4 mr-2" />
-                Reset semua data
-              </DropdownMenuItem>
+              {canReset ? (
+                <DropdownMenuItem
+                  onClick={onReset}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Reset semua data
+                </DropdownMenuItem>
+              ) : (
+                <div className="px-2 py-1.5 text-[10.5px] text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="size-3" />
+                  Reset butuh permission
+                </div>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

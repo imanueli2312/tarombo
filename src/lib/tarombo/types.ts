@@ -177,13 +177,14 @@ export function formatDateShort(d: string | Date | null | undefined): string {
 export const USER_ROLE = ["ADMIN", "MEMBER"] as const;
 export type UserRole = (typeof USER_ROLE)[number];
 
+/** Input untuk membuat/edit User (sekarang pakai roleId, bukan role string). */
 export const userSchema = z.object({
   email: z.string().email("Email tidak valid"),
   name: z.string().min(1, "Nama pengguna wajib diisi"),
   password: z.string().min(1, "Password wajib diisi"),
   photo: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
-  role: z.enum(USER_ROLE).default("MEMBER"),
+  roleId: z.string().nullable().optional(),
   linkedPersonId: z.string().nullable().optional(),
 });
 
@@ -195,11 +196,45 @@ export interface UserPublic {
   name: string;
   photo: string | null;
   phone: string | null;
-  role: UserRole;
+  roleId: string | null;
+  roleName: string | null;
+  roleColor: string | null;
+  roleIsSystem: boolean;
   linkedPersonId: string | null;
   linkedPersonName: string | null;
   lastLoginAt: string | null;
   createdAt: string;
+}
+
+/** Role publik (untuk manajemen role oleh admin). */
+export interface RolePublic {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  permissions: string[];
+  isSystem: boolean;
+  sortOrder: number;
+  userCount: number;
+  createdAt: string;
+}
+
+/** Active user + permissions (untuk gating UI). */
+export interface ActiveUserPublic {
+  id: string;
+  email: string;
+  name: string;
+  photo: string | null;
+  phone: string | null;
+  linkedPersonId: string | null;
+  linkedPersonName: string | null;
+  lastLoginAt: string | null;
+  roleId: string | null;
+  roleName: string | null;
+  roleColor: string | null;
+  roleIsSystem: boolean;
+  permissions: string[];
 }
 
 export function roleLabel(r: string | null | undefined): string {

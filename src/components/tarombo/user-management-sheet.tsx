@@ -37,12 +37,13 @@ import {
   deleteUser,
   fetchActiveUser,
   fetchPersons,
+  fetchRoles,
   fetchUsers,
   setActiveUser,
   updateUser,
 } from "@/lib/tarombo/api-client";
-import { roleLabel } from "@/lib/tarombo/types";
-import type { UserInput, UserPublic } from "@/lib/tarombo/types";
+import type { UserInput, UserPublic, RolePublic, ActiveUserPublic } from "@/lib/tarombo/types";
+import { useActiveUser } from "@/lib/tarombo/use-permissions";
 import {
   UserPlus,
   LogOut,
@@ -50,6 +51,7 @@ import {
   Pencil,
   CheckCircle2,
   UserCog,
+  Shield,
   Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -73,12 +75,13 @@ const emptyForm: UserInput = {
   password: "",
   photo: null,
   phone: null,
-  role: "MEMBER",
+  roleId: null,
   linkedPersonId: null,
 };
 
 export function UserManagementSheet({ open, onOpenChange }: Props) {
   const qc = useQueryClient();
+  const { can } = useActiveUser();
   const [editing, setEditing] = useState<UserPublic | null>(null);
   const [form, setForm] = useState<UserInput>(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -86,15 +89,22 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
+  const canManageUsers = can("user:manage");
+
   const usersQ = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
-    enabled: open,
+    enabled: open && can("user:view"),
   });
   const personsQ = useQuery({
     queryKey: ["persons"],
     queryFn: () => fetchPersons(),
     enabled: open,
+  });
+  const rolesQ = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => fetchRoles(),
+    enabled: open && can("user:view"),
   });
 
   const activeQ = useQuery({
@@ -158,7 +168,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
       password: "", // kosong = tidak diubah
       photo: u.photo,
       phone: u.phone,
-      role: u.role,
+      roleId: u.roleId,
       linkedPersonId: u.linkedPersonId,
     });
     setError(null);
@@ -257,15 +267,21 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
                   <div className="space-y-1">
                     <Label className="text-[11.5px]">Role</Label>
                     <Select
-                      value={form.role}
-                      onValueChange={(v) => setForm({ ...form, role: v as UserInput["role"] })}
+                      value={form.roleId ?? "__none__"}
+                      onValueChange={(v) =>
+                        setForm({ ...form, roleId: v === "__none__" ? null : v })
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="— pilih role —" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ADMIN">Administrator</SelectItem>
-                        <SelectItem value="MEMBER">Anggota</SelectItem>
+                        <SelectItem value="__none__">— tanpa role —</SelectItem>
+                        {(rolesQ.data?.roles ?? []).map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name} ({r.permissions.length} permission)
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -313,7 +329,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
               </div>
             )}
 
-            {!showForm && (
+            {!showForm && canManageUsers && (
               <Button onClick={startCreate} size="sm" className="w-full">
                 <UserPlus className="size-4 mr-1.5" />
                 Tambah Pengguna
@@ -348,7 +364,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
                   >
                     <Avatar className="size-9 border border-border shrink-0">
                       {u.photo ? (
-                         
+                        
                         <img src={u.photo} alt={u.name} className="size-full object-cover" />
                       ) : (
                         <AvatarFallback className="text-[11px] font-semibold bg-primary/15 text-primary">
@@ -370,9 +386,27 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
                         {u.email}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge variant="outline" className="text-[9px] h-[15px] px-1">
-                          {roleLabel(u.role)}
-                        </Badge>
+                        {u.roleName ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] h-[15px] px-1"
+                            style={
+                              u.roleColor
+                                ? {
+                                    color: u.roleColor,
+                                    borderColor: u.roleColor + "40",
+                                    backgroundColor: u.roleColor + "10",
+                                  }
+                                : {}
+                            }
+                          >
+                            {u.roleName}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] h-[15px] px-1 text-muted-foreground">
+                            Tanpa role
+                          </Badge>
+                        )}
                         {u.linkedPersonName && (
                           <span className="text-[9.5px] text-amber-700 bg-amber-500/10 rounded px-1 py-0.5 flex items-center gap-0.5">
                             <LinkIcon className="size-2.5" />
@@ -394,27 +428,29 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
                           Aktifkan
                         </Button>
                       )}
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="size-7 p-0"
-                          onClick={() => startEdit(u)}
-                          title="Edit"
-                        >
-                          <Pencil className="size-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="size-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(u.id)}
-                          title="Hapus"
-                          disabled={isActive}
-                        >
-                          <Trash2 className="size-3" />
-                        </Button>
-                      </div>
+                      {canManageUsers && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="size-7 p-0"
+                            onClick={() => startEdit(u)}
+                            title="Edit"
+                          >
+                            <Pencil className="size-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="size-7 p-0 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(u.id)}
+                            title="Hapus"
+                            disabled={isActive}
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -454,9 +490,10 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
 
 interface MenuProps {
   onOpenManage: () => void;
+  onOpenManageRoles: () => void;
 }
 
-export function UserMenuButton({ onOpenManage }: MenuProps) {
+export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
   const qc = useQueryClient();
   const activeQ = useQuery({
     queryKey: ["active-user"],
@@ -470,6 +507,7 @@ export function UserMenuButton({ onOpenManage }: MenuProps) {
   const active = activeQ.data?.data ?? null;
   const users = usersQ.data ?? [];
   const hasUsers = activeQ.data?.hasUsers ?? false;
+  const canManageRoles = active?.permissions.includes("role:manage") ?? false;
 
   const switchMut = useMutation({
     mutationFn: (id: string) => setActiveUser(id),
@@ -506,7 +544,9 @@ export function UserMenuButton({ onOpenManage }: MenuProps) {
           </Avatar>
           <div className="text-left hidden sm:block leading-none">
             <p className="text-[11.5px] font-medium">{active.name}</p>
-            <p className="text-[9.5px] text-muted-foreground">{roleLabel(active.role)}</p>
+            <p className="text-[9.5px] text-muted-foreground">
+              {active.roleName ?? "Tanpa role"}
+            </p>
           </div>
         </button>
       </DropdownMenuTrigger>
@@ -554,6 +594,12 @@ export function UserMenuButton({ onOpenManage }: MenuProps) {
           <UserCog className="size-3.5 mr-2" />
           Kelola Pengguna
         </DropdownMenuItem>
+        {canManageRoles && (
+          <DropdownMenuItem onClick={onOpenManageRoles}>
+            <Shield className="size-3.5 mr-2 text-primary" />
+            Kelola Role &amp; Permission
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

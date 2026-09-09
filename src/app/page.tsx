@@ -12,6 +12,7 @@ import { PartnershipFormDialog } from "@/components/tarombo/partnership-form-dia
 import { ConfirmDialog } from "@/components/tarombo/confirm-dialog";
 import { EmptyState } from "@/components/tarombo/empty-state";
 import { UserManagementSheet } from "@/components/tarombo/user-management-sheet";
+import { RoleManagementSheet } from "@/components/tarombo/role-management-sheet";
 import { ExportDialog } from "@/components/tarombo/export-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,11 @@ import {
 import type { PersonInput, TreeNodePerson } from "@/lib/tarombo/types";
 import { toast } from "sonner";
 import { TreePine, List, Info, Heart } from "lucide-react";
+import { useActiveUser } from "@/lib/tarombo/use-permissions";
 
 export default function Home() {
   const qc = useQueryClient();
+  const { can } = useActiveUser();
 
   // ----- state UI -----
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -53,6 +56,7 @@ export default function Home() {
 
   // dialog user management & export
   const [userSheetOpen, setUserSheetOpen] = useState(false);
+  const [roleSheetOpen, setRoleSheetOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
   // ----- data -----
@@ -183,6 +187,7 @@ export default function Home() {
         onReset={() => setResetOpen(true)}
         onExport={() => setExportOpen(true)}
         onManageUsers={() => setUserSheetOpen(true)}
+        onManageRoles={() => setRoleSheetOpen(true)}
       />
 
       <main className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
@@ -278,17 +283,19 @@ export default function Home() {
                 </TabsTrigger>
               </TabsList>
               <div className="ml-auto">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-[11px] gap-1"
-                  onClick={() => openAddPartner()}
-                  disabled={allPersons.length < 2}
-                  title="Tambah pasangan"
-                >
-                  <Heart className="size-3.5" />
-                  Pasangan
-                </Button>
+                {can("partnership:create") && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-[11px] gap-1"
+                    onClick={() => openAddPartner()}
+                    disabled={allPersons.length < 2}
+                    title="Tambah pasangan"
+                  >
+                    <Heart className="size-3.5" />
+                    Pasangan
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -366,6 +373,11 @@ export default function Home() {
       <UserManagementSheet
         open={userSheetOpen}
         onOpenChange={setUserSheetOpen}
+      />
+
+      <RoleManagementSheet
+        open={roleSheetOpen}
+        onOpenChange={setRoleSheetOpen}
       />
 
       <ExportDialog

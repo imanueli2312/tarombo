@@ -14,11 +14,36 @@ datasource db {
 // TAROMBO — Sistem Silsilah Keluarga (Batak Genealogy)
 // ============================================================================
 
+// ============================================================================
+// RBAC — Role & Permission yang dapat dikustomisasi admin
+// ============================================================================
+
+/// ROLE (peran) yang dapat dikustomisasi oleh admin.
+/// Setiap Role memiliki daftar permission (disimpan sebagai JSON string array
+/// karena SQLite tidak mendukung tipe list primitif).
+/// Role sistem (isSystem=true) tidak dapat dihapus, contoh: Administrator & Anggota.
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique             // nama role, cth. Administrator
+  description String?                    // deskripsi singkat role
+  color       String  @default("#7a1f1f") // warna aksen (hex)
+  icon        String?                    // nama icon lucide (opsional)
+  permissions String  @default("[]")    // JSON array string: ["person:view", ...]
+  isSystem    Boolean @default(false)    // role bawaan — tidak dapat dihapus
+  sortOrder   Int     @default(0)
+
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// PENGGUNA APLIKASI (akun).
 /// Dipisahkan dari Person: User = orang yang login & mengelola aplikasi,
 /// Person = orang yang ditampilkan di pohon tarombo (anggota keluarga).
 /// Seorang User BOLEH ditautkan opsional ke satu Person (dirinya sendiri
 /// di dalam silsilah) via linkedPersonId.
+/// Setiap User memiliki satu Role (RBAC) yang menentukan permission-nya.
 model User {
   id String @id @default(cuid())
 
@@ -27,7 +52,10 @@ model User {
   password  String                // password (hashed) — disimpan plain utk demo
   photo     String?               // URL / path photo profil pengguna
   phone     String?               // nomor telepon pengguna
-  role      String   @default("MEMBER") // ADMIN | MEMBER
+
+  // --- RBAC: role pengguna (wajib). Bila null → tidak punya akses apa pun. ---
+  roleId String?
+  role   Role?   @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   /// Tautan opsional ke Person (dirinya di pohon tarombo).
   /// Bila null = pengguna belum terhubung ke silsilah manapun.
@@ -39,6 +67,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@index([linkedPersonId])
+  @@index([roleId])
 }
 
 /// Individu dalam silsilah keluarga.

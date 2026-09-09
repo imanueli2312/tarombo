@@ -7,9 +7,10 @@ import {
   handleDeathSideEffects,
   serializePerson,
 } from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
 /**
- * GET /api/persons
+ * GET /api/persons — butuh permission person:view
  * Query params:
  *  - q        : cari berdasarkan nama / nama panggilan
  *  - gender   : MALE | FEMALE
@@ -18,6 +19,7 @@ import {
  */
 export async function GET(req: NextRequest) {
   try {
+    await requirePermission("person:view");
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim();
     const gender = searchParams.get("gender");
@@ -52,6 +54,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: persons.map(serializePerson) });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json(
       { error: (e as Error).message },
       { status: 500 },
@@ -60,10 +65,11 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/persons — buat orang baru.
+ * POST /api/persons — buat orang baru. Butuh permission person:create.
  */
 export async function POST(req: NextRequest) {
   try {
+    await requirePermission("person:create");
     const body = await req.json();
     const parsed = personSchema.safeParse(body);
     if (!parsed.success) {
@@ -105,6 +111,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: serializePerson(created) }, { status: 201 });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }

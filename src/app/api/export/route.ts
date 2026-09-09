@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildExportDocument } from "@/lib/tarombo/export-html";
 import { renderImage, renderPdf } from "@/lib/tarombo/playwright-service";
+import {
+  PermissionDeniedError,
+  requirePermission,
+  getActiveUserWithPermissions,
+} from "@/lib/tarombo/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 180; // 3 menit (export bisa lambat untuk pohon besar)
 
 /** GET /api/export?format=pdf&scope=current|all&size=A4|A3|A2|A1|large&rootId=<id>
  *
+ *  Butuh permission export:view.
  *  - format: pdf | png | jpg
  *  - scope: current (rootId) | all (semua leluhur)
  *  - size: A4 | A3 | A2 | A1 | large  (khusus PDF)
@@ -16,6 +22,8 @@ export const maxDuration = 180; // 3 menit (export bisa lambat untuk pohon besar
  */
 export async function GET(req: NextRequest) {
   try {
+    await requirePermission("export:view");
+    const activeUser = await getActiveUserWithPermissions();
     const { searchParams } = new URL(req.url);
     const format = (searchParams.get("format") ?? "pdf").toLowerCase();
     const scope = (searchParams.get("scope") ?? "all").toLowerCase();
@@ -34,15 +42,7 @@ export async function GET(req: NextRequest) {
       scope === "current" ? rootId ?? null : null;
 
     // Ambil user aktif untuk nama "exported by"
-    let exportedBy: string | null = null;
-    try {
-      const adminUser = await db.user.findFirst({
-        where: { role: "ADMIN" },
-      });
-      exportedBy = adminUser?.name ?? null;
-    } catch {
-      // ignore
-    }
+    const exportedBy: string | null = activeUser?.name ?? null;
 
     const { html, meta } = await buildExportDocument({
       rootId: effectiveRootId,
@@ -102,6 +102,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
+    if (e instanceof PermissionDeniedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
     console.error("[export] error:", e);
     return NextResponse.json(
       { error: (e as Error).message },
