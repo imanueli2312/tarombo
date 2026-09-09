@@ -39,11 +39,12 @@ import {
   fetchPublicUsers,
   fetchRoles,
   fetchUsers,
-  setActiveUser,
   updateUser,
 } from "@/lib/tarombo/api-client";
+import type { PublicUser } from "@/lib/tarombo/api-client";
 import type { UserInput, UserPublic, RolePublic, ActiveUserPublic } from "@/lib/tarombo/types";
 import { useActiveUser } from "@/lib/tarombo/use-permissions";
+import { LoginDialog } from "./login-dialog";
 import {
   UserPlus,
   LogOut,
@@ -89,6 +90,8 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [loginTarget, setLoginTarget] = useState<PublicUser | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const canManageUsers = can("user:manage");
 
@@ -115,10 +118,12 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
   });
 
   const setActiveMut = useMutation({
-    mutationFn: (id: string) => setActiveUser(id),
+    mutationFn: async (user: { id: string; name: string; roleName: string | null; roleColor: string | null }) => {
+      setLoginTarget(user);
+      setLoginOpen(true);
+    },
     onSuccess: async () => {
-      toast.success("User aktif berhasil diganti.");
-      await qc.invalidateQueries({ queryKey: ["active-user"] });
+      toast.success("Login dialog dibuka.");
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -422,11 +427,18 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-[10px]"
-                          onClick={() => setActiveMut.mutate(u.id)}
-                          title="Jadikan aktif"
+                          onClick={() =>
+                            setActiveMut.mutate({
+                              id: u.id,
+                              name: u.name,
+                              roleName: u.roleName,
+                              roleColor: u.roleColor,
+                            })
+                          }
+                          title="Login sebagai user ini"
                         >
                           <LogOut className="size-3 mr-1 rotate-180" />
-                          Aktifkan
+                          Login
                         </Button>
                       )}
                       {canManageUsers && (
@@ -481,6 +493,16 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
         destructive
         onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
       />
+
+      <LoginDialog
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        user={loginTarget}
+        onLoggedIn={async () => {
+          await qc.invalidateQueries({ queryKey: ["active-user"] });
+          await qc.invalidateQueries({ queryKey: ["users"] });
+        }}
+      />
     </Sheet>
   );
 }
@@ -496,6 +518,8 @@ interface MenuProps {
 
 export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
   const qc = useQueryClient();
+  const [loginTarget, setLoginTarget] = useState<PublicUser | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
   const activeQ = useQuery({
     queryKey: ["active-user"],
     queryFn: fetchActiveUser,
@@ -522,11 +546,23 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
   const canManageRoles = active?.permissions.includes("role:manage") ?? false;
   const canViewUsers = active?.permissions.includes("user:view") ?? false;
 
+  // Buka login dialog dengan user terpilih
+  const openLogin = (user: PublicUser) => {
+    setLoginTarget(user);
+    setLoginOpen(true);
+  };
+
+  // Switch user (admin/editor yang sudah login) — juga perlu password
   const switchMut = useMutation({
-    mutationFn: (id: string) => setActiveUser(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["active-user"] });
-      await qc.invalidateQueries({ queryKey: ["users"] });
+    mutationFn: async (target: { id: string; name: string }) => {
+      // Bila target sama dengan aktif → skip
+      if (active?.id === target.id) return;
+      // Buka login dialog untuk user target (perlu password)
+      const pubUser = [...users, ...publicUsers].find((u) => u.id === target.id);
+      if (pubUser) {
+        setLoginTarget(pubUser);
+        setLoginOpen(true);
+      }
     },
   });
 
@@ -541,7 +577,69 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
     },
   });
 
+  const onLoggedIn = async () => {
+    await qc.invalidateQueries({ queryKey: ["active-user"] });
+    await qc.invalidateQueries({ queryKey: ["users"] });
+    await qc.invalidateQueries({ queryKey: ["users-public"] });
+  };
+
   if (!active) return null;
+
+  return (
+    <>
+      <GuestOrUserMenu
+        active={active}
+        isGuest={isGuest}
+        hasUsers={hasUsers}
+        users={users}
+        publicUsers={publicUsers}
+        canManageRoles={canManageRoles}
+        canViewUsers={canViewUsers}
+        onLogin={openLogin}
+        onSwitch={(u) => switchMut.mutate({ id: u.id, name: u.name })}
+        onLogout={() => logoutMut.mutate()}
+        onOpenManage={onOpenManage}
+        onOpenManageRoles={onOpenManageRoles}
+      />
+      <LoginDialog
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        user={loginTarget}
+        onLoggedIn={onLoggedIn}
+      />
+    </>
+  );
+}
+
+interface GuestOrUserMenuProps {
+  active: NonNullable<Awaited<ReturnType<typeof fetchActiveUser>>["data"]>;
+  isGuest: boolean;
+  hasUsers: boolean;
+  users: UserPublic[];
+  publicUsers: PublicUser[];
+  canManageRoles: boolean;
+  canViewUsers: boolean;
+  onLogin: (user: PublicUser) => void;
+  onSwitch: (user: PublicUser) => void;
+  onLogout: () => void;
+  onOpenManage: () => void;
+  onOpenManageRoles: () => void;
+}
+
+function GuestOrUserMenu({
+  active,
+  isGuest,
+  hasUsers,
+  users,
+  publicUsers,
+  canManageRoles,
+  canViewUsers,
+  onLogin,
+  onSwitch,
+  onLogout,
+  onOpenManage,
+  onOpenManageRoles,
+}: GuestOrUserMenuProps) {
 
   // Guest (Viewer tanpa login) — tampilkan tombol login
   if (isGuest) {
@@ -580,7 +678,7 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
             {publicUsers.slice(0, 6).map((u) => (
               <DropdownMenuItem
                 key={u.id}
-                onClick={() => switchMut.mutate(u.id)}
+                onClick={() => onLogin(u)}
                 className="gap-2 py-1.5"
               >
                 <Avatar className="size-6 border">
@@ -662,7 +760,14 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
         {users.slice(0, 6).map((u) => (
           <DropdownMenuItem
             key={u.id}
-            onClick={() => switchMut.mutate(u.id)}
+            onClick={() =>
+              onSwitch({
+                id: u.id,
+                name: u.name,
+                roleName: u.roleName,
+                roleColor: u.roleColor,
+              })
+            }
             disabled={u.id === active.id}
             className="gap-2 py-1.5"
           >

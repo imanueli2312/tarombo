@@ -26,14 +26,26 @@ export async function GET() {
   }
 }
 
-/** POST /api/users/active — set user aktif */
+/** POST /api/users/active — login dengan password
+ *  Body: { userId, password }
+ *  Viewer (guest) tetap bisa akses tanpa login. Administrator & Editor
+ *  diharuskan login dengan password yang benar.
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const userId: string | undefined = body.userId;
+    const password: string | undefined = body.password;
     if (!userId) {
       return NextResponse.json({ error: "userId wajib diisi" }, { status: 400 });
     }
+    if (!password) {
+      return NextResponse.json(
+        { error: "Password wajib diisi untuk login." },
+        { status: 400 },
+      );
+    }
+
     const u = sqlite
       .prepare("SELECT * FROM user WHERE id = ?")
       .get(userId) as UserRow | undefined;
@@ -41,6 +53,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Pengguna tidak ditemukan" },
         { status: 404 },
+      );
+    }
+
+    // Verifikasi password
+    if (u.password !== password) {
+      return NextResponse.json(
+        { error: "Password salah. Login ditolak." },
+        { status: 403 },
       );
     }
 
@@ -62,7 +82,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** DELETE /api/users/active */
+/** DELETE /api/users/active — logout */
 export async function DELETE() {
   const res = NextResponse.json({ success: true });
   res.cookies.delete(ACTIVE_COOKIE);

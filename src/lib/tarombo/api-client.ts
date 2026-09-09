@@ -204,14 +204,17 @@ export async function fetchActiveUser(): Promise<{
   return jsonOrThrow<{ data: ActiveUserPublic | null; hasUsers: boolean }>(res);
 }
 
-export async function setActiveUser(userId: string): Promise<ActiveUserPublic> {
+export async function setActiveUser(
+  userId: string,
+  password: string,
+): Promise<ActiveUserPublic> {
   const res = await fetch("/api/users/active", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({ userId, password }),
   });
   const data = await jsonOrThrow<{ data: ActiveUserPublic | null }>(res);
-  if (!data.data) throw new Error("Gagal mengaktifkan pengguna");
+  if (!data.data) throw new Error("Gagal login");
   return data.data;
 }
 
