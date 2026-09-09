@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// TAROMBO — Sistem Silsilah Keluarga (Batak Genealogy)
+// ============================================================================
+
+/// Individu dalam silsilah keluarga.
+/// Satu orang memiliki: nama, nama panggilan, tempat/tanggal lahir & wafat,
+/// nomor urut kelahiran, jenis kelamin, alamat, agama, telepon, photo,
+/// status pernikahan, nomor generasi, dan lokasi pemakaman (nama, alamat, lat, lng).
+model Person {
+  id String @id @default(cuid())
+
+  // --- Identitas inti ---
+  fullName        String   // nama lengkap
+  nickname        String?  // nama panggilan
+  birthPlace      String?  // tempat kelahiran
+  birthDate       DateTime? // tanggal kelahiran
+  deathDate       DateTime? // tanggal kematian (null = masih hidup)
+  birthOrder      Int?     // nomor urut kelahiran di antara saudara
+  gender          String   @default("MALE") // MALE | FEMALE
+
+  // --- Kontak & domisili ---
+  address         String?  // alamat tempat tinggal
+  religion        String?  // agama
+  phone           String?  // nomor telepon
+  photo           String?  // URL / path photo
+
+  // --- Status & generasi ---
+  maritalStatus   String   @default("SINGLE") // SINGLE | MARRIED | DIVORCED | WIDOWED
+  generationNumber Int?    // nomor generasi (1 = leluhur tertinggi)
+
+  // --- Lokasi pemakaman ---
+  burialName      String?  // nama pemakaman / tpu
+  burialAddress   String?  // alamat pemakaman
+  burialLat       Float?   // garis lintang
+  burialLng       Float?   // garis bujur
+
+  // --- Relasi orang tua ---
+  // "Satu orang memiliki satu ayah (belum sebagai tentu orang tua)"
+  // Ayah & ibu direferensikan langsung; tidak harus berpasangan resmi.
+  fatherId        String?
+  motherId        String?
+  father          Person?  @relation("FatherRelation", fields: [fatherId], references: [id], onDelete: SetNull)
+  mother          Person?  @relation("MotherRelation", fields: [motherId], references: [id], onDelete: SetNull)
+
+  // Anak-anak dari orang ini (sebagai ayah / ibu)
+  childrenAsFather Person[] @relation("FatherRelation")
+  childrenAsMother Person[] @relation("MotherRelation")
+
+  // --- Relasi pernikahan / pasangan ---
+  partnershipsAsHusband Partnership[] @relation("HusbandPartnerships")
+  partnershipsAsWife   Partnership[] @relation("WifePartnerships")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fatherId])
+  @@index([motherId])
+  @@index([gender])
+}
+
+/// Pasangan (suami–istri). Memodelkan hubungan pernikahan.
+/// - Satu orang laki-laki maksimal 1 pasangan AKTIF.
+/// - Satu orang perempuan maksimal 1 pasangan AKTIF.
+/// - Ketika salah satu pasangan meninggal, otomatis tanggal cerai diset
+///   dan status menjadi WIDOWED (janda/duda).
+/// Anak-anak dari pasangan ini = Person dimana fatherId = husbandId
+/// dan motherId = wifeId.
+model Partnership {
+  id String @id @default(cuid())
+
+  husbandId String
+  wifeId    String
+  husband   Person @relation("HusbandPartnerships", fields: [husbandId], references: [id], onDelete: Cascade)
+  wife      Person @relation("WifePartnerships", fields: [wifeId], references: [id], onDelete: Cascade)
+
+  marriageDate DateTime? // tanggal pernikahan
+  divorceDate  DateTime?  // tanggal cerai (otomatis = tanggal kematian pasangan jika pasangan meninggal)
+  status       String     @default("ACTIVE") // ACTIVE | DIVORCED | WIDOWED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([husbandId])
+  @@index([wifeId])
+  @@index([status])
+}
