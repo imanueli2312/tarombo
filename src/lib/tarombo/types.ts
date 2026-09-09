@@ -169,3 +169,46 @@ export function formatDateShort(d: string | Date | null | undefined): string {
     year: "numeric",
   });
 }
+
+// ============================================================================
+// USER (akun pengguna aplikasi — DIPISAHKAN dari Person)
+// ============================================================================
+
+export const USER_ROLE = ["ADMIN", "MEMBER"] as const;
+export type UserRole = (typeof USER_ROLE)[number];
+
+export const userSchema = z.object({
+  email: z.string().email("Email tidak valid"),
+  name: z.string().min(1, "Nama pengguna wajib diisi"),
+  password: z.string().min(1, "Password wajib diisi"),
+  photo: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  role: z.enum(USER_ROLE).default("MEMBER"),
+  linkedPersonId: z.string().nullable().optional(),
+});
+
+export type UserInput = z.infer<typeof userSchema>;
+
+export interface UserPublic {
+  id: string;
+  email: string;
+  name: string;
+  photo: string | null;
+  phone: string | null;
+  role: UserRole;
+  linkedPersonId: string | null;
+  linkedPersonName: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export function roleLabel(r: string | null | undefined): string {
+  switch (r) {
+    case "ADMIN":
+      return "Administrator";
+    case "MEMBER":
+      return "Anggota";
+    default:
+      return "-";
+  }
+}

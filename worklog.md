@@ -25,3 +25,33 @@ Stage Summary:
 - Logika bisnis terbukti bekerja: auto-cerai saat pasangan meninggal (divorceDate = deathDate, status → WIDOWED), validasi maks 1 pasangan aktif, pohon silsilah rekursif tanpa duplikasi.
 - Lint bersih (0 error/warning), dev server 200 tanpa runtime error, footer sticky di bottom viewport (docHeight = viewport).
 - VLM mengkonfirmasi UI berkualitas tinggi (tree jelas dgn connector, kartu terbaca, palet hangat kohesif).
+
+---
+Task ID: phase-2
+Agent: main (Z.ai Code)
+Task: Pemisahan data User (akun) dari Person (pohon tarombo) + fungsi export PDF (A4/A3/Multiple/Large), JPG, PNG.
+
+Work Log:
+- Menambah model `User` di Prisma schema, terpisah dari `Person`:
+  - User = akun pengguna aplikasi (email, password, name, photo, phone, role ADMIN/MEMBER).
+  - linkedPersonId opsional: menautkan User ke satu Person (dirinya di pohon tarombo).
+  - Relasi balik Person.linkedUsers.
+- API routes baru: `/api/users` (GET/POST), `/api/users/[id]` (GET/PATCH/DELETE), `/api/users/active` (GET/POST/DELETE via cookie `tarombo_active_user`).
+- Update seed: membuat 2 user contoh — admin (admin@tarombo.id) + member Robby yang ter-link ke Person Robby di pohon.
+- Tipe & API client: `userSchema`, `UserPublic`, `roleLabel`, fetchUsers, fetchActiveUser, setActiveUser, createUser, updateUser, deleteUser.
+- UI pemisahan:
+  - `UserManagementSheet`: sheet CRUD user lengkap (tambah/edit/hapus, tautkan ke Person, switch active).
+  - `UserMenuButton` di header: dropdown menampilkan user aktif + switch cepat + link "Kelola Pengguna".
+  - Indikator badge "Aktif" + label role (Administrator/Anggota) + nama Person tertaut.
+- Sistem Export:
+  - `export-html.ts`: render dokumen HTML mandiri pohon tarombo (header, legenda, tree rekursif dengan connector CSS, footer). Tema hangat konsisten.
+  - `playwright-service.ts`: singleton browser Chromium untuk render HTML → PDF / image. Mendukung PDF format A4/A3/A2/A1, landscape, single-page (large), serta screenshot PNG/JPG skala 2x.
+  - `/api/export` route (GET): parameter format=pdf|png|jpg, scope=current|all, size=A4|A3|A2|A1|LARGE, rootId. Mengembalikan file dengan Content-Disposition attachment.
+  - `ExportDialog`: 6 opsi (PDF A3, PDF A4, Multiple PDF per leluhur, PDF Ukuran Besar single-page, PNG, JPG) + pilihan ruang lingkup (semua / leluhur terpilih).
+- Install dependency: `playwright` + chromium browser binary.
+- Verifikasi: semua 6 format export terunduh via UI (PNG 127KB, PDF Large 149KB, dll); VLM mengkonfirmasi PNG export berkualitas tinggi (tree + connector + legenda + kartu terbaca).
+
+Stage Summary:
+- Pemisahan User vs Person tuntas: User adalah akun aplikasi (login, role, opsional link ke Person); Person murni anggota pohon tarombo. Satu Person bisa ditautkan banyak User; satu User maksimal 1 Person.
+- Export berfungsi penuh: PDF (A4/A3/Multiple/Large), JPG, PNG — diproses server via headless Chromium, download otomatis di browser.
+- Lint bersih (0 error/warning), dev server 200 tanpa runtime error, responsif mobile & footer sticky.

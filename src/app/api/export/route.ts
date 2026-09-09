@@ -1,0 +1,111 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { buildExportDocument } from "@/lib/tarombo/export-html";
+import { renderImage, renderPdf } from "@/lib/tarombo/playwright-service";
+
+export const runtime = "nodejs";
+export const maxDuration = 180; // 3 menit (export bisa lambat untuk pohon besar)
+
+/** GET /api/export?format=pdf&scope=current|all&size=A4|A3|A2|A1|large&rootId=<id>
+ *
+ *  - format: pdf | png | jpg
+ *  - scope: current (rootId) | all (semua leluhur)
+ *  - size: A4 | A3 | A2 | A1 | large  (khusus PDF)
+ *    - "large" = single page ukuran penuh (tanpa pagination)
+ *  - rootId: bila scope=current, root pohon yang diekspor
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const format = (searchParams.get("format") ?? "pdf").toLowerCase();
+    const scope = (searchParams.get("scope") ?? "all").toLowerCase();
+    const size = (searchParams.get("size") ?? "A3").toUpperCase();
+    const rootId = searchParams.get("rootId");
+
+    if (!["pdf", "png", "jpg"].includes(format)) {
+      return NextResponse.json(
+        { error: "format tidak valid (pdf|png|jpg)" },
+        { status: 400 },
+      );
+    }
+
+    // Tentukan root
+    const effectiveRootId =
+      scope === "current" ? rootId ?? null : null;
+
+    // Ambil user aktif untuk nama "exported by"
+    let exportedBy: string | null = null;
+    try {
+      const adminUser = await db.user.findFirst({
+        where: { role: "ADMIN" },
+      });
+      exportedBy = adminUser?.name ?? null;
+    } catch {
+      // ignore
+    }
+
+    const { html, meta } = await buildExportDocument({
+      rootId: effectiveRootId,
+      exportedBy,
+    });
+
+    // Nama file
+    const safeName = meta.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    if (format === "pdf") {
+      const isLarge = size === "LARGE";
+      const pdfFormat = isLarge
+        ? undefined
+        : (["A4", "A3", "A2", "A1", "A0"].includes(size) ? (size as "A4" | "A3" | "A2" | "A1" | "A0") : "A3");
+
+      const buf = await renderPdf({
+        html,
+        format: pdfFormat,
+        landscape: !isLarge,
+        singlePage: isLarge,
+      });
+
+      const sizeLabel = isLarge ? "large" : (pdfFormat ?? "A3").toLowerCase();
+      const filename = `tarombo-${safeName}-${sizeLabel}-${stamp}.pdf`;
+      return new NextResponse(buf as unknown as BodyInit, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Length": String(buf.length),
+        },
+      });
+    }
+
+    // image
+    const buf = await renderImage({
+      html,
+      imageType: format === "jpg" ? "jpeg" : "png",
+      scale: 2,
+    });
+
+    const ext = format === "jpg" ? "jpg" : "png";
+    const mime = format === "jpg" ? "image/jpeg" : "image/png";
+    const filename = `tarombo-${safeName}-${stamp}.${ext}`;
+
+    return new NextResponse(buf as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        "Content-Type": mime,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": String(buf.length),
+      },
+    });
+  } catch (e) {
+    console.error("[export] error:", e);
+    return NextResponse.json(
+      { error: (e as Error).message },
+      { status: 500 },
+    );
+  }
+}

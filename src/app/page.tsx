@@ -11,6 +11,8 @@ import { PersonFormSheet } from "@/components/tarombo/person-form-sheet";
 import { PartnershipFormDialog } from "@/components/tarombo/partnership-form-dialog";
 import { ConfirmDialog } from "@/components/tarombo/confirm-dialog";
 import { EmptyState } from "@/components/tarombo/empty-state";
+import { UserManagementSheet } from "@/components/tarombo/user-management-sheet";
+import { ExportDialog } from "@/components/tarombo/export-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +50,10 @@ export default function Home() {
   // dialog delete
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+
+  // dialog user management & export
+  const [userSheetOpen, setUserSheetOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // ----- data -----
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: fetchStats });
@@ -175,6 +181,8 @@ export default function Home() {
         onAddPartnership={() => openAddPartner()}
         onSeed={() => seedMut.mutate()}
         onReset={() => setResetOpen(true)}
+        onExport={() => setExportOpen(true)}
+        onManageUsers={() => setUserSheetOpen(true)}
       />
 
       <main className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
@@ -349,10 +357,27 @@ export default function Home() {
         open={resetOpen}
         onOpenChange={setResetOpen}
         title="Reset semua data?"
-        description="Seluruh data orang dan pasangan akan dihapus permanen. Tindakan ini tidak dapat dibatalkan."
+        description="Seluruh data pengguna, orang, dan pasangan akan dihapus permanen. Tindakan ini tidak dapat dibatalkan."
         confirmText="Reset Sekarang"
         destructive
         onConfirm={() => resetMut.mutate()}
+      />
+
+      <UserManagementSheet
+        open={userSheetOpen}
+        onOpenChange={setUserSheetOpen}
+      />
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        currentRootId={rootFilterId}
+        currentRootName={
+          rootFilterId
+            ? treeQ.data?.roots.find((r) => r.id === rootFilterId)?.fullName ??
+              null
+            : null
+        }
       />
     </div>
   );

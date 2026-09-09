@@ -6,6 +6,8 @@ import type {
   PartnershipStatus,
   PersonInput,
   TreeNodePerson,
+  UserInput,
+  UserPublic,
 } from "./types";
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
@@ -164,4 +166,98 @@ export interface Stats {
 export async function fetchStats(): Promise<Stats> {
   const res = await fetch("/api/stats", { cache: "no-store" });
   return jsonOrThrow<Stats>(res);
+}
+
+// ============================================================================
+// Users (akun pengguna — terpisah dari Person di pohon tarombo)
+// ============================================================================
+
+export async function fetchUsers(): Promise<UserPublic[]> {
+  const res = await fetch("/api/users", { cache: "no-store" });
+  const data = await jsonOrThrow<{ data: UserPublic[] }>(res);
+  return data.data;
+}
+
+export async function fetchActiveUser(): Promise<{
+  data: UserPublic | null;
+  hasUsers: boolean;
+}> {
+  const res = await fetch("/api/users/active", { cache: "no-store" });
+  return jsonOrThrow<{ data: UserPublic | null; hasUsers: boolean }>(res);
+}
+
+export async function setActiveUser(userId: string): Promise<UserPublic> {
+  const res = await fetch("/api/users/active", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  const data = await jsonOrThrow<{ data: UserPublic }>(res);
+  return data.data;
+}
+
+export async function createUser(input: UserInput): Promise<UserPublic> {
+  const res = await fetch("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await jsonOrThrow<{ data: UserPublic }>(res);
+  return data.data;
+}
+
+export async function updateUser(id: string, input: Partial<UserInput>): Promise<UserPublic> {
+  const res = await fetch(`/api/users/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await jsonOrThrow<{ data: UserPublic }>(res);
+  return data.data;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+  await jsonOrThrow<{ success: boolean }>(res);
+}
+
+// ============================================================================
+// Export — PDF / Image (PNG / JPG)
+// ============================================================================
+
+export type ExportFormat = "pdf" | "png" | "jpg";
+export type ExportScope = "current" | "all";
+export type ExportSize = "A4" | "A3" | "A2" | "A1" | "LARGE";
+
+/** Bangun URL export untuk format/scope/size tertentu.
+ *  Browser akan otomatis mengunduh file hasil.
+ */
+export function buildExportUrl(opts: {
+  format: ExportFormat;
+  scope?: ExportScope;
+  size?: ExportSize;
+  rootId?: string | null;
+}): string {
+  const qs = new URLSearchParams();
+  qs.set("format", opts.format);
+  qs.set("scope", opts.scope ?? "all");
+  if (opts.format === "pdf") qs.set("size", opts.size ?? "A3");
+  if (opts.scope === "current" && opts.rootId) qs.set("rootId", opts.rootId);
+  return `/api/export?${qs.toString()}`;
+}
+
+/** Trigger download file export. */
+export function triggerExportDownload(opts: {
+  format: ExportFormat;
+  scope?: ExportScope;
+  size?: ExportSize;
+  rootId?: string | null;
+}): void {
+  const url = buildExportUrl(opts);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = ""; // biarkan server yang tentukan nama via Content-Disposition
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

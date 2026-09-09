@@ -2,16 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 /** POST /api/seed — isi data keluarga contoh (Batak-style) bila DB kosong.
- *  Idempoten: bila sudah ada data, tidak melakukan apa-apa.
+ *  Idempoten: bila sudah ada data Person, tidak membuat ulang Person.
+ *  Tapi tetap memastikan ada minimal 1 User admin.
  */
 export async function POST(_req: NextRequest) {
   try {
+    // --- Pastikan ada User admin default (terpisah dari Person) ---
+    let adminUser = await db.user.findFirst({ where: { role: "ADMIN" } });
+    if (!adminUser) {
+      adminUser = await db.user.create({
+        data: {
+          email: "admin@tarombo.id",
+          name: "Administrator Tarombo",
+          password: "admin123",
+          role: "ADMIN",
+        },
+      });
+    }
+
+    let memberUser = await db.user.findFirst({ where: { email: "robby@tarombo.id" } });
+
     const count = await db.person.count();
-    if (count > 0) {
+    if (count > 0 && memberUser) {
       return NextResponse.json({
         seeded: false,
-        message: "Database sudah berisi data. Seed dilewati.",
+        message: "Database sudah berisi data keluarga. Seed dilewati.",
         count,
+        users: await db.user.count(),
       });
     }
 
@@ -306,14 +323,37 @@ export async function POST(_req: NextRequest) {
       },
     });
 
+    // --- Buat User member yang ter-link ke Robby (Person di pohon) ---
+    if (!memberUser) {
+      await db.user.create({
+        data: {
+          email: "robby@tarombo.id",
+          name: "Robby Adithama Sianipar",
+          password: "robby123",
+          role: "MEMBER",
+          linkedPersonId: grandChild1.id,
+        },
+      });
+    } else {
+      // update link bila user sudah ada tapi belum ter-link
+      if (!memberUser.linkedPersonId) {
+        await db.user.update({
+          where: { id: memberUser.id },
+          data: { linkedPersonId: grandChild1.id },
+        });
+      }
+    }
+
     const finalCount = await db.person.count();
     const partnershipCount = await db.partnership.count();
+    const userCount = await db.user.count();
 
     return NextResponse.json({
       seeded: true,
       message: "Data keluarga contoh berhasil dimuat.",
       persons: finalCount,
       partnerships: partnershipCount,
+      users: userCount,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
@@ -324,7 +364,11 @@ export async function POST(_req: NextRequest) {
 export async function DELETE(_req: NextRequest) {
   try {
     await db.partnership.deleteMany();
+    await db.user.updateMany({
+      data: { linkedPersonId: null },
+    });
     await db.person.deleteMany();
+    await db.user.deleteMany();
     return NextResponse.json({ success: true, message: "Semua data dihapus." });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

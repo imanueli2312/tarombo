@@ -9,7 +9,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, UserPlus, Sparkles, MoreVertical, Trash2, Heart } from "lucide-react";
+import {
+  Users,
+  UserPlus,
+  Sparkles,
+  MoreVertical,
+  Trash2,
+  Heart,
+  Download,
+} from "lucide-react";
+import { UserMenuButton } from "./user-management-sheet";
 
 interface Props {
   totalPersons: number;
@@ -17,6 +26,8 @@ interface Props {
   onAddPartnership: () => void;
   onSeed: () => void;
   onReset: () => void;
+  onExport: () => void;
+  onManageUsers: () => void;
 }
 
 export function AppHeader({
@@ -25,11 +36,13 @@ export function AppHeader({
   onAddPartnership,
   onSeed,
   onReset,
+  onExport,
+  onManageUsers,
 }: Props) {
   return (
     <header className="no-print sticky top-0 z-30 border-b border-border/70 bg-card/85 backdrop-blur-md">
       <div className="uis-pattern absolute inset-0 opacity-60 pointer-events-none" />
-      <div className="relative mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-2.5 sm:px-6">
+      <div className="relative mx-auto flex max-w-[1600px] items-center gap-2 sm:gap-3 px-4 py-2.5 sm:px-6">
         {/* Logo + judul */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm shrink-0">
@@ -58,6 +71,15 @@ export function AppHeader({
           <Button
             size="sm"
             variant="outline"
+            className="hidden md:inline-flex"
+            onClick={onExport}
+          >
+            <Download className="size-4 mr-1.5" />
+            Export
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             className="hidden sm:inline-flex"
             onClick={onAddPartnership}
           >
@@ -70,6 +92,9 @@ export function AppHeader({
             <span className="xs:hidden sm:hidden">Orang</span>
           </Button>
 
+          {/* User menu (akun pengguna — terpisah dari Person) */}
+          <UserMenuButton onOpenManage={onManageUsers} />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="ghost" className="size-9">
@@ -77,6 +102,10 @@ export function AppHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={onExport} className="md:hidden">
+                <Download className="size-4 mr-2 text-primary" />
+                Export pohon
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onSeed}>
                 <Sparkles className="size-4 mr-2 text-amber-600" />
                 Muat data contoh

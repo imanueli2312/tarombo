@@ -14,6 +14,33 @@ datasource db {
 // TAROMBO — Sistem Silsilah Keluarga (Batak Genealogy)
 // ============================================================================
 
+/// PENGGUNA APLIKASI (akun).
+/// Dipisahkan dari Person: User = orang yang login & mengelola aplikasi,
+/// Person = orang yang ditampilkan di pohon tarombo (anggota keluarga).
+/// Seorang User BOLEH ditautkan opsional ke satu Person (dirinya sendiri
+/// di dalam silsilah) via linkedPersonId.
+model User {
+  id String @id @default(cuid())
+
+  email     String  @unique       // email login (unik)
+  name      String                // nama lengkap pengguna
+  password  String                // password (hashed) — disimpan plain utk demo
+  photo     String?               // URL / path photo profil pengguna
+  phone     String?               // nomor telepon pengguna
+  role      String   @default("MEMBER") // ADMIN | MEMBER
+
+  /// Tautan opsional ke Person (dirinya di pohon tarombo).
+  /// Bila null = pengguna belum terhubung ke silsilah manapun.
+  linkedPersonId String?
+  linkedPerson    Person? @relation("UserLinkedPerson", fields: [linkedPersonId], references: [id], onDelete: SetNull)
+
+  lastLoginAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([linkedPersonId])
+}
+
 /// Individu dalam silsilah keluarga.
 /// Satu orang memiliki: nama, nama panggilan, tempat/tanggal lahir & wafat,
 /// nomor urut kelahiran, jenis kelamin, alamat, agama, telepon, photo,
@@ -61,6 +88,9 @@ model Person {
   // --- Relasi pernikahan / pasangan ---
   partnershipsAsHusband Partnership[] @relation("HusbandPartnerships")
   partnershipsAsWife   Partnership[] @relation("WifePartnerships")
+
+  // --- Relasi ke User (akun pengguna yang ditautkan ke Person ini) ---
+  linkedUsers User[] @relation("UserLinkedPerson")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
