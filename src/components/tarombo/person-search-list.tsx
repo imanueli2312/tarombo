@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, UserRound, Users as UsersIcon } from "lucide-react";
 import type { TreeNodePerson } from "@/lib/tarombo/types";
 import { cn } from "@/lib/utils";
@@ -68,7 +67,7 @@ export function PersonSearchList({
         )}
       </div>
 
-      <ScrollArea className="tarombo-scroll flex-1 -mx-1 px-1">
+      <div className="tarombo-scroll flex-1 min-h-0 overflow-y-scroll -mx-1 px-1">
         <div className="space-y-1 pr-2">
           {filtered.length === 0 && (
             <div className="rounded-md border border-dashed p-6 text-center text-xs text-muted-foreground">
@@ -141,7 +140,7 @@ export function PersonSearchList({
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
