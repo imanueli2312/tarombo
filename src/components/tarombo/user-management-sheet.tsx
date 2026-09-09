@@ -36,6 +36,7 @@ import {
   deleteUser,
   fetchActiveUser,
   fetchPersons,
+  fetchPublicUsers,
   fetchRoles,
   fetchUsers,
   setActiveUser,
@@ -51,6 +52,7 @@ import {
   CheckCircle2,
   UserCog,
   Shield,
+  Eye,
   Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -498,42 +500,135 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
     queryKey: ["active-user"],
     queryFn: fetchActiveUser,
   });
+  const isGuest = activeQ.data?.data?.id === "guest";
+
   const usersQ = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
+    enabled: !isGuest && activeQ.data?.data?.permissions.includes("user:view") === true,
+  });
+
+  // Guest pakai endpoint publik (id, name, roleName only — no sensitive data)
+  const publicUsersQ = useQuery({
+    queryKey: ["users-public"],
+    queryFn: fetchPublicUsers,
+    enabled: isGuest,
   });
 
   const active = activeQ.data?.data ?? null;
   const users = usersQ.data ?? [];
+  const publicUsers = publicUsersQ.data ?? [];
   const hasUsers = activeQ.data?.hasUsers ?? false;
   const canManageRoles = active?.permissions.includes("role:manage") ?? false;
+  const canViewUsers = active?.permissions.includes("user:view") ?? false;
 
   const switchMut = useMutation({
     mutationFn: (id: string) => setActiveUser(id),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["active-user"] });
+      await qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 
-  if (!hasUsers) {
-    // belum ada user sama sekali — tombol ajak setup
-    return (
-      <Button size="sm" variant="outline" onClick={onOpenManage} className="h-8">
-        <UserPlus className="size-3.5 mr-1.5" />
-        <span className="hidden sm:inline">Setup Pengguna</span>
-      </Button>
-    );
-  }
+  const logoutMut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/users/active", { method: "DELETE" });
+      if (!res.ok) throw new Error("Gagal logout");
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["active-user"] });
+      toast.success("Anda keluar — kembali sebagai Tamu (Viewer).");
+    },
+  });
 
   if (!active) return null;
 
+  // Guest (Viewer tanpa login) — tampilkan tombol login
+  if (isGuest) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-2 rounded-full border border-border bg-card pl-1 pr-2.5 py-1 hover:bg-accent/60 transition-colors">
+            <Avatar className="size-7 border border-border">
+              <AvatarFallback className="text-[10px] font-semibold bg-stone-500/15 text-stone-600 dark:text-stone-300">
+                <Eye className="size-3.5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-left hidden sm:block leading-none">
+              <p className="text-[11.5px] font-medium">Tamu</p>
+              <p className="text-[9.5px] text-muted-foreground">Viewer (publik)</p>
+            </div>
+            {hasUsers && (
+              <span className="text-[9px] font-semibold text-primary bg-primary/10 rounded px-1 py-0.5">
+                Login
+              </span>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        {hasUsers ? (
+          <DropdownMenuContent align="end" className="w-60">
+            <div className="px-2 py-1.5">
+              <p className="text-[11px] font-semibold">Mode Tamu (Viewer)</p>
+              <p className="text-[10px] text-muted-foreground">
+                Anda melihat pohon sebagai publik. Login untuk mengelola data.
+              </p>
+            </div>
+            <DropdownMenuSeparator />
+            <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Pilih akun untuk login
+            </p>
+            {publicUsers.slice(0, 6).map((u) => (
+              <DropdownMenuItem
+                key={u.id}
+                onClick={() => switchMut.mutate(u.id)}
+                className="gap-2 py-1.5"
+              >
+                <Avatar className="size-6 border">
+                  <AvatarFallback className="text-[9px] font-semibold bg-secondary text-secondary-foreground">
+                    {initials(u.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11.5px] truncate">{u.name}</p>
+                  <p className="text-[9.5px] text-muted-foreground truncate">
+                    {u.roleName ?? "—"}
+                  </p>
+                </div>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onOpenManage} className="text-muted-foreground">
+              <UserCog className="size-3.5 mr-2" />
+              Kelola Pengguna
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        ) : (
+          <DropdownMenuContent align="end" className="w-60">
+            <div className="px-2 py-1.5">
+              <p className="text-[11px] font-semibold">Mode Tamu (Viewer)</p>
+              <p className="text-[10px] text-muted-foreground">
+                Belum ada akun terdaftar. Setup pengguna untuk mulai mengelola.
+              </p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onOpenManage}>
+              <UserPlus className="size-3.5 mr-2 text-primary" />
+              Setup Pengguna
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        )}
+      </DropdownMenu>
+    );
+  }
+
+  // User login (Editor / Administrator / custom)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="flex items-center gap-2 rounded-full border border-border bg-card pl-1 pr-2.5 py-1 hover:bg-accent/60 transition-colors">
           <Avatar className="size-7 border border-border">
             {active.photo ? (
-               
+              
               <img src={active.photo} alt={active.name} className="size-full object-cover" />
             ) : (
               <AvatarFallback className="text-[10px] font-semibold bg-primary/15 text-primary">
@@ -573,7 +668,7 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
           >
             <Avatar className="size-6 border">
               {u.photo ? (
-                 
+                
                 <img src={u.photo} alt={u.name} className="size-full object-cover" />
               ) : (
                 <AvatarFallback className="text-[9px] font-semibold bg-secondary text-secondary-foreground">
@@ -589,16 +684,26 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onOpenManage}>
-          <UserCog className="size-3.5 mr-2" />
-          Kelola Pengguna
-        </DropdownMenuItem>
+        {canViewUsers && (
+          <DropdownMenuItem onClick={onOpenManage}>
+            <UserCog className="size-3.5 mr-2" />
+            Kelola Pengguna
+          </DropdownMenuItem>
+        )}
         {canManageRoles && (
           <DropdownMenuItem onClick={onOpenManageRoles}>
             <Shield className="size-3.5 mr-2 text-primary" />
             Kelola Role &amp; Permission
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => logoutMut.mutate()}
+          className="text-destructive focus:text-destructive"
+        >
+          <LogOut className="size-3.5 mr-2" />
+          Keluar (kembali ke Viewer)
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

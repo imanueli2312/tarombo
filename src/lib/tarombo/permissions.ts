@@ -135,9 +135,28 @@ export function serializePermissions(perms: string[]): string {
 /** Daftar permission default untuk role Administrator (semua permission). */
 export const ADMIN_DEFAULT_PERMISSIONS: string[] = [...PERMISSION_KEYS];
 
-/** Daftar permission default untuk role Anggota (view + tambah + export). */
-export const MEMBER_DEFAULT_PERMISSIONS: string[] = [
+/**
+ * Daftar permission default untuk role Editor.
+ * Bisa melihat, menambah, dan mengedit orang & pasangan, serta export.
+ * Tidak bisa hapus, tidak bisa kelola user/role, tidak bisa reset data.
+ */
+export const EDITOR_DEFAULT_PERMISSIONS: string[] = [
   "person:view",
+  "person:create",
+  "person:edit",
   "partnership:create",
+  "partnership:edit",
   "export:view",
 ];
+
+/**
+ * Daftar permission default untuk role Viewer (read-only).
+ * Hanya bisa melihat pohon & export. Tidak perlu login — bisa diakses publik.
+ */
+export const VIEWER_DEFAULT_PERMISSIONS: string[] = [
+  "person:view",
+  "export:view",
+];
+
+/** Permission yang dimiliki Viewer publik (tanpa login). */
+export const GUEST_PERMISSIONS = VIEWER_DEFAULT_PERMISSIONS;

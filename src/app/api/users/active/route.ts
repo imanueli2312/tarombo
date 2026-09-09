@@ -6,21 +6,21 @@ import { now } from "@/lib/tarombo/queries";
 
 const ACTIVE_COOKIE = "tarombo_active_user";
 
-/** GET /api/users/active */
+/** GET /api/users/active
+ *  Selalu mengembalikan user aktif. Bila tidak ada cookie → guest Viewer
+ *  (read-only, tanpa login). hasUsers menandakan apakah ada akun terdaftar
+ *  (untuk toggle menu login).
+ */
 export async function GET() {
   try {
     const totalCount = (
       sqlite.prepare("SELECT COUNT(*) AS c FROM user").get() as { c: number }
     ).c;
-    if (totalCount === 0) {
-      return NextResponse.json({ data: null, hasUsers: false });
-    }
-
     const user = await getActiveUserWithPermissions();
-    if (!user) {
-      return NextResponse.json({ data: null, hasUsers: true });
-    }
-    return NextResponse.json({ data: user, hasUsers: true });
+    return NextResponse.json({
+      data: user,
+      hasUsers: totalCount > 0,
+    });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

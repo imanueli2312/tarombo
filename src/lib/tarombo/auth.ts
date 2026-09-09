@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { sqlite } from "@/lib/db";
-import { parsePermissions } from "./permissions";
+import { parsePermissions, GUEST_PERMISSIONS } from "./permissions";
 import type { PersonRow, RoleRow, UserRow } from "./queries";
 
 // ============================================================================
@@ -59,9 +59,10 @@ function serializeActiveUser(
 /**
  * Ambil user aktif lengkap dengan permissions-nya.
  * - Baca cookie `tarombo_active_user`.
- * - Bila tidak ada / invalid → fallback ke user pertama dengan role Administrator.
+ * - Bila tidak ada cookie / invalid → kembalikan GUEST (Viewer publik tanpa login)
+ *   dengan permission read-only. Viewer tidak perlu akun untuk melihat pohon.
  */
-export async function getActiveUserWithPermissions(): Promise<ActiveUserWithPermissions | null> {
+export async function getActiveUserWithPermissions(): Promise<ActiveUserWithPermissions> {
   const cookieStore = await cookies();
   const cookieUserId = cookieStore.get(ACTIVE_COOKIE)?.value;
 
@@ -72,26 +73,24 @@ export async function getActiveUserWithPermissions(): Promise<ActiveUserWithPerm
       .get(cookieUserId) as UserRow | undefined;
   }
 
+  // Bila tidak ada user dari cookie → kembalikan guest viewer (tanpa login)
   if (!user) {
-    // fallback: user dengan role Administrator
-    const adminRole = sqlite
-      .prepare("SELECT * FROM role WHERE name = 'Administrator' AND is_system = 1")
-      .get() as RoleRow | undefined;
-    if (adminRole) {
-      user = sqlite
-        .prepare("SELECT * FROM user WHERE role_id = ? LIMIT 1")
-        .get(adminRole.id) as UserRow | undefined;
-    }
+    return {
+      id: "guest",
+      email: "",
+      name: "Tamu",
+      photo: null,
+      phone: null,
+      linkedPersonId: null,
+      linkedPersonName: null,
+      lastLoginAt: null,
+      roleId: null,
+      roleName: "Viewer",
+      roleColor: "#78716c",
+      roleIsSystem: false,
+      permissions: GUEST_PERMISSIONS,
+    };
   }
-
-  if (!user) {
-    // fallback terakhir: user pertama yang punya role
-    user = sqlite
-      .prepare("SELECT * FROM user WHERE role_id IS NOT NULL LIMIT 1")
-      .get() as UserRow | undefined;
-  }
-
-  if (!user) return null;
 
   const role = user.role_id
     ? (sqlite.prepare("SELECT * FROM role WHERE id = ?").get(user.role_id) as
@@ -112,9 +111,8 @@ export async function getActiveUserWithPermissions(): Promise<ActiveUserWithPerm
 
 export async function hasPermission(
   permission: string,
-): Promise<{ allowed: boolean; user: ActiveUserWithPermissions | null }> {
+): Promise<{ allowed: boolean; user: ActiveUserWithPermissions }> {
   const user = await getActiveUserWithPermissions();
-  if (!user) return { allowed: false, user: null };
   return { allowed: user.permissions.includes(permission), user };
 }
 
@@ -122,7 +120,7 @@ export async function requirePermission(
   permission: string,
 ): Promise<ActiveUserWithPermissions> {
   const { allowed, user } = await hasPermission(permission);
-  if (!allowed || !user) {
+  if (!allowed) {
     throw new PermissionDeniedError(permission);
   }
   return user;
@@ -132,7 +130,6 @@ export async function requireAllPermissions(
   ...permissions: string[]
 ): Promise<ActiveUserWithPermissions> {
   const user = await getActiveUserWithPermissions();
-  if (!user) throw new PermissionDeniedError(permissions[0] ?? "unknown");
   const hasAll = permissions.every((p) => user.permissions.includes(p));
   if (!hasAll) {
     throw new PermissionDeniedError(permissions.join(", "));

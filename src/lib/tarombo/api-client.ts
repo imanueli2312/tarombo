@@ -181,6 +181,21 @@ export async function fetchUsers(): Promise<UserPublic[]> {
   return data.data;
 }
 
+/** Versi publik (tanpa login) — untuk dropdown login guest.
+ *  Hanya id, name, roleName, roleColor. Tidak ada data sensitif. */
+export interface PublicUser {
+  id: string;
+  name: string;
+  roleName: string | null;
+  roleColor: string | null;
+}
+
+export async function fetchPublicUsers(): Promise<PublicUser[]> {
+  const res = await fetch("/api/users/list-public", { cache: "no-store" });
+  const data = await jsonOrThrow<{ data: PublicUser[] }>(res);
+  return data.data;
+}
+
 export async function fetchActiveUser(): Promise<{
   data: ActiveUserPublic | null;
   hasUsers: boolean;

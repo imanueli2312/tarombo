@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sqlite } from "@/lib/db";
 import {
   ADMIN_DEFAULT_PERMISSIONS,
-  MEMBER_DEFAULT_PERMISSIONS,
+  EDITOR_DEFAULT_PERMISSIONS,
+  VIEWER_DEFAULT_PERMISSIONS,
   serializePermissions,
 } from "@/lib/tarombo/permissions";
 import {
@@ -62,10 +63,10 @@ export async function POST(_req: NextRequest) {
         .run(serializePermissions(ADMIN_DEFAULT_PERMISSIONS), now(), adminRole.id);
     }
 
-    let memberRole = sqlite
-      .prepare("SELECT * FROM role WHERE name = 'Anggota'")
+    let editorRole = sqlite
+      .prepare("SELECT * FROM role WHERE name = 'Editor'")
       .get() as RoleRow | undefined;
-    if (!memberRole) {
+    if (!editorRole) {
       const id = newId();
       const ts = now();
       sqlite
@@ -75,16 +76,43 @@ export async function POST(_req: NextRequest) {
         )
         .run(
           id,
-          "Anggota",
-          "Hanya bisa melihat pohon, menambah pasangan, dan export.",
+          "Editor",
+          "Bisa melihat, menambah, dan mengedit orang & pasangan, serta export. Tidak bisa hapus atau kelola user/role.",
           "#d97706",
-          "user",
-          serializePermissions(MEMBER_DEFAULT_PERMISSIONS),
+          "pencil",
+          serializePermissions(EDITOR_DEFAULT_PERMISSIONS),
           1,
           ts,
           ts,
         );
-      memberRole = sqlite
+      editorRole = sqlite
+        .prepare("SELECT * FROM role WHERE id = ?")
+        .get(id) as RoleRow;
+    }
+
+    let viewerRole = sqlite
+      .prepare("SELECT * FROM role WHERE name = 'Viewer'")
+      .get() as RoleRow | undefined;
+    if (!viewerRole) {
+      const id = newId();
+      const ts = now();
+      sqlite
+        .prepare(
+          `INSERT INTO role (id, name, description, color, icon, permissions, is_system, sort_order, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          "Viewer",
+          "Read-only. Hanya bisa melihat pohon & export. Tidak perlu login — bisa diakses publik.",
+          "#78716c",
+          "eye",
+          serializePermissions(VIEWER_DEFAULT_PERMISSIONS),
+          2,
+          ts,
+          ts,
+        );
+      viewerRole = sqlite
         .prepare("SELECT * FROM role WHERE id = ?")
         .get(id) as RoleRow;
     }
@@ -117,7 +145,7 @@ export async function POST(_req: NextRequest) {
         .get(id) as typeof adminUser;
     }
 
-    const memberUser = sqlite
+    const editorUser = sqlite
       .prepare("SELECT * FROM user WHERE email = 'robby@tarombo.id'")
       .get() as
       | { id: string; email: string; name: string; password: string; photo: string | null; phone: string | null; role_id: string | null; linked_person_id: string | null; last_login_at: string | null; created_at: string; updated_at: string }
@@ -126,7 +154,7 @@ export async function POST(_req: NextRequest) {
     const personCount = (
       sqlite.prepare("SELECT COUNT(*) AS c FROM person").get() as { c: number }
     ).c;
-    if (personCount > 0 && memberUser) {
+    if (personCount > 0 && editorUser) {
       return NextResponse.json({
         seeded: false,
         message: "Database sudah berisi data keluarga. Seed dilewati.",
@@ -453,7 +481,7 @@ export async function POST(_req: NextRequest) {
     });
 
     // --- Buat User member ter-link ke Robby ---
-    if (!memberUser) {
+    if (!editorUser) {
       const id = newId();
       const ts = now();
       sqlite
@@ -466,7 +494,7 @@ export async function POST(_req: NextRequest) {
           "robby@tarombo.id",
           "Robby Adithama Sianipar",
           "robby123",
-          memberRole.id,
+          editorRole.id,
           grandChild1.id,
           ts,
           ts,
@@ -476,7 +504,7 @@ export async function POST(_req: NextRequest) {
         .prepare(
           "UPDATE user SET role_id = ?, linked_person_id = COALESCE(linked_person_id, ?), updated_at = ? WHERE id = ?",
         )
-        .run(memberRole.id, grandChild1.id, now(), memberUser.id);
+        .run(editorRole.id, grandChild1.id, now(), editorUser.id);
     }
 
     // gunakan variabel agar linter tidak warning unused
