@@ -5,7 +5,6 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -192,20 +191,42 @@ export function PersonFormSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
-        <SheetHeader className="px-5 pt-5 pb-3 border-b">
-          <SheetTitle className="flex items-center gap-2 text-base">
-            {editPerson ? (
-              <>
-                <Pencil className="size-4 text-primary" />
-                Edit Orang
-              </>
-            ) : (
-              <>
-                <UserPlus className="size-4 text-primary" />
-                Tambah Orang
-              </>
-            )}
-          </SheetTitle>
+        <SheetHeader className="px-5 pt-5 pb-3 border-b gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              {editPerson ? (
+                <>
+                  <Pencil className="size-4 text-primary" />
+                  Edit Orang
+                </>
+              ) : (
+                <>
+                  <UserPlus className="size-4 text-primary" />
+                  Tambah Orang
+                </>
+              )}
+            </SheetTitle>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={saving}
+                className="h-8"
+              >
+                Batal
+              </Button>
+              <Button
+                size="sm"
+                onClick={onSubmit}
+                disabled={saving}
+                className="h-8"
+              >
+                {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
+                {editPerson ? "Simpan Perubahan" : "Tambah Orang"}
+              </Button>
+            </div>
+          </div>
           <SheetDescription className="text-xs">
             {defaults?.labelHint
               ? defaults.labelHint
@@ -514,20 +535,6 @@ export function PersonFormSheet({
             </Section>
           </div>
         </ScrollArea>
-
-        <SheetFooter className="border-t px-5 py-3 gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-          >
-            Batal
-          </Button>
-          <Button onClick={onSubmit} disabled={saving}>
-            {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
-            {editPerson ? "Simpan Perubahan" : "Tambah Orang"}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
