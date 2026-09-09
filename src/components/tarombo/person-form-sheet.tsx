@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, UserPlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -234,7 +233,7 @@ export function PersonFormSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="tarombo-scroll flex-1">
+        <div className="tarombo-scroll flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-5 p-5">
             {error && (
               <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -534,7 +533,7 @@ export function PersonFormSheet({
               </div>
             </Section>
           </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );
