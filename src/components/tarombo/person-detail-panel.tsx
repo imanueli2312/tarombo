@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useActiveUser } from "@/lib/tarombo/use-permissions";
 import {
   Pencil,
@@ -125,7 +124,7 @@ export function PersonDetailPanel({
   const isMale = p.gender === "MALE";
 
   return (
-    <ScrollArea className="tarombo-scroll h-full">
+    <div className="tarombo-scroll h-full overflow-y-auto">
       <div className="p-3 space-y-3">
         {/* Banner profil */}
         <Card className="relative overflow-hidden p-3">
@@ -410,7 +409,7 @@ export function PersonDetailPanel({
           </div>
         )}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 

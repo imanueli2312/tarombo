@@ -211,6 +211,11 @@
 }
 
 /* Scrollbar kustom */
+.tarombo-scroll {
+  /* Firefox */
+  scrollbar-width: auto;
+  scrollbar-color: oklch(0.7 0.08 50) oklch(0.95 0.01 75);
+}
 .tarombo-scroll::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -226,6 +231,9 @@
 }
 .tarombo-scroll::-webkit-scrollbar-thumb:hover {
   background: oklch(0.55 0.12 45);
+}
+.dark .tarombo-scroll {
+  scrollbar-color: oklch(0.45 0.05 50) oklch(0.24 0.015 40);
 }
 .dark .tarombo-scroll::-webkit-scrollbar-track {
   background: oklch(0.24 0.015 40);
