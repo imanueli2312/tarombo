@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -269,7 +268,7 @@ export function RoleManagementSheet({ open, onOpenChange }: Props) {
             </div>
           </div>
         ) : (
-          <ScrollArea className="tarombo-scroll flex-1">
+          <div className="tarombo-scroll flex-1 min-h-0 overflow-y-scroll">
             <div className="flex gap-3 p-4">
               {/* ============== LEFT: Daftar role ============== */}
               <div className="w-[240px] shrink-0 space-y-2">
@@ -457,7 +456,7 @@ export function RoleManagementSheet({ open, onOpenChange }: Props) {
                         </Badge>
                       </div>
 
-                      <ScrollArea className="max-h-[60vh]">
+                      <div className="tarombo-scroll max-h-[60vh] min-h-0 overflow-y-scroll">
                         <div className="space-y-3 pr-2">
                           {PERMISSION_GROUPS.map((group) => {
                             const perms = PERMISSIONS.filter(
@@ -528,7 +527,7 @@ export function RoleManagementSheet({ open, onOpenChange }: Props) {
                             );
                           })}
                         </div>
-                      </ScrollArea>
+                      </div>
                     </Card>
 
                     {/* Footer kanan: delete + hint */}
@@ -568,7 +567,7 @@ export function RoleManagementSheet({ open, onOpenChange }: Props) {
                 )}
               </div>
             </div>
-          </ScrollArea>
+          </div>
         )}
 
         <SheetFooter className="border-t px-5 py-3">

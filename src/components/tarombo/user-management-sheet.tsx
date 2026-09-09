@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -213,7 +212,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="tarombo-scroll flex-1">
+        <div className="tarombo-scroll flex-1 min-h-0 overflow-y-scroll">
           <div className="space-y-3 p-5">
             {error && (
               <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -462,7 +461,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         <SheetFooter className="border-t px-5 py-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full">
