@@ -3,14 +3,16 @@ import { sqlite } from "@/lib/db";
 import { getActiveUserWithPermissions } from "@/lib/tarombo/auth";
 import type { UserRow } from "@/lib/tarombo/queries";
 import { now } from "@/lib/tarombo/queries";
+import {
+  hashPassword,
+  isBcryptHash,
+  logActivity,
+  verifyPassword,
+} from "@/lib/tarombo/security";
 
 const ACTIVE_COOKIE = "tarombo_active_user";
 
-/** GET /api/users/active
- *  Selalu mengembalikan user aktif. Bila tidak ada cookie → guest Viewer
- *  (read-only, tanpa login). hasUsers menandakan apakah ada akun terdaftar
- *  (untuk toggle menu login).
- */
+/** GET /api/users/active */
 export async function GET() {
   try {
     const totalCount = (
@@ -26,10 +28,9 @@ export async function GET() {
   }
 }
 
-/** POST /api/users/active — login dengan password
- *  Body: { userId, password }
- *  Viewer (guest) tetap bisa akses tanpa login. Administrator & Editor
- *  diharuskan login dengan password yang benar.
+/** POST /api/users/active — login dengan password (bcrypt).
+ *  Mendukung legacy plain-text password: bila password di DB belum berupa
+ *  bcrypt hash dan cocok plain-text, auto-upgrade ke bcrypt hash.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -56,8 +57,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verifikasi password
-    if (u.password !== password) {
+    let ok = false;
+    if (isBcryptHash(u.password)) {
+      ok = verifyPassword(password, u.password);
+    } else {
+      // Legacy plain-text — verify langsung, lalu auto-upgrade ke bcrypt
+      if (u.password === password) {
+        ok = true;
+        const hashed = hashPassword(password);
+        sqlite
+          .prepare("UPDATE user SET password = ?, updated_at = ? WHERE id = ?")
+          .run(hashed, now(), u.id);
+      }
+    }
+
+    if (!ok) {
+      logActivity({
+        userId: u.id,
+        userName: u.name,
+        action: "login",
+        entityType: "user",
+        entityId: u.id,
+        entityName: u.name,
+        details: { success: false },
+      });
       return NextResponse.json(
         { error: "Password salah. Login ditolak." },
         { status: 403 },
@@ -67,6 +90,16 @@ export async function POST(req: NextRequest) {
     sqlite
       .prepare("UPDATE user SET last_login_at = ?, updated_at = ? WHERE id = ?")
       .run(now(), now(), u.id);
+
+    logActivity({
+      userId: u.id,
+      userName: u.name,
+      action: "login",
+      entityType: "user",
+      entityId: u.id,
+      entityName: u.name,
+      details: { success: true },
+    });
 
     const full = await getActiveUserWithPermissions();
     const res = NextResponse.json({ data: full });
@@ -84,6 +117,21 @@ export async function POST(req: NextRequest) {
 
 /** DELETE /api/users/active — logout */
 export async function DELETE() {
+  try {
+    const user = await getActiveUserWithPermissions();
+    if (user.id !== "guest") {
+      logActivity({
+        userId: user.id,
+        userName: user.name,
+        action: "logout",
+        entityType: "user",
+        entityId: user.id,
+        entityName: user.name,
+      });
+    }
+  } catch {
+    // ignore
+  }
   const res = NextResponse.json({ success: true });
   res.cookies.delete(ACTIVE_COOKIE);
   return res;

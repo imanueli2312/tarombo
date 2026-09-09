@@ -9,6 +9,12 @@ import {
   type PersonRow,
 } from "@/lib/tarombo/queries";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
+import {
+  logActivity,
+  validateParentRelation,
+  validatePersonDates,
+  ValidationError,
+} from "@/lib/tarombo/security";
 
 /** GET /api/persons — butuh permission person:view */
 export async function GET(req: NextRequest) {
@@ -20,7 +26,7 @@ export async function GET(req: NextRequest) {
     const alive = searchParams.get("alive");
     const root = searchParams.get("root");
 
-    let sql = "SELECT * FROM person WHERE 1=1";
+    let sql = "SELECT * FROM person WHERE deleted_at IS NULL";
     const params: (string | number)[] = [];
     if (q) {
       sql += " AND (full_name LIKE ? OR nickname LIKE ?)";
@@ -51,7 +57,7 @@ export async function GET(req: NextRequest) {
 /** POST /api/persons — butuh permission person:create */
 export async function POST(req: NextRequest) {
   try {
-    await requirePermission("person:create");
+    const me = await requirePermission("person:create");
     const body = await req.json();
     const parsed = personSchema.safeParse(body);
     if (!parsed.success) {
@@ -62,10 +68,29 @@ export async function POST(req: NextRequest) {
     }
     const data = parsed.data;
 
+    // Validasi integritas: tanggal
+    const dateErrors = validatePersonDates({
+      birthDate: data.birthDate,
+      deathDate: data.deathDate,
+    });
+    if (dateErrors.length > 0) {
+      return NextResponse.json({ error: dateErrors.join(" ") }, { status: 400 });
+    }
+    // Validasi relasi orang tua
+    const relErrors = validateParentRelation({
+      childId: null,
+      fatherId: data.fatherId,
+      motherId: data.motherId,
+      childBirthDate: data.birthDate,
+    });
+    if (relErrors.length > 0) {
+      return NextResponse.json({ error: relErrors.join(" ") }, { status: 400 });
+    }
+
     // Validasi ayah/ibu
     if (data.fatherId) {
       const father = sqlite
-        .prepare("SELECT * FROM person WHERE id = ?")
+        .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
         .get(data.fatherId) as PersonRow | undefined;
       if (!father)
         return NextResponse.json({ error: "Ayah tidak ditemukan" }, { status: 400 });
@@ -77,7 +102,7 @@ export async function POST(req: NextRequest) {
     }
     if (data.motherId) {
       const mother = sqlite
-        .prepare("SELECT * FROM person WHERE id = ?")
+        .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
         .get(data.motherId) as PersonRow | undefined;
       if (!mother)
         return NextResponse.json({ error: "Ibu tidak ditemukan" }, { status: 400 });
@@ -131,6 +156,15 @@ export async function POST(req: NextRequest) {
       handleDeathSideEffects(created.id);
     }
 
+    logActivity({
+      userId: me.id,
+      userName: me.name,
+      action: "create",
+      entityType: "person",
+      entityId: id,
+      entityName: created.full_name,
+    });
+
     return NextResponse.json(
       { data: serializePerson(created) },
       { status: 201 },
@@ -138,6 +172,9 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+    if (e instanceof ValidationError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
     }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

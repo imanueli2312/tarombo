@@ -33,6 +33,11 @@ const MAX_SCALE = 1.6;
 const INITIAL_SCALE = 0.85;
 const PAN_STEP = 180;
 
+// Minimap
+const MINIMAP_WIDTH = 150;
+const MINIMAP_HEIGHT = 100;
+const MINIMAP_PADDING = 6;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -62,6 +67,25 @@ interface CardColors {
   avatarMaleText: string;
   avatarFemaleText: string;
   shadow: string;
+}
+
+interface FlatNode {
+  id: string;
+  parentId: string | null;
+  prevSiblingId: string | null;
+  nextSiblingId: string | null;
+  firstChildId: string | null;
+  index: number;
+}
+
+interface MinimapNode {
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  selected: boolean;
+  focused: boolean;
 }
 
 // ============================================================================
@@ -145,9 +169,25 @@ function makeInitialTransform(
   return d3.zoomIdentity.translate(tx, ty).scale(INITIAL_SCALE);
 }
 
+/** True when the currently focused DOM element is a form control (so we don't hijack arrows). */
+function isInteractiveElement(el: Element | null): boolean {
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  if (el instanceof HTMLElement && el.isContentEditable) return true;
+  return false;
+}
+
 // ============================================================================
-// Card rendering (top-level function for clarity)
+// Card rendering
 // ============================================================================
+
+interface DrawCardOptions {
+  hasChildren: boolean;
+  isCollapsed: boolean;
+  hiddenChildrenCount: number;
+  focused: boolean;
+}
 
 function drawCard(
   parent: d3.Selection<
@@ -163,7 +203,10 @@ function drawCard(
   defs: d3.Selection<SVGDefsElement, unknown, null, undefined>,
   isSpouse: boolean,
   onSelectRef: React.MutableRefObject<((id: string) => void) | undefined>,
+  options: DrawCardOptions,
+  onToggleRef: React.MutableRefObject<(id: string) => void>,
 ): void {
+  const { hasChildren, isCollapsed, hiddenChildrenCount, focused } = options;
   const xLeft = xCenter - NODE_WIDTH / 2;
   const selected = selectedId === person.id;
   const isMale = person.gender === "MALE";
@@ -178,7 +221,7 @@ function drawCard(
       onSelectRef.current?.(person.id);
     });
 
-  // Selection highlight ring (drawn first, behind the card)
+  // Selection highlight ring (solid, drawn behind the card)
   if (selected) {
     cardG
       .append<SVGRectElement>("rect")
@@ -192,6 +235,23 @@ function drawCard(
       .attr("stroke", "var(--primary)")
       .attr("stroke-width", 2.5)
       .attr("opacity", 0.55);
+  }
+
+  // Focus highlight ring (dashed amber, drawn behind the card) — keyboard nav focus
+  if (focused) {
+    cardG
+      .append<SVGRectElement>("rect")
+      .attr("x", -6)
+      .attr("y", -6)
+      .attr("width", NODE_WIDTH + 12)
+      .attr("height", NODE_HEIGHT + 12)
+      .attr("rx", 14)
+      .attr("ry", 14)
+      .attr("fill", "none")
+      .attr("stroke", "#d97706")
+      .attr("stroke-width", 1.8)
+      .attr("stroke-dasharray", "5 3")
+      .attr("opacity", 0.85);
   }
 
   // Card body with subtle shadow
@@ -363,6 +423,68 @@ function drawCard(
       .attr("fill", colors.muted)
       .text("Pasangan");
   }
+
+  // "N anak" badge (top-right of person card) — only when collapsed
+  if (isCollapsed && hiddenChildrenCount > 0) {
+    const badgeText = `${hiddenChildrenCount} anak`;
+    const badgeW = Math.min(54, Math.max(38, badgeText.length * 5.5 + 10));
+    const badgeX = NODE_WIDTH - badgeW - 4;
+    cardG
+      .append<SVGRectElement>("rect")
+      .attr("x", badgeX)
+      .attr("y", 6)
+      .attr("width", badgeW)
+      .attr("height", 14)
+      .attr("rx", 7)
+      .attr("fill", "#d97706")
+      .attr("opacity", 0.95)
+      .attr("stroke", colors.card)
+      .attr("stroke-width", 1);
+    cardG
+      .append<SVGTextElement>("text")
+      .attr("x", badgeX + badgeW / 2)
+      .attr("y", 16)
+      .attr("text-anchor", "middle")
+      .attr("font-family", "inherit")
+      .attr("font-size", "9px")
+      .attr("font-weight", "700")
+      .attr("fill", "#ffffff")
+      .text(badgeText);
+  }
+
+  // Collapse/expand toggle button — only on person card with children
+  if (hasChildren && !isSpouse) {
+    const toggleG = cardG
+      .append<SVGGElement>("g")
+      .attr(
+        "transform",
+        `translate(${NODE_WIDTH / 2}, ${NODE_HEIGHT + 10})`,
+      )
+      .style("cursor", "pointer");
+
+    toggleG
+      .append<SVGCircleElement>("circle")
+      .attr("r", 9)
+      .attr("fill", colors.card)
+      .attr("stroke", isCollapsed ? "#d97706" : colors.border)
+      .attr("stroke-width", 1.5);
+
+    // Chevron icon (Unicode for simplicity) — ▼ expanded, ▶ collapsed
+    toggleG
+      .append<SVGTextElement>("text")
+      .attr("text-anchor", "middle")
+      .attr("y", 3.5)
+      .attr("font-family", "inherit")
+      .attr("font-size", "11px")
+      .attr("font-weight", "700")
+      .attr("fill", isCollapsed ? "#d97706" : colors.muted)
+      .text(isCollapsed ? "▶" : "▼");
+
+    toggleG.on("click", (event: MouseEvent) => {
+      event.stopPropagation();
+      onToggleRef.current(person.id);
+    });
+  }
 }
 
 // ============================================================================
@@ -372,17 +494,46 @@ function drawCard(
 export function FamilyTree({ trees, selectedId, onSelect }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
+  const minimapRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const onSelectRef = useRef(onSelect);
+  const onToggleRef = useRef<(id: string) => void>(() => {});
   const initRef = useRef(false);
   const [scale, setScale] = useState(INITIAL_SCALE);
   const [dims, setDims] = useState({ w: 800, h: 600 });
   const [isDark, setIsDark] = useState(false);
+  // Feature 1: collapsed subtrees (set of person IDs whose children are hidden)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  // Feature 3: keyboard-focused node (distinct from click-selected)
+  const [focusedId, setFocusedId] = useState<string | null>(
+    selectedId ?? null,
+  );
+  // Feature 2: live transform for minimap viewport rectangle
+  const [transform, setTransform] = useState<d3.ZoomTransform>(
+    d3.zoomIdentity,
+  );
 
   // Keep latest onSelect reference without triggering tree re-render
   useEffect(() => {
     onSelectRef.current = onSelect;
   });
+
+  // Keep latest onToggle reference (toggle handler is stable per render)
+  useEffect(() => {
+    onToggleRef.current = (id: string) => {
+      setCollapsedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    };
+  });
+
+  // Sync focusedId when selectedId prop changes externally
+  useEffect(() => {
+    if (selectedId !== undefined) setFocusedId(selectedId ?? null);
+  }, [selectedId]);
 
   // Observe dark mode changes on <html> class
   useEffect(() => {
@@ -408,12 +559,14 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Build D3 layout per tree (memoized on trees change)
+  // Build D3 layout per tree (memoized on trees + collapsedIds).
+  // Collapsed nodes return [] as their children so d3.tree won't traverse them.
   const layout = useMemo<LayoutTree[]>(() => {
     return trees.map((rootData) => {
       const h = d3.hierarchy<FamilyNode>(
         rootData,
-        (d: FamilyNode) => d.children,
+        (d: FamilyNode) =>
+          collapsedIds.has(d.person.id) ? [] : d.children,
       );
       const treeLayout = d3
         .tree<FamilyNode>()
@@ -438,7 +591,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
       }
       return { root, minX, maxX, maxY };
     });
-  }, [trees]);
+  }, [trees, collapsedIds]);
 
   // Total content size (across all trees)
   const contentSize = useMemo(() => {
@@ -451,6 +604,103 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     return { width, height };
   }, [layout]);
 
+  // Flat list of visible nodes in DFS order (parent before children) for keyboard nav.
+  // Respects collapse state because layout already excludes collapsed subtrees.
+  const flatNodes = useMemo<FlatNode[]>(() => {
+    const list: FlatNode[] = [];
+    let idx = 0;
+    layout.forEach((tree) => {
+      const nodes = tree.root.descendants();
+      nodes.forEach((node) => {
+        const parent = node.parent;
+        const siblings = parent ? parent.children ?? [tree.root] : [tree.root];
+        const sibIndex = siblings.indexOf(node);
+        const prevSibling = sibIndex > 0 ? siblings[sibIndex - 1] : null;
+        const nextSibling =
+          sibIndex < siblings.length - 1 ? siblings[sibIndex + 1] : null;
+        const firstChild =
+          node.children && node.children.length > 0
+            ? node.children[0]
+            : null;
+        list.push({
+          id: node.data.person.id,
+          parentId: parent ? parent.data.person.id : null,
+          prevSiblingId: prevSibling ? prevSibling.data.person.id : null,
+          nextSiblingId: nextSibling ? nextSibling.data.person.id : null,
+          firstChildId: firstChild ? firstChild.data.person.id : null,
+          index: idx++,
+        });
+      });
+    });
+    return list;
+  }, [layout]);
+
+  const flatNodeMap = useMemo(() => {
+    const m = new Map<string, FlatNode>();
+    flatNodes.forEach((n) => m.set(n.id, n));
+    return m;
+  }, [flatNodes]);
+
+  // If focusedId is no longer visible (e.g. its parent was collapsed),
+  // reset focus so the user can start over.
+  useEffect(() => {
+    if (focusedId && !flatNodeMap.has(focusedId)) {
+      setFocusedId(null);
+    }
+  }, [flatNodeMap, focusedId]);
+
+  // Node positions in content coords (used by centerOnNode + minimap rendering)
+  const nodePositions = useMemo(() => {
+    const m = new Map<string, { x: number; y: number }>();
+    let cursorX = 0;
+    layout.forEach((tree) => {
+      const offset = -tree.minX + cursorX;
+      tree.root.descendants().forEach((node) => {
+        m.set(node.data.person.id, {
+          x: node.x + offset,
+          y: node.y,
+        });
+      });
+      cursorX += tree.maxX - tree.minX + TREE_GAP;
+    });
+    return m;
+  }, [layout]);
+
+  // Minimap nodes (simplified rects, one per FamilyNode — wider if has spouse)
+  const minimapNodes = useMemo<MinimapNode[]>(() => {
+    const list: MinimapNode[] = [];
+    let cursorX = 0;
+    layout.forEach((tree) => {
+      const offset = -tree.minX + cursorX;
+      tree.root.descendants().forEach((node) => {
+        const hasSpouse = !!node.data.spouse;
+        list.push({
+          key: node.data.person.id,
+          x: node.x + offset - NODE_WIDTH / 2,
+          y: node.y,
+          width: hasSpouse ? SPOUSE_OFFSET + NODE_WIDTH : NODE_WIDTH,
+          height: NODE_HEIGHT,
+          selected: selectedId === node.data.person.id,
+          focused: focusedId === node.data.person.id,
+        });
+      });
+      cursorX += tree.maxX - tree.minX + TREE_GAP;
+    });
+    return list;
+  }, [layout, selectedId, focusedId]);
+
+  // Minimap scale: fit content into the minimap viewport (uniform)
+  const minimapScale = useMemo(() => {
+    if (contentSize.width === 0 || contentSize.height === 0) return 0;
+    const sx = (MINIMAP_WIDTH - MINIMAP_PADDING * 2) / contentSize.width;
+    const sy = (MINIMAP_HEIGHT - MINIMAP_PADDING * 2) / contentSize.height;
+    return Math.min(sx, sy);
+  }, [contentSize]);
+
+  // Show minimap only when there's something to navigate (content > viewport)
+  const showMinimap =
+    contentSize.width > dims.w || contentSize.height > dims.h;
+
   // Setup D3 zoom behavior (only once on mount)
   useEffect(() => {
     if (!svgRef.current) return;
@@ -462,6 +712,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
         const g = d3.select(gRef.current);
         g.attr("transform", event.transform.toString());
         setScale(event.transform.k);
+        setTransform(event.transform);
       });
     svg.call(zoom);
     zoomRef.current = zoom;
@@ -476,10 +727,9 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     if (!svgRef.current || !zoomRef.current) return;
     if (contentSize.width === 0 || dims.w === 0) return;
     initRef.current = true;
-    d3.select(svgRef.current).call(
-      zoomRef.current.transform,
-      makeInitialTransform(contentSize.width, dims.w),
-    );
+    const initial = makeInitialTransform(contentSize.width, dims.w);
+    d3.select(svgRef.current).call(zoomRef.current.transform, initial);
+    setTransform(initial);
   }, [contentSize.width, dims.w]);
 
   // Render the tree (links + nodes) into <g ref={gRef}>
@@ -536,6 +786,12 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
         const spouse = d.data.spouse;
         const partnership = d.data.partnership;
 
+        // Original (unfiltered) children — for collapse badge count
+        const originalChildren = d.data.children ?? [];
+        const hasChildren = originalChildren.length > 0;
+        const isCollapsed = collapsedIds.has(person.id);
+        const hiddenChildrenCount = originalChildren.length;
+
         // Person card (centered at x=0 of node group)
         drawCard(
           grp,
@@ -546,6 +802,13 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
           defs,
           false,
           onSelectRef,
+          {
+            hasChildren,
+            isCollapsed,
+            hiddenChildrenCount,
+            focused: focusedId === person.id,
+          },
+          onToggleRef,
         );
 
         // Spouse card + couple-link line + partnership pill
@@ -605,13 +868,20 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
             defs,
             true,
             onSelectRef,
+            {
+              hasChildren: false,
+              isCollapsed: false,
+              hiddenChildrenCount: 0,
+              focused: focusedId === spouse.id,
+            },
+            onToggleRef,
           );
         }
       });
 
       cursorX += tree.maxX - tree.minX + TREE_GAP;
     });
-  }, [layout, selectedId, isDark]);
+  }, [layout, selectedId, focusedId, isDark, collapsedIds]);
 
   // ---- Zoom & pan button handlers (manipulate the D3 zoom transform) ----
 
@@ -649,6 +919,143 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
       .duration(180)
       .call(zoomRef.current.translateBy, dx, dy);
   };
+
+  // ---- Feature 3 helper: smoothly center the main view on a node (content coords) ----
+  const centerOnNode = (id: string) => {
+    if (!svgRef.current || !zoomRef.current) return;
+    const pos = nodePositions.get(id);
+    if (!pos) return;
+    const k = transform.k;
+    const tx = dims.w / 2 - pos.x * k;
+    const ty = dims.h / 2 - pos.y * k - NODE_HEIGHT / 2;
+    const newTransform = d3.zoomIdentity.translate(tx, ty).scale(k);
+    d3.select(svgRef.current)
+      .transition()
+      .duration(280)
+      .call(zoomRef.current.transform, newTransform);
+  };
+
+  // ---- Feature 3: keyboard navigation handler ----
+  const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
+    // Don't intercept when focus is in a form control
+    if (isInteractiveElement(document.activeElement)) return;
+
+    const fid = focusedId;
+    const key = event.key;
+
+    // No current focus → arrow/enter starts from the first visible node
+    if (fid === null) {
+      const isNavKey =
+        key === "ArrowDown" ||
+        key === "ArrowUp" ||
+        key === "ArrowLeft" ||
+        key === "ArrowRight" ||
+        key === "Enter" ||
+        key === " ";
+      if (isNavKey && flatNodes.length > 0) {
+        setFocusedId(flatNodes[0].id);
+        if (key !== "Enter" && key !== " ") {
+          centerOnNode(flatNodes[0].id);
+        }
+        event.preventDefault();
+        return;
+      }
+      if (key === "Escape") {
+        svgRef.current?.blur();
+        event.preventDefault();
+      }
+      return;
+    }
+
+    const node = flatNodeMap.get(fid);
+    if (!node) return;
+
+    switch (key) {
+      case "ArrowDown": {
+        // First child, or next sibling if no children
+        const next = node.firstChildId ?? node.nextSiblingId;
+        if (next) {
+          setFocusedId(next);
+          centerOnNode(next);
+        }
+        event.preventDefault();
+        break;
+      }
+      case "ArrowUp": {
+        if (node.parentId) {
+          setFocusedId(node.parentId);
+          centerOnNode(node.parentId);
+        }
+        event.preventDefault();
+        break;
+      }
+      case "ArrowLeft": {
+        if (node.prevSiblingId) {
+          setFocusedId(node.prevSiblingId);
+          centerOnNode(node.prevSiblingId);
+        }
+        event.preventDefault();
+        break;
+      }
+      case "ArrowRight": {
+        if (node.nextSiblingId) {
+          setFocusedId(node.nextSiblingId);
+          centerOnNode(node.nextSiblingId);
+        }
+        event.preventDefault();
+        break;
+      }
+      case "Enter":
+      case " ": {
+        onSelectRef.current?.(fid);
+        event.preventDefault();
+        break;
+      }
+      case "Escape": {
+        setFocusedId(null);
+        svgRef.current?.blur();
+        event.preventDefault();
+        break;
+      }
+    }
+  };
+
+  // ---- Feature 2: minimap click → center main view on that content point ----
+  const handleMinimapClick = (
+    event: React.MouseEvent<SVGSVGElement>,
+  ) => {
+    if (!svgRef.current || !zoomRef.current || !minimapRef.current) return;
+    if (minimapScale === 0) return;
+    const rect = minimapRef.current.getBoundingClientRect();
+    const mx = event.clientX - rect.left - MINIMAP_PADDING;
+    const my = event.clientY - rect.top - MINIMAP_PADDING;
+    const cx = mx / minimapScale;
+    const cy = my / minimapScale;
+    const k = transform.k;
+    const tx = dims.w / 2 - cx * k;
+    const ty = dims.h / 2 - cy * k;
+    const newTransform = d3.zoomIdentity.translate(tx, ty).scale(k);
+    d3.select(svgRef.current)
+      .transition()
+      .duration(200)
+      .call(zoomRef.current.transform, newTransform);
+  };
+
+  // Viewport rectangle on the minimap (in minimap SVG coords)
+  const viewportRect = useMemo(() => {
+    if (minimapScale === 0) return null;
+    const k = transform.k;
+    const vx = -transform.x / k;
+    const vy = -transform.y / k;
+    const vw = dims.w / k;
+    const vh = dims.h / k;
+    return {
+      x: MINIMAP_PADDING + vx * minimapScale,
+      y: MINIMAP_PADDING + vy * minimapScale,
+      w: vw * minimapScale,
+      h: vh * minimapScale,
+    };
+  }, [transform, dims, minimapScale]);
 
   if (trees.length === 0) {
     return null;
@@ -738,16 +1145,80 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
         </span>
       </div>
 
-      {/* SVG canvas — fills container, D3 zoom/pan applies to inner <g> */}
+      {/* SVG canvas — fills container, D3 zoom/pan applies to inner <g>.
+          tabIndex + onKeyDown enable keyboard navigation. */}
       <svg
         ref={svgRef}
         width={dims.w}
         height={dims.h}
-        className="block touch-none select-none"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        className="block touch-none select-none outline-none"
         style={{ background: "transparent" }}
       >
         <g ref={gRef} />
       </svg>
+
+      {/* Minimap (bottom-left) — shown only when content exceeds viewport */}
+      {showMinimap && viewportRect && (
+        <div
+          className="no-print absolute bottom-3 left-3 z-20 overflow-hidden rounded-md border shadow-lg"
+          style={{
+            width: MINIMAP_WIDTH,
+            height: MINIMAP_HEIGHT,
+            background: isDark
+              ? "rgba(20,20,15,0.9)"
+              : "rgba(250,246,239,0.9)",
+            borderColor: isDark
+              ? "oklch(0.4 0.04 40)"
+              : "oklch(0.88 0.02 60)",
+          }}
+        >
+          <svg
+            ref={minimapRef}
+            width={MINIMAP_WIDTH}
+            height={MINIMAP_HEIGHT}
+            onClick={handleMinimapClick}
+            style={{ cursor: "pointer", display: "block" }}
+          >
+            <g
+              transform={`translate(${MINIMAP_PADDING}, ${MINIMAP_PADDING}) scale(${minimapScale})`}
+            >
+              {minimapNodes.map((n) => (
+                <rect
+                  key={n.key}
+                  x={n.x}
+                  y={n.y}
+                  width={n.width}
+                  height={n.height}
+                  rx={3}
+                  fill={
+                    n.selected
+                      ? "var(--primary)"
+                      : n.focused
+                        ? "#d97706"
+                        : isDark
+                          ? "#a8a29e"
+                          : "#78716c"
+                  }
+                  opacity={n.selected || n.focused ? 0.95 : 0.65}
+                />
+              ))}
+            </g>
+            <rect
+              x={viewportRect.x}
+              y={viewportRect.y}
+              width={viewportRect.w}
+              height={viewportRect.h}
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth={1.5}
+              opacity={0.9}
+              pointerEvents="none"
+            />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   PermissionDeniedError,
   requirePermission,
 } from "@/lib/tarombo/auth";
+import { hashPassword, logActivity } from "@/lib/tarombo/security";
 import {
   newId,
   now,
@@ -135,7 +136,7 @@ export async function POST(_req: NextRequest) {
           id,
           "admin@tarombo.id",
           "Administrator Tarombo",
-          "admin123",
+          hashPassword("admin123"),
           adminRole.id,
           ts,
           ts,
@@ -493,7 +494,7 @@ export async function POST(_req: NextRequest) {
           id,
           "robby@tarombo.id",
           "Robby Adithama Sianipar",
-          "robby123",
+          hashPassword("robby123"),
           editorRole.id,
           grandChild1.id,
           ts,
@@ -530,6 +531,13 @@ export async function POST(_req: NextRequest) {
       sqlite.prepare("SELECT COUNT(*) AS c FROM role").get() as { c: number }
     ).c;
 
+    logActivity({
+      action: "seed",
+      entityType: "data",
+      entityName: "Data keluarga contoh",
+      details: { persons: finalPersons, partnerships: finalPartnerships, users: finalUsers, roles: finalRoles },
+    });
+
     return NextResponse.json({
       seeded: true,
       message: "Data keluarga contoh berhasil dimuat.",
@@ -549,7 +557,7 @@ export async function POST(_req: NextRequest) {
 /** DELETE /api/seed — hapus SEMUA data. Butuh data:reset. */
 export async function DELETE(_req: NextRequest) {
   try {
-    await requirePermission("data:reset");
+    const me = await requirePermission("data:reset");
     sqlite.prepare("DELETE FROM partnership").run();
     sqlite
       .prepare("UPDATE user SET linked_person_id = NULL, role_id = NULL")
@@ -557,6 +565,14 @@ export async function DELETE(_req: NextRequest) {
     sqlite.prepare("DELETE FROM person").run();
     sqlite.prepare("DELETE FROM user").run();
     sqlite.prepare("DELETE FROM role").run();
+    sqlite.prepare("DELETE FROM activity_log").run();
+    logActivity({
+      userId: me.id,
+      userName: me.name,
+      action: "reset",
+      entityType: "data",
+      entityName: "Reset semua data",
+    });
     return NextResponse.json({ success: true, message: "Semua data dihapus." });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {

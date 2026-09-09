@@ -10,9 +10,15 @@ import {
   type PersonRow,
 } from "@/lib/tarombo/queries";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
+import {
+  logActivity,
+  validateParentRelation,
+  validatePersonDates,
+  ValidationError,
+} from "@/lib/tarombo/security";
 
 function getPerson(id: string): PersonRow | undefined {
-  return sqlite.prepare("SELECT * FROM person WHERE id = ?").get(id) as
+  return sqlite.prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL").get(id) as
     | PersonRow
     | undefined;
 }
@@ -35,7 +41,7 @@ export async function GET(
     // partnerships
     const ps = sqlite
       .prepare(
-        `SELECT * FROM partnership WHERE husband_id = ? OR wife_id = ?`,
+        `SELECT * FROM partnership WHERE deleted_at IS NULL AND (husband_id = ? OR wife_id = ?)`,
       )
       .all(id, id) as PartnershipRow[];
 
@@ -78,7 +84,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requirePermission("person:edit");
+    const me = await requirePermission("person:edit");
     const { id } = await params;
     const existing = getPerson(id);
     if (!existing)
@@ -93,6 +99,26 @@ export async function PATCH(
       );
     }
     const data = parsed.data;
+
+    // Validasi integritas: tanggal
+    const dateErrors = validatePersonDates({
+      birthDate: data.birthDate ?? existing.birth_date,
+      deathDate: data.deathDate ?? existing.death_date,
+    });
+    if (dateErrors.length > 0) {
+      return NextResponse.json({ error: dateErrors.join(" ") }, { status: 400 });
+    }
+
+    // Validasi relasi orang tua
+    const relErrors = validateParentRelation({
+      childId: id,
+      fatherId: data.fatherId ?? existing.father_id,
+      motherId: data.motherId ?? existing.mother_id,
+      childBirthDate: data.birthDate ?? existing.birth_date,
+    });
+    if (relErrors.length > 0) {
+      return NextResponse.json({ error: relErrors.join(" ") }, { status: 400 });
+    }
 
     if (data.fatherId) {
       const father = getPerson(data.fatherId);
@@ -189,29 +215,59 @@ export async function PATCH(
     }
 
     const refreshed = getPerson(id)!;
+    logActivity({
+      userId: me.id,
+      userName: me.name,
+      action: "update",
+      entityType: "person",
+      entityId: id,
+      entityName: refreshed.full_name,
+    });
     return NextResponse.json({ data: serializePerson(refreshed) });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
     }
+    if (e instanceof ValidationError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** DELETE /api/persons/[id] — butuh person:delete */
+/** DELETE /api/persons/[id] — soft delete (pindah ke trash). Butuh person:delete. */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requirePermission("person:delete");
+    const me = await requirePermission("person:delete");
     const { id } = await params;
     const existing = getPerson(id);
     if (!existing)
       return NextResponse.json({ error: "Orang tidak ditemukan" }, { status: 404 });
 
-    sqlite.prepare("DELETE FROM person WHERE id = ?").run(id);
-    return NextResponse.json({ success: true });
+    // Soft delete: set deleted_at, jangan hapus fisik
+    sqlite
+      .prepare("UPDATE person SET deleted_at = ?, updated_at = ? WHERE id = ?")
+      .run(now(), now(), id);
+    // Soft delete partnerships yang melibatkan orang ini
+    sqlite
+      .prepare(
+        "UPDATE partnership SET deleted_at = ?, updated_at = ? WHERE (husband_id = ? OR wife_id = ?) AND deleted_at IS NULL",
+      )
+      .run(now(), now(), id, id);
+
+    logActivity({
+      userId: me.id,
+      userName: me.name,
+      action: "delete",
+      entityType: "person",
+      entityId: id,
+      entityName: existing.full_name,
+      details: { softDelete: true },
+    });
+    return NextResponse.json({ success: true, message: "Dipindahkan ke trash." });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });

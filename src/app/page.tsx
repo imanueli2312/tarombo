@@ -14,6 +14,9 @@ import { EmptyState } from "@/components/tarombo/empty-state";
 import { UserManagementSheet } from "@/components/tarombo/user-management-sheet";
 import { RoleManagementSheet } from "@/components/tarombo/role-management-sheet";
 import { ExportDialog } from "@/components/tarombo/export-dialog";
+import { BackupDialog } from "@/components/tarombo/backup-dialog";
+import { ActivityLogSheet } from "@/components/tarombo/activity-log-sheet";
+import { TrashSheet } from "@/components/tarombo/trash-sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +61,9 @@ export default function Home() {
   const [userSheetOpen, setUserSheetOpen] = useState(false);
   const [roleSheetOpen, setRoleSheetOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
 
   // ----- data -----
   const statsQ = useQuery({ queryKey: ["stats"], queryFn: fetchStats });
@@ -188,6 +194,9 @@ export default function Home() {
         onExport={() => setExportOpen(true)}
         onManageUsers={() => setUserSheetOpen(true)}
         onManageRoles={() => setRoleSheetOpen(true)}
+        onBackup={() => setBackupOpen(true)}
+        onActivityLog={() => setActivityLogOpen(true)}
+        onTrash={() => setTrashOpen(true)}
       />
 
       <main className="flex flex-1 min-h-0 flex-col overflow-hidden lg:flex-row">
@@ -391,6 +400,19 @@ export default function Home() {
             : null
         }
       />
+
+      <BackupDialog
+        open={backupOpen}
+        onOpenChange={setBackupOpen}
+        onRestored={() => qc.invalidateQueries()}
+      />
+
+      <ActivityLogSheet
+        open={activityLogOpen}
+        onOpenChange={setActivityLogOpen}
+      />
+
+      <TrashSheet open={trashOpen} onOpenChange={setTrashOpen} />
     </div>
   );
 }

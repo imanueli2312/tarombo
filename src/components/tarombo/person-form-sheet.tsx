@@ -34,6 +34,7 @@ import {
   maritalLabel,
 } from "@/lib/tarombo/types";
 import type { PersonInput, TreeNodePerson } from "@/lib/tarombo/types";
+import { PhotoUploadButton } from "./photo-upload-button";
 
 interface Props {
   open: boolean;
@@ -391,11 +392,17 @@ export function PersonFormSheet({
                 </Field>
               </div>
               <Field label="URL Photo">
-                <Input
-                  value={form.photo ?? ""}
-                  onChange={(e) => set("photo", e.target.value || null)}
-                  placeholder="https://… (URL gambar)"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={form.photo ?? ""}
+                    onChange={(e) => set("photo", e.target.value || null)}
+                    placeholder="https://… (URL gambar)"
+                  />
+                  <PhotoUploadButton
+                    onUploaded={(url) => set("photo", url)}
+                    disabled={saving}
+                  />
+                </div>
               </Field>
             </Section>
 

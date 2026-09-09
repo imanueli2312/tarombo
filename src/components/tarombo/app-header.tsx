@@ -17,6 +17,8 @@ import {
   Heart,
   Download,
   Lock,
+  Database,
+  Clock,
 } from "lucide-react";
 import { UserMenuButton } from "./user-management-sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -31,6 +33,9 @@ interface Props {
   onExport: () => void;
   onManageUsers: () => void;
   onManageRoles: () => void;
+  onBackup?: () => void;
+  onActivityLog?: () => void;
+  onTrash?: () => void;
 }
 
 export function AppHeader({
@@ -42,6 +47,9 @@ export function AppHeader({
   onExport,
   onManageUsers,
   onManageRoles,
+  onBackup,
+  onActivityLog,
+  onTrash,
 }: Props) {
   const { can } = useActiveUser();
   const canAddPerson = can("person:create");
@@ -49,6 +57,8 @@ export function AppHeader({
   const canExport = can("export:view");
   const canSeed = can("data:seed");
   const canReset = can("data:reset");
+  const canViewActivity = can("user:view");
+  const canDeletePerson = can("person:delete");
   return (
     <header className="no-print sticky top-0 z-30 border-b border-border/70 bg-card/85 backdrop-blur-md">
       <div className="uis-pattern absolute inset-0 opacity-60 pointer-events-none" />
@@ -141,6 +151,25 @@ export function AppHeader({
                 <DropdownMenuItem onClick={onAddPartnership} className="sm:hidden">
                   <Heart className="size-4 mr-2 text-rose-600" />
                   Tambah pasangan
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {canReset && onBackup && (
+                <DropdownMenuItem onClick={onBackup}>
+                  <Database className="size-4 mr-2 text-primary" />
+                  Backup &amp; Restore
+                </DropdownMenuItem>
+              )}
+              {canViewActivity && onActivityLog && (
+                <DropdownMenuItem onClick={onActivityLog}>
+                  <Clock className="size-4 mr-2 text-amber-600" />
+                  Riwayat Aktivitas
+                </DropdownMenuItem>
+              )}
+              {canDeletePerson && onTrash && (
+                <DropdownMenuItem onClick={onTrash}>
+                  <Trash2 className="size-4 mr-2 text-rose-600" />
+                  Tempat Sampah
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />

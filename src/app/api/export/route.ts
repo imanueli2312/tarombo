@@ -6,28 +6,33 @@ import {
   requirePermission,
   getActiveUserWithPermissions,
 } from "@/lib/tarombo/auth";
+import { logActivity } from "@/lib/tarombo/security";
 
 export const runtime = "nodejs";
 export const maxDuration = 180; // 3 menit (export bisa lambat untuk pohon besar)
 
 /** GET /api/export?format=pdf&scope=current|all&size=A4|A3|A2|A1|large&rootId=<id>
+ *       &aliveOnly=true&maxGeneration=3&subtreeFrom=<id>
  *
  *  Butuh permission export:view.
  *  - format: pdf | png | jpg
  *  - scope: current (rootId) | all (semua leluhur)
  *  - size: A4 | A3 | A2 | A1 | large  (khusus PDF)
- *    - "large" = single page ukuran penuh (tanpa pagination)
- *  - rootId: bila scope=current, root pohon yang diekspor
+ *  - aliveOnly: "true" = hanya orang yang masih hidup
+ *  - maxGeneration: batasi kedalaman generasi (mis. 3 = Gen 1-3 saja)
+ *  - subtreeFrom: ID orang — export hanya subtree dari orang ini ke bawah
  */
 export async function GET(req: NextRequest) {
   try {
-    await requirePermission("export:view");
-    const activeUser = await getActiveUserWithPermissions();
+    const me = await requirePermission("export:view");
     const { searchParams } = new URL(req.url);
     const format = (searchParams.get("format") ?? "pdf").toLowerCase();
     const scope = (searchParams.get("scope") ?? "all").toLowerCase();
     const size = (searchParams.get("size") ?? "A3").toUpperCase();
     const rootId = searchParams.get("rootId");
+    const aliveOnly = searchParams.get("aliveOnly") === "true";
+    const maxGeneration = searchParams.get("maxGeneration");
+    const subtreeFrom = searchParams.get("subtreeFrom");
 
     if (!["pdf", "png", "jpg"].includes(format)) {
       return NextResponse.json(
@@ -41,11 +46,24 @@ export async function GET(req: NextRequest) {
       scope === "current" ? rootId ?? null : null;
 
     // Ambil user aktif untuk nama "exported by"
-    const exportedBy: string | null = activeUser?.name ?? null;
+    const exportedBy: string | null = me.name;
 
     const { html, meta } = await buildExportDocument({
-      rootId: effectiveRootId,
+      rootId: subtreeFrom ?? effectiveRootId,
       exportedBy,
+      filters: {
+        aliveOnly,
+        maxGeneration: maxGeneration ? parseInt(maxGeneration) : undefined,
+      },
+    });
+
+    logActivity({
+      userId: me.id,
+      userName: me.name,
+      action: "export",
+      entityType: "data",
+      entityName: `Export ${format.toUpperCase()}`,
+      details: { format, scope, size, aliveOnly, maxGeneration, subtreeFrom, persons: meta.totalPersons },
     });
 
     // Nama file

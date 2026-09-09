@@ -127,7 +127,7 @@ export function findActivePartnership(personId: string): PartnershipRow | undefi
   return sqlite
     .prepare(
       `SELECT * FROM partnership
-       WHERE status = 'ACTIVE' AND (husband_id = ? OR wife_id = ?)
+       WHERE status = 'ACTIVE' AND deleted_at IS NULL AND (husband_id = ? OR wife_id = ?)
        LIMIT 1`,
     )
     .get(personId, personId) as PartnershipRow | undefined;
@@ -164,14 +164,14 @@ export function deriveMaritalStatus(
 
 export function handleDeathSideEffects(personId: string): void {
   const person = sqlite
-    .prepare("SELECT * FROM person WHERE id = ?")
+    .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
     .get(personId) as PersonRow | undefined;
   if (!person || !person.death_date) return;
 
   const activePartnerships = sqlite
     .prepare(
       `SELECT * FROM partnership
-       WHERE status = 'ACTIVE' AND (husband_id = ? OR wife_id = ?)`,
+       WHERE status = 'ACTIVE' AND deleted_at IS NULL AND (husband_id = ? OR wife_id = ?)`,
     )
     .all(personId, personId) as PartnershipRow[];
 
@@ -213,7 +213,7 @@ export function handleDeathSideEffects(personId: string): void {
 
 export function buildFamilyTree(rootPersonId: string): FamilyNode | null {
   const root = sqlite
-    .prepare("SELECT * FROM person WHERE id = ?")
+    .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
     .get(rootPersonId) as PersonRow | undefined;
   if (!root) return null;
 
@@ -226,7 +226,7 @@ function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
   visited.add(personId);
 
   const person = sqlite
-    .prepare("SELECT * FROM person WHERE id = ?")
+    .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
     .get(personId) as PersonRow | undefined;
   if (!person) return null;
 
@@ -234,7 +234,7 @@ function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
   const partnerships = sqlite
     .prepare(
       `SELECT * FROM partnership
-       WHERE husband_id = ? OR wife_id = ?
+       WHERE deleted_at IS NULL AND (husband_id = ? OR wife_id = ?)
        ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'WIDOWED' THEN 1 ELSE 2 END,
                 marriage_date ASC NULLS LAST`,
     )
@@ -251,7 +251,7 @@ function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
         : partnership.husband_id;
     spouse =
       (sqlite
-        .prepare("SELECT * FROM person WHERE id = ?")
+        .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
         .get(spouseId) as PersonRow | undefined) ?? null;
   }
 
@@ -259,7 +259,7 @@ function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
   const childrenCol = person.gender === "MALE" ? "father_id" : "mother_id";
   const childRecords = sqlite
     .prepare(
-      `SELECT * FROM person WHERE ${childrenCol} = ?
+      `SELECT * FROM person WHERE ${childrenCol} = ? AND deleted_at IS NULL
        ORDER BY birth_order ASC NULLS LAST, birth_date ASC NULLS LAST`,
     )
     .all(personId) as PersonRow[];
@@ -296,7 +296,7 @@ export function findRootAncestors(): PersonRow[] {
   const candidates = sqlite
     .prepare(
       `SELECT * FROM person
-       WHERE father_id IS NULL AND mother_id IS NULL
+       WHERE father_id IS NULL AND mother_id IS NULL AND deleted_at IS NULL
        ORDER BY generation_number ASC NULLS LAST, birth_date ASC NULLS LAST`,
     )
     .all() as PersonRow[];

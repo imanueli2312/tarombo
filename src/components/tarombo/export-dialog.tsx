@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -28,10 +31,12 @@ import {
   Download,
   Loader2,
   CheckCircle2,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   buildExportUrl,
+  fetchPersons,
   type ExportFormat,
   type ExportScope,
   type ExportSize,
@@ -123,6 +128,19 @@ export function ExportDialog({
   const [scope, setScope] = useState<ExportScope>("all");
   const [busy, setBusy] = useState(false);
 
+  // ----- subset filter options -----
+  const [aliveOnly, setAliveOnly] = useState(false);
+  const [maxGen, setMaxGen] = useState<string>("");
+  const [subtreeFromId, setSubtreeFromId] = useState<string>("__none__");
+
+  // Fetch persons untuk dropdown subtreeFrom
+  const personsQ = useQuery({
+    queryKey: ["persons"],
+    queryFn: () => fetchPersons(),
+    enabled: open,
+  });
+  const persons = personsQ.data ?? [];
+
   const handleExport = async () => {
     setBusy(true);
     try {
@@ -160,11 +178,26 @@ export function ExportDialog({
       const effectiveScope: ExportScope =
         multipleMode || scope === "all" ? "all" : "current";
 
+      const maxGenNum = maxGen.trim() === "" ? null : Number(maxGen);
+      const validMaxGen =
+        maxGenNum !== null &&
+        Number.isInteger(maxGenNum) &&
+        maxGenNum >= 1 &&
+        maxGenNum <= 10
+          ? maxGenNum
+          : null;
+
+      const effectiveSubtreeFrom =
+        subtreeFromId !== "__none__" ? subtreeFromId : null;
+
       const url = buildExportUrl({
         format,
         scope: effectiveScope,
         size,
-        rootId: effectiveScope === "current" ? currentRootId : undefined,
+        rootId: effectiveScope === "current" ? currentRootId : null,
+        aliveOnly,
+        maxGeneration: validMaxGen,
+        subtreeFrom: effectiveSubtreeFrom,
       });
 
       // trigger download
@@ -183,6 +216,8 @@ export function ExportDialog({
       setBusy(false);
     }
   };
+
+  const hasFilter = aliveOnly || maxGen.trim() !== "" || subtreeFromId !== "__none__";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -298,6 +333,87 @@ export function ExportDialog({
                 </div>
               </label>
             </RadioGroup>
+          </div>
+
+          {/* Filter subset — berlaku untuk semua format */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-1.5">
+              <Filter className="size-3.5 text-amber-600" />
+              <Label className="text-[11.5px]">Filter Subset (opsional)</Label>
+              {hasFilter && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAliveOnly(false);
+                    setMaxGen("");
+                    setSubtreeFromId("__none__");
+                  }}
+                  className="ml-auto text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
+                >
+                  Reset filter
+                </button>
+              )}
+            </div>
+            <div className="rounded-md border border-border/70 bg-card/40 p-2.5 space-y-2.5">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <Checkbox
+                  checked={aliveOnly}
+                  onCheckedChange={(v) => setAliveOnly(v === true)}
+                />
+                <div className="flex-1">
+                  <p className="text-[12px] font-medium leading-tight">
+                    Hanya yang masih hidup
+                  </p>
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Sembunyikan orang yang sudah wafat dari pohon export.
+                  </p>
+                </div>
+              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="max-gen" className="text-[11px]">
+                    Maks. Generasi
+                  </Label>
+                  <Input
+                    id="max-gen"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={maxGen}
+                    onChange={(e) => setMaxGen(e.target.value)}
+                    placeholder="cth. 3"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Export dari cabang</Label>
+                  <Select
+                    value={subtreeFromId}
+                    onValueChange={(v) => setSubtreeFromId(v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="— tidak difilter —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— semua cabang —</SelectItem>
+                      {persons.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.fullName}
+                          {p.nickname ? ` (${p.nickname})` : ""}
+                          {p.generationNumber ? ` · Gen ${p.generationNumber}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Filter ini berlaku untuk semua format. Bila diaktifkan, pohon
+                export hanya memuat subset yang cocok.
+              </p>
+            </div>
           </div>
 
           <div className="rounded-md border border-blue-400/0 bg-accent/30 p-2.5 text-[10.5px] text-muted-foreground">

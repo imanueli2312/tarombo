@@ -311,18 +311,26 @@ export type ExportSize = "A4" | "A3" | "A2" | "A1" | "LARGE";
 
 /** Bangun URL export untuk format/scope/size tertentu.
  *  Browser akan otomatis mengunduh file hasil.
+ *  Opsional: aliveOnly, maxGeneration, subtreeFrom untuk subset export.
  */
 export function buildExportUrl(opts: {
   format: ExportFormat;
   scope?: ExportScope;
   size?: ExportSize;
   rootId?: string | null;
+  aliveOnly?: boolean;
+  maxGeneration?: number | null;
+  subtreeFrom?: string | null;
 }): string {
   const qs = new URLSearchParams();
   qs.set("format", opts.format);
   qs.set("scope", opts.scope ?? "all");
   if (opts.format === "pdf") qs.set("size", opts.size ?? "A3");
   if (opts.scope === "current" && opts.rootId) qs.set("rootId", opts.rootId);
+  if (opts.aliveOnly) qs.set("aliveOnly", "true");
+  if (opts.maxGeneration && opts.maxGeneration > 0)
+    qs.set("maxGeneration", String(opts.maxGeneration));
+  if (opts.subtreeFrom) qs.set("subtreeFrom", opts.subtreeFrom);
   return `/api/export?${qs.toString()}`;
 }
 

@@ -1,0 +1,816 @@
+     1→"use client";
+     2→
+     3→import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+     4→import { useState } from "react";
+     5→import {
+     6→  Sheet,
+     7→  SheetContent,
+     8→  SheetDescription,
+     9→  SheetFooter,
+    10→  SheetHeader,
+    11→  SheetTitle,
+    12→} from "@/components/ui/sheet";
+    13→import { Button } from "@/components/ui/button";
+    14→import { Input } from "@/components/ui/input";
+    15→import { Label } from "@/components/ui/label";
+    16→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+    17→import { Badge } from "@/components/ui/badge";
+    18→import {
+    19→  Select,
+    20→  SelectContent,
+    21→  SelectItem,
+    22→  SelectTrigger,
+    23→  SelectValue,
+    24→} from "@/components/ui/select";
+    25→import {
+    26→  DropdownMenu,
+    27→  DropdownMenuContent,
+    28→  DropdownMenuItem,
+    29→  DropdownMenuSeparator,
+    30→  DropdownMenuTrigger,
+    31→} from "@/components/ui/dropdown-menu";
+    32→import { Separator } from "@/components/ui/separator";
+    33→import { ConfirmDialog } from "./confirm-dialog";
+    34→import {
+    35→  createUser,
+    36→  deleteUser,
+    37→  fetchActiveUser,
+    38→  fetchPersons,
+    39→  fetchPublicUsers,
+    40→  fetchRoles,
+    41→  fetchUsers,
+    42→  updateUser,
+    43→} from "@/lib/tarombo/api-client";
+    44→import type { PublicUser } from "@/lib/tarombo/api-client";
+    45→import type { UserInput, UserPublic, RolePublic, ActiveUserPublic } from "@/lib/tarombo/types";
+    46→import { useActiveUser } from "@/lib/tarombo/use-permissions";
+    47→import { LoginDialog } from "./login-dialog";
+    48→import {
+    49→  UserPlus,
+    50→  LogOut,
+    51→  Trash2,
+    52→  Pencil,
+    53→  CheckCircle2,
+    54→  UserCog,
+    55→  Shield,
+    56→  Eye,
+    57→  Link as LinkIcon,
+    58→} from "lucide-react";
+    59→import { toast } from "sonner";
+    60→import { cn } from "@/lib/utils";
+    61→
+    62→function initials(name: string): string {
+    63→  const parts = name.trim().split(/\s+/).filter(Boolean);
+    64→  if (parts.length === 0) return "?";
+    65→  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    66→  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    67→}
+    68→
+    69→interface Props {
+    70→  open: boolean;
+    71→  onOpenChange: (open: boolean) => void;
+    72→}
+    73→
+    74→const emptyForm: UserInput = {
+    75→  email: "",
+    76→  name: "",
+    77→  password: "",
+    78→  photo: null,
+    79→  phone: null,
+    80→  roleId: null,
+    81→  linkedPersonId: null,
+    82→};
+    83→
+    84→export function UserManagementSheet({ open, onOpenChange }: Props) {
+    85→  const qc = useQueryClient();
+    86→  const { can } = useActiveUser();
+    87→  const [editing, setEditing] = useState<UserPublic | null>(null);
+    88→  const [form, setForm] = useState<UserInput>(emptyForm);
+    89→  const [showForm, setShowForm] = useState(false);
+    90→  const [saving, setSaving] = useState(false);
+    91→  const [error, setError] = useState<string | null>(null);
+    92→  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+    93→  const [loginTarget, setLoginTarget] = useState<PublicUser | null>(null);
+    94→  const [loginOpen, setLoginOpen] = useState(false);
+    95→
+    96→  const canManageUsers = can("user:manage");
+    97→
+    98→  const usersQ = useQuery({
+    99→    queryKey: ["users"],
+   100→    queryFn: fetchUsers,
+   101→    enabled: open && can("user:view"),
+   102→  });
+   103→  const personsQ = useQuery({
+   104→    queryKey: ["persons"],
+   105→    queryFn: () => fetchPersons(),
+   106→    enabled: open,
+   107→  });
+   108→  const rolesQ = useQuery({
+   109→    queryKey: ["roles"],
+   110→    queryFn: () => fetchRoles(),
+   111→    enabled: open && can("user:view"),
+   112→  });
+   113→
+   114→  const activeQ = useQuery({
+   115→    queryKey: ["active-user"],
+   116→    queryFn: fetchActiveUser,
+   117→    enabled: open,
+   118→  });
+   119→
+   120→  const setActiveMut = useMutation({
+   121→    mutationFn: async (user: { id: string; name: string; roleName: string | null; roleColor: string | null }) => {
+   122→      setLoginTarget(user);
+   123→      setLoginOpen(true);
+   124→    },
+   125→    onSuccess: async () => {
+   126→      toast.success("Login dialog dibuka.");
+   127→    },
+   128→    onError: (e) => toast.error((e as Error).message),
+   129→  });
+   130→
+   131→  const saveMut = useMutation({
+   132→    mutationFn: async () => {
+   133→      if (editing) {
+   134→        return updateUser(editing.id, {
+   135→          ...form,
+   136→          password: form.password || undefined,
+   137→        });
+   138→      }
+   139→      return createUser(form);
+   140→    },
+   141→    onSuccess: async () => {
+   142→      toast.success(editing ? "User diperbarui." : "User baru ditambahkan.");
+   143→      setShowForm(false);
+   144→      setEditing(null);
+   145→      setForm(emptyForm);
+   146→      setError(null);
+   147→      await qc.invalidateQueries({ queryKey: ["users"] });
+   148→    },
+   149→    onError: (e) => setError((e as Error).message),
+   150→  });
+   151→
+   152→  const deleteMut = useMutation({
+   153→    mutationFn: (id: string) => deleteUser(id),
+   154→    onSuccess: async () => {
+   155→      toast.success("User dihapus.");
+   156→      await qc.invalidateQueries({ queryKey: ["users"] });
+   157→      await qc.invalidateQueries({ queryKey: ["active-user"] });
+   158→    },
+   159→    onError: (e) => toast.error((e as Error).message),
+   160→  });
+   161→
+   162→  const startCreate = () => {
+   163→    setEditing(null);
+   164→    setForm(emptyForm);
+   165→    setError(null);
+   166→    setShowForm(true);
+   167→  };
+   168→
+   169→  const startEdit = (u: UserPublic) => {
+   170→    setEditing(u);
+   171→    setForm({
+   172→      email: u.email,
+   173→      name: u.name,
+   174→      password: "", // kosong = tidak diubah
+   175→      photo: u.photo,
+   176→      phone: u.phone,
+   177→      roleId: u.roleId,
+   178→      linkedPersonId: u.linkedPersonId,
+   179→    });
+   180→    setError(null);
+   181→    setShowForm(true);
+   182→  };
+   183→
+   184→  const submit = async () => {
+   185→    setError(null);
+   186→    if (!form.email.trim() || !form.name.trim()) {
+   187→      setError("Email dan nama wajib diisi.");
+   188→      return;
+   189→    }
+   190→    if (!editing && !form.password) {
+   191→      setError("Password wajib diisi untuk user baru.");
+   192→      return;
+   193→    }
+   194→    setSaving(true);
+   195→    try {
+   196→      await saveMut.mutateAsync();
+   197→    } catch {
+   198→      // error sudah ditangani
+   199→    } finally {
+   200→      setSaving(false);
+   201→    }
+   202→  };
+   203→
+   204→  const users = usersQ.data ?? [];
+   205→  const persons = personsQ.data ?? [];
+   206→  const activeUser = activeQ.data?.data ?? null;
+   207→
+   208→  return (
+   209→    <Sheet open={open} onOpenChange={onOpenChange}>
+   210→      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+   211→        <SheetHeader className="px-5 pt-5 pb-3 border-b shrink-0">
+   212→          <SheetTitle className="flex items-center gap-2 text-base">
+   213→            <UserCog className="size-4 text-primary" />
+   214→            Manajemen Pengguna
+   215→          </SheetTitle>
+   216→          <SheetDescription className="text-xs">
+   217→            Pengguna aplikasi (akun login) dipisahkan dari data orang di pohon
+   218→            tarombo. Satu pengguna dapat ditautkan opsional ke satu Person.
+   219→          </SheetDescription>
+   220→        </SheetHeader>
+   221→
+   222→        <div className="tarombo-scroll flex-1 min-h-0 overflow-y-scroll">
+   223→          <div className="space-y-3 p-5">
+   224→            {error && (
+   225→              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+   226→                {error}
+   227→              </div>
+   228→            )}
+   229→
+   230→            {/* Form tambah/edit */}
+   231→            {showForm && (
+   232→              <div className="rounded-lg border bg-card p-3 space-y-2">
+   233→                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+   234→                  {editing ? "Edit Pengguna" : "Tambah Pengguna"}
+   235→                </p>
+   236→                <div className="grid grid-cols-2 gap-2">
+   237→                  <div className="space-y-1 col-span-2">
+   238→                    <Label className="text-[11.5px]">Nama</Label>
+   239→                    <Input
+   240→                      value={form.name}
+   241→                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+   242→                      placeholder="Nama lengkap pengguna"
+   243→                    />
+   244→                  </div>
+   245→                  <div className="space-y-1">
+   246→                    <Label className="text-[11.5px]">Email</Label>
+   247→                    <Input
+   248→                      type="email"
+   249→                      value={form.email}
+   250→                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+   251→                      placeholder="user@email.com"
+   252→                    />
+   253→                  </div>
+   254→                  <div className="space-y-1">
+   255→                    <Label className="text-[11.5px]">
+   256→                      Password {editing && <span className="text-muted-foreground">(kosongkan = tetap)</span>}
+   257→                    </Label>
+   258→                    <Input
+   259→                      type="text"
+   260→                      value={form.password ?? ""}
+   261→                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+   262→                      placeholder={editing ? "••••••" : "password"}
+   263→                    />
+   264→                  </div>
+   265→                  <div className="space-y-1">
+   266→                    <Label className="text-[11.5px]">Telepon</Label>
+   267→                    <Input
+   268→                      value={form.phone ?? ""}
+   269→                      onChange={(e) => setForm({ ...form, phone: e.target.value || null })}
+   270→                      placeholder="08xxxxxxxxxx"
+   271→                    />
+   272→                  </div>
+   273→                  <div className="space-y-1">
+   274→                    <Label className="text-[11.5px]">Role</Label>
+   275→                    <Select
+   276→                      value={form.roleId ?? "__none__"}
+   277→                      onValueChange={(v) =>
+   278→                        setForm({ ...form, roleId: v === "__none__" ? null : v })
+   279→                      }
+   280→                    >
+   281→                      <SelectTrigger>
+   282→                        <SelectValue placeholder="— pilih role —" />
+   283→                      </SelectTrigger>
+   284→                      <SelectContent>
+   285→                        <SelectItem value="__none__">— tanpa role —</SelectItem>
+   286→                        {(rolesQ.data?.roles ?? []).map((r) => (
+   287→                          <SelectItem key={r.id} value={r.id}>
+   288→                            {r.name} ({r.permissions.length} permission)
+   289→                          </SelectItem>
+   290→                        ))}
+   291→                      </SelectContent>
+   292→                    </Select>
+   293→                  </div>
+   294→                </div>
+   295→                <div className="space-y-1">
+   296→                  <Label className="text-[11.5px] flex items-center gap-1">
+   297→                    <LinkIcon className="size-3" />
+   298→                    Tautkan ke Person di pohon tarombo (opsional)
+   299→                  </Label>
+   300→                  <Select
+   301→                    value={form.linkedPersonId ?? "__none__"}
+   302→                    onValueChange={(v) =>
+   303→                      setForm({ ...form, linkedPersonId: v === "__none__" ? null : v })
+   304→                    }
+   305→                  >
+   306→                    <SelectTrigger>
+   307→                      <SelectValue placeholder="— tidak ditautkan —" />
+   308→                    </SelectTrigger>
+   309→                    <SelectContent>
+   310→                      <SelectItem value="__none__">— tidak ditautkan —</SelectItem>
+   311→                      {persons.map((p) => (
+   312→                        <SelectItem key={p.id} value={p.id}>
+   313→                          {p.fullName}
+   314→                          {p.nickname ? ` (${p.nickname})` : ""}
+   315→                        </SelectItem>
+   316→                      ))}
+   317→                    </SelectContent>
+   318→                  </Select>
+   319→                </div>
+   320→                <div className="flex justify-end gap-2 pt-1">
+   321→                  <Button
+   322→                    size="sm"
+   323→                    variant="outline"
+   324→                    onClick={() => {
+   325→                      setShowForm(false);
+   326→                      setEditing(null);
+   327→                    }}
+   328→                  >
+   329→                    Batal
+   330→                  </Button>
+   331→                  <Button size="sm" onClick={submit} disabled={saving}>
+   332→                    {editing ? "Simpan" : "Tambah"}
+   333→                  </Button>
+   334→                </div>
+   335→              </div>
+   336→            )}
+   337→
+   338→            {!showForm && canManageUsers && (
+   339→              <Button onClick={startCreate} size="sm" className="w-full">
+   340→                <UserPlus className="size-4 mr-1.5" />
+   341→                Tambah Pengguna
+   342→              </Button>
+   343→            )}
+   344→
+   345→            <Separator />
+   346→
+   347→            {/* Daftar user */}
+   348→            <div className="space-y-1.5">
+   349→              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+   350→                Daftar Pengguna ({users.length})
+   351→              </p>
+   352→              {usersQ.isLoading && (
+   353→                <div className="space-y-2">
+   354→                  {[1, 2, 3].map((i) => (
+   355→                    <div key={i} className="h-14 rounded-md bg-muted animate-pulse" />
+   356→                  ))}
+   357→                </div>
+   358→              )}
+   359→              {users.map((u) => {
+   360→                const isActive = activeUser?.id === u.id;
+   361→                return (
+   362→                  <div
+   363→                    key={u.id}
+   364→                    className={cn(
+   365→                      "rounded-md border p-2.5 flex items-center gap-2.5 transition-colors",
+   366→                      isActive
+   367→                        ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+   368→                        : "hover:bg-accent/50",
+   369→                    )}
+   370→                  >
+   371→                    <Avatar className="size-9 border border-border shrink-0">
+   372→                      {u.photo ? (
+   373→                        
+   374→                        <img src={u.photo} alt={u.name} className="size-full object-cover" />
+   375→                      ) : (
+   376→                        <AvatarFallback className="text-[11px] font-semibold bg-primary/15 text-primary">
+   377→                          {initials(u.name)}
+   378→                        </AvatarFallback>
+   379→                      )}
+   380→                    </Avatar>
+   381→                    <div className="min-w-0 flex-1">
+   382→                      <div className="flex items-center gap-1.5">
+   383→                        <p className="truncate text-[12.5px] font-medium">{u.name}</p>
+   384→                        {isActive && (
+   385→                          <Badge className="text-[9px] h-[16px] px-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
+   386→                            <CheckCircle2 className="size-2.5 mr-0.5" />
+   387→                            Aktif
+   388→                          </Badge>
+   389→                        )}
+   390→                      </div>
+   391→                      <p className="truncate text-[10.5px] text-muted-foreground">
+   392→                        {u.email}
+   393→                      </p>
+   394→                      <div className="flex items-center gap-1.5 mt-0.5">
+   395→                        {u.roleName ? (
+   396→                          <Badge
+   397→                            variant="outline"
+   398→                            className="text-[9px] h-[15px] px-1"
+   399→                            style={
+   400→                              u.roleColor
+   401→                                ? {
+   402→                                    color: u.roleColor,
+   403→                                    borderColor: u.roleColor + "40",
+   404→                                    backgroundColor: u.roleColor + "10",
+   405→                                  }
+   406→                                : {}
+   407→                            }
+   408→                          >
+   409→                            {u.roleName}
+   410→                          </Badge>
+   411→                        ) : (
+   412→                          <Badge variant="outline" className="text-[9px] h-[15px] px-1 text-muted-foreground">
+   413→                            Tanpa role
+   414→                          </Badge>
+   415→                        )}
+   416→                        {u.linkedPersonName && (
+   417→                          <span className="text-[9.5px] text-amber-700 bg-amber-500/10 rounded px-1 py-0.5 flex items-center gap-0.5">
+   418→                            <LinkIcon className="size-2.5" />
+   419→                            {u.linkedPersonName}
+   420→                          </span>
+   421→                        )}
+   422→                      </div>
+   423→                    </div>
+   424→                    <div className="flex flex-col gap-1">
+   425→                      {!isActive && (
+   426→                        <Button
+   427→                          size="sm"
+   428→                          variant="ghost"
+   429→                          className="h-7 px-2 text-[10px]"
+   430→                          onClick={() =>
+   431→                            setActiveMut.mutate({
+   432→                              id: u.id,
+   433→                              name: u.name,
+   434→                              roleName: u.roleName,
+   435→                              roleColor: u.roleColor,
+   436→                            })
+   437→                          }
+   438→                          title="Login sebagai user ini"
+   439→                        >
+   440→                          <LogOut className="size-3 mr-1 rotate-180" />
+   441→                          Login
+   442→                        </Button>
+   443→                      )}
+   444→                      {canManageUsers && (
+   445→                        <div className="flex gap-1">
+   446→                          <Button
+   447→                            size="sm"
+   448→                            variant="ghost"
+   449→                            className="size-7 p-0"
+   450→                            onClick={() => startEdit(u)}
+   451→                            title="Edit"
+   452→                          >
+   453→                            <Pencil className="size-3" />
+   454→                          </Button>
+   455→                          <Button
+   456→                            size="sm"
+   457→                            variant="ghost"
+   458→                            className="size-7 p-0 text-destructive hover:text-destructive"
+   459→                            onClick={() => setDeleteTarget(u.id)}
+   460→                            title="Hapus"
+   461→                            disabled={isActive}
+   462→                          >
+   463→                            <Trash2 className="size-3" />
+   464→                          </Button>
+   465→                        </div>
+   466→                      )}
+   467→                    </div>
+   468→                  </div>
+   469→                );
+   470→              })}
+   471→              {users.length === 0 && !usersQ.isLoading && (
+   472→                <div className="rounded-md border border-dashed p-6 text-center text-xs text-muted-foreground">
+   473→                  Belum ada pengguna terdaftar.
+   474→                </div>
+   475→              )}
+   476→            </div>
+   477→          </div>
+   478→        </div>
+   479→
+   480→        <SheetFooter className="border-t px-5 py-3">
+   481→          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full">
+   482→            Tutup
+   483→          </Button>
+   484→        </SheetFooter>
+   485→      </SheetContent>
+   486→
+   487→      <ConfirmDialog
+   488→        open={!!deleteTarget}
+   489→        onOpenChange={(o) => !o && setDeleteTarget(null)}
+   490→        title="Hapus pengguna ini?"
+   491→        description="Akun pengguna akan dihapus permanen. Data Person yang ditautkan tetap aman di pohon tarombo."
+   492→        confirmText="Hapus"
+   493→        destructive
+   494→        onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
+   495→      />
+   496→
+   497→      <LoginDialog
+   498→        open={loginOpen}
+   499→        onOpenChange={setLoginOpen}
+   500→        user={loginTarget}
+   501→        onLoggedIn={async () => {
+   502→          await qc.invalidateQueries({ queryKey: ["active-user"] });
+   503→          await qc.invalidateQueries({ queryKey: ["users"] });
+   504→        }}
+   505→      />
+   506→    </Sheet>
+   507→  );
+   508→}
+   509→
+   510→// ============================================================================
+   511→// User Menu Button (untuk header) — dropdown switch user cepat
+   512→// ============================================================================
+   513→
+   514→interface MenuProps {
+   515→  onOpenManage: () => void;
+   516→  onOpenManageRoles: () => void;
+   517→}
+   518→
+   519→export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
+   520→  const qc = useQueryClient();
+   521→  const [loginTarget, setLoginTarget] = useState<PublicUser | null>(null);
+   522→  const [loginOpen, setLoginOpen] = useState(false);
+   523→  const activeQ = useQuery({
+   524→    queryKey: ["active-user"],
+   525→    queryFn: fetchActiveUser,
+   526→  });
+   527→  const isGuest = activeQ.data?.data?.id === "guest";
+   528→
+   529→  const usersQ = useQuery({
+   530→    queryKey: ["users"],
+   531→    queryFn: fetchUsers,
+   532→    enabled: !isGuest && activeQ.data?.data?.permissions.includes("user:view") === true,
+   533→  });
+   534→
+   535→  // Guest pakai endpoint publik (id, name, roleName only — no sensitive data)
+   536→  const publicUsersQ = useQuery({
+   537→    queryKey: ["users-public"],
+   538→    queryFn: fetchPublicUsers,
+   539→    enabled: isGuest,
+   540→  });
+   541→
+   542→  const active = activeQ.data?.data ?? null;
+   543→  const users = usersQ.data ?? [];
+   544→  const publicUsers = publicUsersQ.data ?? [];
+   545→  const hasUsers = activeQ.data?.hasUsers ?? false;
+   546→  const canManageRoles = active?.permissions.includes("role:manage") ?? false;
+   547→  const canViewUsers = active?.permissions.includes("user:view") ?? false;
+   548→
+   549→  // Buka login dialog dengan user terpilih
+   550→  const openLogin = (user: PublicUser) => {
+   551→    setLoginTarget(user);
+   552→    setLoginOpen(true);
+   553→  };
+   554→
+   555→  // Switch user (admin/editor yang sudah login) — juga perlu password
+   556→  const switchMut = useMutation({
+   557→    mutationFn: async (target: { id: string; name: string }) => {
+   558→      // Bila target sama dengan aktif → skip
+   559→      if (active?.id === target.id) return;
+   560→      // Buka login dialog untuk user target (perlu password)
+   561→      const pubUser = [...users, ...publicUsers].find((u) => u.id === target.id);
+   562→      if (pubUser) {
+   563→        setLoginTarget(pubUser);
+   564→        setLoginOpen(true);
+   565→      }
+   566→    },
+   567→  });
+   568→
+   569→  const logoutMut = useMutation({
+   570→    mutationFn: async () => {
+   571→      const res = await fetch("/api/users/active", { method: "DELETE" });
+   572→      if (!res.ok) throw new Error("Gagal logout");
+   573→    },
+   574→    onSuccess: async () => {
+   575→      await qc.invalidateQueries({ queryKey: ["active-user"] });
+   576→      toast.success("Anda keluar — kembali sebagai Tamu (Viewer).");
+   577→    },
+   578→  });
+   579→
+   580→  const onLoggedIn = async () => {
+   581→    await qc.invalidateQueries({ queryKey: ["active-user"] });
+   582→    await qc.invalidateQueries({ queryKey: ["users"] });
+   583→    await qc.invalidateQueries({ queryKey: ["users-public"] });
+   584→  };
+   585→
+   586→  if (!active) return null;
+   587→
+   588→  return (
+   589→    <>
+   590→      <GuestOrUserMenu
+   591→        active={active}
+   592→        isGuest={isGuest}
+   593→        hasUsers={hasUsers}
+   594→        users={users}
+   595→        publicUsers={publicUsers}
+   596→        canManageRoles={canManageRoles}
+   597→        canViewUsers={canViewUsers}
+   598→        onLogin={openLogin}
+   599→        onSwitch={(u) => switchMut.mutate({ id: u.id, name: u.name })}
+   600→        onLogout={() => logoutMut.mutate()}
+   601→        onOpenManage={onOpenManage}
+   602→        onOpenManageRoles={onOpenManageRoles}
+   603→      />
+   604→      <LoginDialog
+   605→        open={loginOpen}
+   606→        onOpenChange={setLoginOpen}
+   607→        user={loginTarget}
+   608→        onLoggedIn={onLoggedIn}
+   609→      />
+   610→    </>
+   611→  );
+   612→}
+   613→
+   614→interface GuestOrUserMenuProps {
+   615→  active: NonNullable<Awaited<ReturnType<typeof fetchActiveUser>>["data"]>;
+   616→  isGuest: boolean;
+   617→  hasUsers: boolean;
+   618→  users: UserPublic[];
+   619→  publicUsers: PublicUser[];
+   620→  canManageRoles: boolean;
+   621→  canViewUsers: boolean;
+   622→  onLogin: (user: PublicUser) => void;
+   623→  onSwitch: (user: PublicUser) => void;
+   624→  onLogout: () => void;
+   625→  onOpenManage: () => void;
+   626→  onOpenManageRoles: () => void;
+   627→}
+   628→
+   629→function GuestOrUserMenu({
+   630→  active,
+   631→  isGuest,
+   632→  hasUsers,
+   633→  users,
+   634→  publicUsers,
+   635→  canManageRoles,
+   636→  canViewUsers,
+   637→  onLogin,
+   638→  onSwitch,
+   639→  onLogout,
+   640→  onOpenManage,
+   641→  onOpenManageRoles,
+   642→}: GuestOrUserMenuProps) {
+   643→
+   644→  // Guest (Viewer tanpa login) — tampilkan tombol login
+   645→  if (isGuest) {
+   646→    return (
+   647→      <DropdownMenu>
+   648→        <DropdownMenuTrigger asChild>
+   649→          <button className="flex items-center gap-2 rounded-full border border-border bg-card pl-1 pr-2.5 py-1 hover:bg-accent/60 transition-colors">
+   650→            <Avatar className="size-7 border border-border">
+   651→              <AvatarFallback className="text-[10px] font-semibold bg-stone-500/15 text-stone-600 dark:text-stone-300">
+   652→                <Eye className="size-3.5" />
+   653→              </AvatarFallback>
+   654→            </Avatar>
+   655→            <div className="text-left hidden sm:block leading-none">
+   656→              <p className="text-[11.5px] font-medium">Tamu</p>
+   657→              <p className="text-[9.5px] text-muted-foreground">Viewer (publik)</p>
+   658→            </div>
+   659→            {hasUsers && (
+   660→              <span className="text-[9px] font-semibold text-primary bg-primary/10 rounded px-1 py-0.5">
+   661→                Login
+   662→              </span>
+   663→            )}
+   664→          </button>
+   665→        </DropdownMenuTrigger>
+   666→        {hasUsers ? (
+   667→          <DropdownMenuContent align="end" className="w-60">
+   668→            <div className="px-2 py-1.5">
+   669→              <p className="text-[11px] font-semibold">Mode Tamu (Viewer)</p>
+   670→              <p className="text-[10px] text-muted-foreground">
+   671→                Anda melihat pohon sebagai publik. Login untuk mengelola data.
+   672→              </p>
+   673→            </div>
+   674→            <DropdownMenuSeparator />
+   675→            <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+   676→              Pilih akun untuk login
+   677→            </p>
+   678→            {publicUsers.slice(0, 6).map((u) => (
+   679→              <DropdownMenuItem
+   680→                key={u.id}
+   681→                onClick={() => onLogin(u)}
+   682→                className="gap-2 py-1.5"
+   683→              >
+   684→                <Avatar className="size-6 border">
+   685→                  <AvatarFallback className="text-[9px] font-semibold bg-secondary text-secondary-foreground">
+   686→                    {initials(u.name)}
+   687→                  </AvatarFallback>
+   688→                </Avatar>
+   689→                <div className="min-w-0 flex-1">
+   690→                  <p className="text-[11.5px] truncate">{u.name}</p>
+   691→                  <p className="text-[9.5px] text-muted-foreground truncate">
+   692→                    {u.roleName ?? "—"}
+   693→                  </p>
+   694→                </div>
+   695→              </DropdownMenuItem>
+   696→            ))}
+   697→            <DropdownMenuSeparator />
+   698→            <DropdownMenuItem onClick={onOpenManage} className="text-muted-foreground">
+   699→              <UserCog className="size-3.5 mr-2" />
+   700→              Kelola Pengguna
+   701→            </DropdownMenuItem>
+   702→          </DropdownMenuContent>
+   703→        ) : (
+   704→          <DropdownMenuContent align="end" className="w-60">
+   705→            <div className="px-2 py-1.5">
+   706→              <p className="text-[11px] font-semibold">Mode Tamu (Viewer)</p>
+   707→              <p className="text-[10px] text-muted-foreground">
+   708→                Belum ada akun terdaftar. Setup pengguna untuk mulai mengelola.
+   709→              </p>
+   710→            </div>
+   711→            <DropdownMenuSeparator />
+   712→            <DropdownMenuItem onClick={onOpenManage}>
+   713→              <UserPlus className="size-3.5 mr-2 text-primary" />
+   714→              Setup Pengguna
+   715→            </DropdownMenuItem>
+   716→          </DropdownMenuContent>
+   717→        )}
+   718→      </DropdownMenu>
+   719→    );
+   720→  }
+   721→
+   722→  // User login (Editor / Administrator / custom)
+   723→  return (
+   724→    <DropdownMenu>
+   725→      <DropdownMenuTrigger asChild>
+   726→        <button className="flex items-center gap-2 rounded-full border border-border bg-card pl-1 pr-2.5 py-1 hover:bg-accent/60 transition-colors">
+   727→          <Avatar className="size-7 border border-border">
+   728→            {active.photo ? (
+   729→              
+   730→              <img src={active.photo} alt={active.name} className="size-full object-cover" />
+   731→            ) : (
+   732→              <AvatarFallback className="text-[10px] font-semibold bg-primary/15 text-primary">
+   733→                {initials(active.name)}
+   734→              </AvatarFallback>
+   735→            )}
+   736→          </Avatar>
+   737→          <div className="text-left hidden sm:block leading-none">
+   738→            <p className="text-[11.5px] font-medium">{active.name}</p>
+   739→            <p className="text-[9.5px] text-muted-foreground">
+   740→              {active.roleName ?? "Tanpa role"}
+   741→            </p>
+   742→          </div>
+   743→        </button>
+   744→      </DropdownMenuTrigger>
+   745→      <DropdownMenuContent align="end" className="w-60">
+   746→        <div className="px-2 py-1.5">
+   747→          <p className="text-[11px] font-semibold truncate">{active.name}</p>
+   748→          <p className="text-[10px] text-muted-foreground truncate">{active.email}</p>
+   749→          {active.linkedPersonName && (
+   750→            <p className="text-[9.5px] text-amber-700 mt-0.5 flex items-center gap-0.5">
+   751→              <LinkIcon className="size-2.5" />
+   752→              Terkait: {active.linkedPersonName}
+   753→            </p>
+   754→          )}
+   755→        </div>
+   756→        <DropdownMenuSeparator />
+   757→        <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+   758→          Ganti pengguna
+   759→        </p>
+   760→        {users.slice(0, 6).map((u) => (
+   761→          <DropdownMenuItem
+   762→            key={u.id}
+   763→            onClick={() =>
+   764→              onSwitch({
+   765→                id: u.id,
+   766→                name: u.name,
+   767→                roleName: u.roleName,
+   768→                roleColor: u.roleColor,
+   769→              })
+   770→            }
+   771→            disabled={u.id === active.id}
+   772→            className="gap-2 py-1.5"
+   773→          >
+   774→            <Avatar className="size-6 border">
+   775→              {u.photo ? (
+   776→                
+   777→                <img src={u.photo} alt={u.name} className="size-full object-cover" />
+   778→              ) : (
+   779→                <AvatarFallback className="text-[9px] font-semibold bg-secondary text-secondary-foreground">
+   780→                  {initials(u.name)}
+   781→                </AvatarFallback>
+   782→              )}
+   783→            </Avatar>
+   784→            <div className="min-w-0 flex-1">
+   785→              <p className="text-[11.5px] truncate">{u.name}</p>
+   786→              <p className="text-[9.5px] text-muted-foreground truncate">{u.email}</p>
+   787→            </div>
+   788→            {u.id === active.id && <CheckCircle2 className="size-3.5 text-emerald-600" />}
+   789→          </DropdownMenuItem>
+   790→        ))}
+   791→        <DropdownMenuSeparator />
+   792→        {canViewUsers && (
+   793→          <DropdownMenuItem onClick={onOpenManage}>
+   794→            <UserCog className="size-3.5 mr-2" />
+   795→            Kelola Pengguna
+   796→          </DropdownMenuItem>
+   797→        )}
+   798→        {canManageRoles && (
+   799→          <DropdownMenuItem onClick={onOpenManageRoles}>
+   800→            <Shield className="size-3.5 mr-2 text-primary" />
+   801→            Kelola Role &amp; Permission
+   802→          </DropdownMenuItem>
+   803→        )}
+   804→        <DropdownMenuSeparator />
+   805→        <DropdownMenuItem
+   806→          onClick={() => logoutMut.mutate()}
+   807→          className="text-destructive focus:text-destructive"
+   808→        >
+   809→          <LogOut className="size-3.5 mr-2" />
+   810→          Keluar (kembali ke Viewer)
+   811→        </DropdownMenuItem>
+   812→      </DropdownMenuContent>
+   813→    </DropdownMenu>
+   814→  );
+   815→}
+   816→

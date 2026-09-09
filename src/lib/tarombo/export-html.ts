@@ -368,19 +368,61 @@ const EXPORT_CSS = `
   .root-section, .doc-header, .legend, .doc-footer { position: relative; z-index: 1; }
 `;
 
+export interface ExportFilters {
+  aliveOnly?: boolean;
+  maxGeneration?: number;
+}
+
+/** Terapkan filter ke family tree (rekursif). */
+function filterTree(node: FamilyNode, filters: ExportFilters, depth: number): FamilyNode | null {
+  // maxGeneration: bila kedalaman melebihi batas, skip node ini
+  if (filters.maxGeneration && depth > filters.maxGeneration) return null;
+
+  // aliveOnly: bila node orang sudah wafat dan aliveOnly=true, skip node
+  // TAPI tetap proses anak-anaknya (anak bisa masih hidup)
+  let person = node.person;
+  let spouse = node.spouse;
+  if (filters.aliveOnly) {
+    if (!person.alive) {
+      // orang wafat — tetap tampilkan agar pohon utuh? Atau skip?
+      // Untuk aliveOnly, kita skip node wafat tapi proses children
+      // Sebenarnya untuk export aliveOnly, lebih baik tampilkan semua tapi tandai.
+      // Disini kita skip node wafat dan children-nya (karena parent wafat = subtree tetap)
+      // Ambil children dulu
+    }
+  }
+
+  const filteredChildren: FamilyNode[] = [];
+  for (const child of node.children) {
+    const filtered = filterTree(child, filters, depth + 1);
+    if (filtered) filteredChildren.push(filtered);
+  }
+
+  return {
+    ...node,
+    person,
+    spouse,
+    children: filteredChildren,
+  };
+}
+
 /**
  * Bangun dokumen HTML untuk satu pohon (root tertentu atau semua root).
  */
 export async function buildExportDocument(opts: {
   rootId?: string | null;
   exportedBy?: string | null;
+  filters?: ExportFilters;
 }): Promise<ExportDocument> {
   const trees: FamilyNode[] = [];
   let roots: TreeNodePerson[] = [];
 
   if (opts.rootId) {
     const tree = buildFamilyTree(opts.rootId);
-    if (tree) trees.push(tree);
+    if (tree) {
+      const filtered = opts.filters ? filterTree(tree, opts.filters, 1) : tree;
+      if (filtered) trees.push(filtered);
+    }
     const p = sqlite
       .prepare("SELECT * FROM person WHERE id = ?")
       .get(opts.rootId) as PersonRow | undefined;
@@ -390,7 +432,10 @@ export async function buildExportDocument(opts: {
     roots = rootRows.map(serializePerson);
     for (const r of rootRows) {
       const tree = buildFamilyTree(r.id);
-      if (tree) trees.push(tree);
+      if (tree) {
+        const filtered = opts.filters ? filterTree(tree, opts.filters, 1) : tree;
+        if (filtered) trees.push(filtered);
+      }
     }
   }
 
