@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sqlite } from "@/lib/db";
-import {
-  getActiveUserWithPermissions,
-} from "@/lib/tarombo/auth";
-import type { ActiveUserPublic } from "@/lib/tarombo/types";
-import { now, type RoleRow, type UserRow } from "@/lib/tarombo/queries";
-import { parsePermissions } from "@/lib/tarombo/permissions";
+import { getActiveUserWithPermissions } from "@/lib/tarombo/auth";
+import type { UserRow } from "@/lib/tarombo/queries";
+import { now } from "@/lib/tarombo/queries";
 
 const ACTIVE_COOKIE = "tarombo_active_user";
 
@@ -71,8 +68,3 @@ export async function DELETE() {
   res.cookies.delete(ACTIVE_COOKIE);
   return res;
 }
-
-// avoid unused import warning
-void parsePermissions;
-void RoleRow;
-void ActiveUserPublic;
