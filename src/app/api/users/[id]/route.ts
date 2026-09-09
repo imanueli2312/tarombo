@@ -1,40 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import { userSchema } from "@/lib/tarombo/types";
 import type { UserPublic } from "@/lib/tarombo/types";
-import { requirePermission, PermissionDeniedError } from "@/lib/tarombo/auth";
+import {
+  now,
+  type RoleRow,
+  type UserRow,
+} from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-function serializeUser(u: {
-  id: string;
-  email: string;
-  name: string;
-  photo: string | null;
-  phone: string | null;
-  roleId: string | null;
-  role: { name: string; color: string; isSystem: boolean } | null;
-  linkedPersonId: string | null;
-  linkedPerson: { fullName: string } | null;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-}): UserPublic {
+function serializeUser(
+  u: UserRow,
+  role: RoleRow | null,
+  linkedPerson: { full_name: string } | null,
+): UserPublic {
   return {
     id: u.id,
     email: u.email,
     name: u.name,
     photo: u.photo,
     phone: u.phone,
-    roleId: u.roleId,
-    roleName: u.role?.name ?? null,
-    roleColor: u.role?.color ?? null,
-    roleIsSystem: u.role?.isSystem ?? false,
-    linkedPersonId: u.linkedPersonId,
-    linkedPersonName: u.linkedPerson?.fullName ?? null,
-    lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
-    createdAt: u.createdAt.toISOString(),
+    roleId: u.role_id,
+    roleName: role?.name ?? null,
+    roleColor: role?.color ?? null,
+    roleIsSystem: role ? role.is_system === 1 : false,
+    linkedPersonId: u.linked_person_id,
+    linkedPersonName: linkedPerson?.full_name ?? null,
+    lastLoginAt: u.last_login_at,
+    createdAt: u.created_at,
   };
 }
 
-/** GET /api/users/[id] — butuh permission user:view */
+function getUser(id: string): UserRow | undefined {
+  return sqlite.prepare("SELECT * FROM user WHERE id = ?").get(id) as
+    | UserRow
+    | undefined;
+}
+function getRole(id: string | null): RoleRow | null {
+  if (!id) return null;
+  return (sqlite.prepare("SELECT * FROM role WHERE id = ?").get(id) as
+    | RoleRow
+    | undefined) ?? null;
+}
+function getLinkedPerson(id: string | null) {
+  if (!id) return null;
+  return (sqlite
+    .prepare("SELECT full_name FROM person WHERE id = ?")
+    .get(id) as { full_name: string } | undefined) ?? null;
+}
+
+/** GET /api/users/[id] */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -42,16 +57,12 @@ export async function GET(
   try {
     await requirePermission("user:view");
     const { id } = await params;
-    const user = await db.user.findUnique({
-      where: { id },
-      include: {
-        role: { select: { name: true, color: true, isSystem: true } },
-        linkedPerson: { select: { fullName: true } },
-      },
-    });
-    if (!user)
+    const u = getUser(id);
+    if (!u)
       return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
-    return NextResponse.json({ data: serializeUser(user) });
+    return NextResponse.json({
+      data: serializeUser(u, getRole(u.role_id), getLinkedPerson(u.linked_person_id)),
+    });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
@@ -60,7 +71,7 @@ export async function GET(
   }
 }
 
-/** PATCH /api/users/[id] — butuh permission user:manage */
+/** PATCH /api/users/[id] — butuh user:manage */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -68,7 +79,7 @@ export async function PATCH(
   try {
     await requirePermission("user:manage");
     const { id } = await params;
-    const existing = await db.user.findUnique({ where: { id } });
+    const existing = getUser(id);
     if (!existing)
       return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
 
@@ -83,7 +94,9 @@ export async function PATCH(
     const data = parsed.data;
 
     if (data.email && data.email !== existing.email) {
-      const dup = await db.user.findUnique({ where: { email: data.email } });
+      const dup = sqlite
+        .prepare("SELECT id FROM user WHERE email = ?")
+        .get(data.email) as { id: string } | undefined;
       if (dup) {
         return NextResponse.json(
           { error: "Email sudah dipakai pengguna lain" },
@@ -92,7 +105,7 @@ export async function PATCH(
       }
     }
     if (data.roleId) {
-      const role = await db.role.findUnique({ where: { id: data.roleId } });
+      const role = getRole(data.roleId);
       if (!role) {
         return NextResponse.json(
           { error: "Role tidak ditemukan" },
@@ -101,9 +114,9 @@ export async function PATCH(
       }
     }
     if (data.linkedPersonId) {
-      const person = await db.person.findUnique({
-        where: { id: data.linkedPersonId },
-      });
+      const person = sqlite
+        .prepare("SELECT id FROM person WHERE id = ?")
+        .get(data.linkedPersonId);
       if (!person) {
         return NextResponse.json(
           { error: "Person yang ditautkan tidak ditemukan" },
@@ -112,26 +125,36 @@ export async function PATCH(
       }
     }
 
-    const updated = await db.user.update({
-      where: { id },
-      data: {
-        ...(data.email ? { email: data.email } : {}),
-        ...(data.name ? { name: data.name } : {}),
-        ...(data.password ? { password: data.password } : {}),
-        ...(data.photo !== undefined ? { photo: data.photo ?? null } : {}),
-        ...(data.phone !== undefined ? { phone: data.phone ?? null } : {}),
-        ...(data.roleId !== undefined ? { roleId: data.roleId ?? null } : {}),
-        ...(data.linkedPersonId !== undefined
-          ? { linkedPersonId: data.linkedPersonId ?? null }
-          : {}),
-      },
-      include: {
-        role: { select: { name: true, color: true, isSystem: true } },
-        linkedPerson: { select: { fullName: true } },
-      },
-    });
+    const sets: string[] = [];
+    const vals: (string | number | null)[] = [];
+    const push = (col: string, val: unknown) => {
+      sets.push(`${col} = ?`);
+      vals.push(val as string | number | null);
+    };
+    if (data.email !== undefined) push("email", data.email);
+    if (data.name !== undefined) push("name", data.name);
+    if (data.password) push("password", data.password);
+    if (data.photo !== undefined) push("photo", data.photo ?? null);
+    if (data.phone !== undefined) push("phone", data.phone ?? null);
+    if (data.roleId !== undefined) push("role_id", data.roleId ?? null);
+    if (data.linkedPersonId !== undefined)
+      push("linked_person_id", data.linkedPersonId ?? null);
 
-    return NextResponse.json({ data: serializeUser(updated) });
+    if (sets.length > 0) {
+      sets.push("updated_at = ?");
+      vals.push(now());
+      vals.push(id);
+      sqlite.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+    }
+
+    const updated = getUser(id)!;
+    return NextResponse.json({
+      data: serializeUser(
+        updated,
+        getRole(updated.role_id),
+        getLinkedPerson(updated.linked_person_id),
+      ),
+    });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
@@ -140,7 +163,7 @@ export async function PATCH(
   }
 }
 
-/** DELETE /api/users/[id] — butuh permission user:manage */
+/** DELETE /api/users/[id] — butuh user:manage */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -148,11 +171,11 @@ export async function DELETE(
   try {
     await requirePermission("user:manage");
     const { id } = await params;
-    const existing = await db.user.findUnique({ where: { id } });
+    const existing = getUser(id);
     if (!existing)
       return NextResponse.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
 
-    await db.user.delete({ where: { id } });
+    sqlite.prepare("DELETE FROM user WHERE id = ?").run(id);
     return NextResponse.json({ success: true });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import {
   PERMISSIONS,
   parsePermissions,
@@ -8,19 +8,9 @@ import {
 import type { RolePublic } from "@/lib/tarombo/types";
 import { z } from "zod";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
+import { now, type RoleRow } from "@/lib/tarombo/queries";
 
-function serializeRole(r: {
-  id: string;
-  name: string;
-  description: string | null;
-  color: string;
-  icon: string | null;
-  permissions: string;
-  isSystem: boolean;
-  sortOrder: number;
-  createdAt: Date;
-  _count?: { users: number };
-}): RolePublic {
+function serializeRole(r: RoleRow): RolePublic {
   return {
     id: r.id,
     name: r.name,
@@ -28,20 +18,21 @@ function serializeRole(r: {
     color: r.color,
     icon: r.icon,
     permissions: parsePermissions(r.permissions),
-    isSystem: r.isSystem,
-    sortOrder: r.sortOrder,
-    userCount: r._count?.users ?? 0,
-    createdAt: r.createdAt.toISOString(),
+    isSystem: r.is_system === 1,
+    sortOrder: r.sort_order,
+    userCount: (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM user WHERE role_id = ?")
+        .get(r.id) as { c: number }
+    ).c,
+    createdAt: r.created_at,
   };
 }
 
 const roleSchema = z.object({
   name: z.string().min(1).max(60).optional(),
   description: z.string().nullable().optional(),
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   icon: z.string().nullable().optional(),
   permissions: z.array(z.string()).optional(),
   sortOrder: z.number().int().optional(),
@@ -55,10 +46,9 @@ export async function GET(
   try {
     await requirePermission("user:view");
     const { id } = await params;
-    const role = await db.role.findUnique({
-      where: { id },
-      include: { _count: { select: { users: true } } },
-    });
+    const role = sqlite
+      .prepare("SELECT * FROM role WHERE id = ?")
+      .get(id) as RoleRow | undefined;
     if (!role)
       return NextResponse.json({ error: "Role tidak ditemukan" }, { status: 404 });
     return NextResponse.json({ data: serializeRole(role) });
@@ -70,7 +60,7 @@ export async function GET(
   }
 }
 
-/** PATCH /api/roles/[id] — admin bisa edit permission role sistem maupun custom */
+/** PATCH /api/roles/[id] */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -78,7 +68,9 @@ export async function PATCH(
   try {
     await requirePermission("role:manage");
     const { id } = await params;
-    const existing = await db.role.findUnique({ where: { id } });
+    const existing = sqlite
+      .prepare("SELECT * FROM role WHERE id = ?")
+      .get(id) as RoleRow | undefined;
     if (!existing)
       return NextResponse.json({ error: "Role tidak ditemukan" }, { status: 404 });
 
@@ -92,7 +84,6 @@ export async function PATCH(
     }
     const data = parsed.data;
 
-    // validasi permission
     if (data.permissions) {
       const invalid = data.permissions.filter(
         (p) => !PERMISSIONS.some((perm) => perm.key === p),
@@ -105,9 +96,10 @@ export async function PATCH(
       }
     }
 
-    // cek nama unik bila diganti
     if (data.name && data.name !== existing.name) {
-      const dup = await db.role.findUnique({ where: { name: data.name } });
+      const dup = sqlite
+        .prepare("SELECT id FROM role WHERE name = ?")
+        .get(data.name) as { id: string } | undefined;
       if (dup) {
         return NextResponse.json(
           { error: "Nama role sudah dipakai" },
@@ -116,29 +108,36 @@ export async function PATCH(
       }
     }
 
-    // Role sistem: tidak boleh ganti nama (tapi boleh edit permission/color/desc)
-    if (existing.isSystem && data.name && data.name !== existing.name) {
+    if (existing.is_system === 1 && data.name && data.name !== existing.name) {
       return NextResponse.json(
         { error: "Nama role sistem tidak dapat diubah" },
         { status: 400 },
       );
     }
 
-    const updated = await db.role.update({
-      where: { id },
-      data: {
-        ...(data.name && !existing.isSystem ? { name: data.name } : {}),
-        ...(data.description !== undefined ? { description: data.description ?? null } : {}),
-        ...(data.color ? { color: data.color } : {}),
-        ...(data.icon !== undefined ? { icon: data.icon ?? null } : {}),
-        ...(data.permissions
-          ? { permissions: serializePermissions(data.permissions) }
-          : {}),
-        ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
-      },
-      include: { _count: { select: { users: true } } },
-    });
+    const sets: string[] = [];
+    const vals: (string | number | null)[] = [];
+    const push = (col: string, val: unknown) => {
+      sets.push(`${col} = ?`);
+      vals.push(val as string | number | null);
+    };
+    if (data.name && existing.is_system === 0) push("name", data.name);
+    if (data.description !== undefined) push("description", data.description ?? null);
+    if (data.color) push("color", data.color);
+    if (data.icon !== undefined) push("icon", data.icon ?? null);
+    if (data.permissions) push("permissions", serializePermissions(data.permissions));
+    if (data.sortOrder !== undefined) push("sort_order", data.sortOrder);
 
+    if (sets.length > 0) {
+      sets.push("updated_at = ?");
+      vals.push(now());
+      vals.push(id);
+      sqlite.prepare(`UPDATE role SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+    }
+
+    const updated = sqlite
+      .prepare("SELECT * FROM role WHERE id = ?")
+      .get(id) as RoleRow;
     return NextResponse.json({ data: serializeRole(updated) });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
@@ -148,7 +147,7 @@ export async function PATCH(
   }
 }
 
-/** DELETE /api/roles/[id] — role sistem tidak bisa dihapus */
+/** DELETE /api/roles/[id] */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -156,29 +155,33 @@ export async function DELETE(
   try {
     await requirePermission("role:manage");
     const { id } = await params;
-    const existing = await db.role.findUnique({
-      where: { id },
-      include: { _count: { select: { users: true } } },
-    });
+    const existing = sqlite
+      .prepare("SELECT * FROM role WHERE id = ?")
+      .get(id) as RoleRow | undefined;
     if (!existing)
       return NextResponse.json({ error: "Role tidak ditemukan" }, { status: 404 });
 
-    if (existing.isSystem) {
+    if (existing.is_system === 1) {
       return NextResponse.json(
         { error: "Role sistem tidak dapat dihapus" },
         { status: 400 },
       );
     }
-    if (existing._count.users > 0) {
+    const userCount = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM user WHERE role_id = ?")
+        .get(id) as { c: number }
+    ).c;
+    if (userCount > 0) {
       return NextResponse.json(
         {
-          error: `Role masih dipakai oleh ${existing._count.users} pengguna. Ubah role pengguna tersebut terlebih dahulu.`,
+          error: `Role masih dipakai oleh ${userCount} pengguna. Ubah role pengguna tersebut terlebih dahulu.`,
         },
         { status: 400 },
       );
     }
 
-    await db.role.delete({ where: { id } });
+    sqlite.prepare("DELETE FROM role WHERE id = ?").run(id);
     return NextResponse.json({ success: true });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {

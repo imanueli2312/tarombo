@@ -137,8 +137,31 @@
     @apply bg-background text-foreground;
     background-image:
       radial-gradient(circle at 0% 0%, oklch(0.55 0.16 28 / 0.04) 0%, transparent 35%),
-      radial-gradient(circle at 100% 0%, oklch(0.7 0.15 75 / 0.05) 0%, transparent 40%);
+      radial-gradient(circle at 100% 0%, oklch(0.7 0.15 75 / 0.05) 0%, transparent 40%),
+      url("/tarombo-bg02.png");
     background-attachment: fixed;
+    background-size:
+      auto,
+      auto,
+      cover;
+    background-position:
+      0 0,
+      100% 0,
+      center;
+    background-repeat:
+      no-repeat,
+      no-repeat,
+      no-repeat;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: oklch(0.985 0.008 75 / 0.82);
+    z-index: -1;
+  }
+  .dark body::before {
+    background: oklch(0.17 0.015 40 / 0.88);
   }
 }
 

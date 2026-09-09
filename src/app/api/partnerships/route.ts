@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import { partnershipSchema } from "@/lib/tarombo/types";
 import {
   assertNoActivePartner,
   deriveMaritalStatus,
+  newId,
+  now,
   serializePartnership,
   serializePerson,
+  type PartnershipRow,
+  type PersonRow,
 } from "@/lib/tarombo/queries";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/** GET /api/partnerships — daftar semua pasangan. Butuh person:view */
+function getPerson(id: string): PersonRow | undefined {
+  return sqlite.prepare("SELECT * FROM person WHERE id = ?").get(id) as
+    | PersonRow
+    | undefined;
+}
+
+/** GET /api/partnerships — butuh person:view */
 export async function GET(req: NextRequest) {
   try {
     await requirePermission("person:view");
@@ -17,28 +27,29 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const personId = searchParams.get("personId");
 
-    const where: { AND: Record<string, unknown>[] } = { AND: [] };
+    let sql = "SELECT * FROM partnership WHERE 1=1";
+    const params: string[] = [];
     if (status && ["ACTIVE", "DIVORCED", "WIDOWED"].includes(status)) {
-      where.AND.push({ status });
+      sql += " AND status = ?";
+      params.push(status);
     }
     if (personId) {
-      where.AND.push({
-        OR: [{ husbandId: personId }, { wifeId: personId }],
-      });
+      sql += " AND (husband_id = ? OR wife_id = ?)";
+      params.push(personId, personId);
     }
+    sql += " ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'WIDOWED' THEN 1 ELSE 2 END, marriage_date ASC NULLS LAST";
 
-    const partnerships = await db.partnership.findMany({
-      where,
-      include: { husband: true, wife: true },
-      orderBy: [{ status: "asc" }, { marriageDate: "asc" }],
-    });
-
+    const rows = sqlite.prepare(sql).all(...params) as PartnershipRow[];
     return NextResponse.json({
-      data: partnerships.map((p) => ({
-        ...serializePartnership(p),
-        husband: serializePerson(p.husband),
-        wife: serializePerson(p.wife),
-      })),
+      data: rows.map((p) => {
+        const husband = getPerson(p.husband_id);
+        const wife = getPerson(p.wife_id);
+        return {
+          ...serializePartnership(p),
+          husband: husband ? serializePerson(husband) : null,
+          wife: wife ? serializePerson(wife) : null,
+        };
+      }),
     });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
@@ -48,12 +59,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** POST /api/partnerships — buat pasangan baru. Butuh partnership:create.
- *  Validasi bisnis:
- *  - husband harus MALE, wife harus FEMALE
- *  - husbandId != wifeId
- *  - Maksimal 1 pasangan AKTIF per orang (laki-laki & perempuan)
- */
+/** POST /api/partnerships — butuh partnership:create */
 export async function POST(req: NextRequest) {
   try {
     await requirePermission("partnership:create");
@@ -74,8 +80,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const husband = await db.person.findUnique({ where: { id: data.husbandId } });
-    const wife = await db.person.findUnique({ where: { id: data.wifeId } });
+    const husband = getPerson(data.husbandId);
+    const wife = getPerson(data.wifeId);
     if (!husband)
       return NextResponse.json({ error: "Calon suami tidak ditemukan" }, { status: 400 });
     if (!wife)
@@ -86,48 +92,61 @@ export async function POST(req: NextRequest) {
     if (wife.gender !== "FEMALE")
       return NextResponse.json({ error: "Istri harus berjenis kelamin perempuan" }, { status: 400 });
 
-    // Validasi maks 1 pasangan aktif
     if (data.status === "ACTIVE") {
-      await assertNoActivePartner(husband.id);
-      await assertNoActivePartner(wife.id);
+      assertNoActivePartner(husband.id);
+      assertNoActivePartner(wife.id);
     }
 
-    const created = await db.partnership.create({
-      data,
-      include: { husband: true, wife: true },
-    });
+    const id = newId();
+    const ts = now();
+    sqlite
+      .prepare(
+        `INSERT INTO partnership (id, husband_id, wife_id, marriage_date, divorce_date, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        data.husbandId,
+        data.wifeId,
+        data.marriageDate ? new Date(data.marriageDate as string).toISOString() : null,
+        data.divorceDate ? new Date(data.divorceDate as string).toISOString() : null,
+        data.status,
+        ts,
+        ts,
+      );
 
     // Update maritalStatus kedua pihak
     if (data.status === "ACTIVE") {
-      await db.person.update({
-        where: { id: husband.id },
-        data: { maritalStatus: "MARRIED" },
-      });
-      await db.person.update({
-        where: { id: wife.id },
-        data: { maritalStatus: "MARRIED" },
-      });
+      sqlite
+        .prepare("UPDATE person SET marital_status = 'MARRIED', updated_at = ? WHERE id = ?")
+        .run(ts, husband.id);
+      sqlite
+        .prepare("UPDATE person SET marital_status = 'MARRIED', updated_at = ? WHERE id = ?")
+        .run(ts, wife.id);
     } else {
-      // Recompute marital status
       for (const personId of [husband.id, wife.id]) {
-        const ps = await db.partnership.findMany({
-          where: { OR: [{ husbandId: personId }, { wifeId: personId }] },
-          select: { status: true },
-        });
-        const person = await db.person.findUnique({ where: { id: personId } });
+        const ps = sqlite
+          .prepare("SELECT status FROM partnership WHERE husband_id = ? OR wife_id = ?")
+          .all(personId, personId) as { status: string }[];
+        const person = getPerson(personId);
         if (person) {
-          const ms = deriveMaritalStatus(ps, person.deathDate !== null);
-          await db.person.update({ where: { id: personId }, data: { maritalStatus: ms } });
+          const ms = deriveMaritalStatus(ps, person.death_date !== null);
+          sqlite
+            .prepare("UPDATE person SET marital_status = ?, updated_at = ? WHERE id = ?")
+            .run(ms, ts, personId);
         }
       }
     }
 
+    const created = sqlite
+      .prepare("SELECT * FROM partnership WHERE id = ?")
+      .get(id) as PartnershipRow;
     return NextResponse.json(
       {
         data: {
           ...serializePartnership(created),
-          husband: serializePerson(created.husband),
-          wife: serializePerson(created.wife),
+          husband: serializePerson(husband),
+          wife: serializePerson(wife),
         },
       },
       { status: 201 },

@@ -1,51 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import { userSchema } from "@/lib/tarombo/types";
 import type { UserPublic } from "@/lib/tarombo/types";
-import { requirePermission, PermissionDeniedError } from "@/lib/tarombo/auth";
+import {
+  newId,
+  now,
+  type RoleRow,
+  type UserRow,
+} from "@/lib/tarombo/queries";
+import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-function serializeUser(u: {
-  id: string;
-  email: string;
-  name: string;
-  photo: string | null;
-  phone: string | null;
-  roleId: string | null;
-  role: { name: string; color: string; isSystem: boolean } | null;
-  linkedPersonId: string | null;
-  linkedPerson: { fullName: string } | null;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-}): UserPublic {
+function serializeUser(
+  u: UserRow,
+  role: RoleRow | null,
+  linkedPerson: { full_name: string } | null,
+): UserPublic {
   return {
     id: u.id,
     email: u.email,
     name: u.name,
     photo: u.photo,
     phone: u.phone,
-    roleId: u.roleId,
-    roleName: u.role?.name ?? null,
-    roleColor: u.role?.color ?? null,
-    roleIsSystem: u.role?.isSystem ?? false,
-    linkedPersonId: u.linkedPersonId,
-    linkedPersonName: u.linkedPerson?.fullName ?? null,
-    lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
-    createdAt: u.createdAt.toISOString(),
+    roleId: u.role_id,
+    roleName: role?.name ?? null,
+    roleColor: role?.color ?? null,
+    roleIsSystem: role ? role.is_system === 1 : false,
+    linkedPersonId: u.linked_person_id,
+    linkedPersonName: linkedPerson?.full_name ?? null,
+    lastLoginAt: u.last_login_at,
+    createdAt: u.created_at,
   };
+}
+
+function getUser(id: string): UserRow | undefined {
+  return sqlite.prepare("SELECT * FROM user WHERE id = ?").get(id) as
+    | UserRow
+    | undefined;
+}
+
+function getRole(id: string | null): RoleRow | null {
+  if (!id) return null;
+  return (sqlite.prepare("SELECT * FROM role WHERE id = ?").get(id) as
+    | RoleRow
+    | undefined) ?? null;
+}
+
+function getLinkedPerson(id: string | null) {
+  if (!id) return null;
+  return (sqlite
+    .prepare("SELECT full_name FROM person WHERE id = ?")
+    .get(id) as { full_name: string } | undefined) ?? null;
 }
 
 /** GET /api/users — butuh permission user:view */
 export async function GET() {
   try {
     await requirePermission("user:view");
-    const users = await db.user.findMany({
-      include: {
-        role: { select: { name: true, color: true, isSystem: true } },
-        linkedPerson: { select: { fullName: true } },
-      },
-      orderBy: [{ createdAt: "asc" }],
+    const users = sqlite
+      .prepare("SELECT * FROM user ORDER BY created_at ASC")
+      .all() as UserRow[];
+    return NextResponse.json({
+      data: users.map((u) =>
+        serializeUser(u, getRole(u.role_id), getLinkedPerson(u.linked_person_id)),
+      ),
     });
-    return NextResponse.json({ data: users.map(serializeUser) });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
@@ -68,8 +86,9 @@ export async function POST(req: NextRequest) {
     }
     const data = parsed.data;
 
-    // Cek email unik
-    const exists = await db.user.findUnique({ where: { email: data.email } });
+    const exists = sqlite
+      .prepare("SELECT id FROM user WHERE email = ?")
+      .get(data.email) as { id: string } | undefined;
     if (exists) {
       return NextResponse.json(
         { error: "Email sudah terdaftar" },
@@ -77,9 +96,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validasi roleId bila diset
     if (data.roleId) {
-      const role = await db.role.findUnique({ where: { id: data.roleId } });
+      const role = getRole(data.roleId);
       if (!role) {
         return NextResponse.json(
           { error: "Role tidak ditemukan" },
@@ -87,12 +105,10 @@ export async function POST(req: NextRequest) {
         );
       }
     }
-
-    // Validasi linkedPerson bila diset
     if (data.linkedPersonId) {
-      const person = await db.person.findUnique({
-        where: { id: data.linkedPersonId },
-      });
+      const person = sqlite
+        .prepare("SELECT id FROM person WHERE id = ?")
+        .get(data.linkedPersonId);
       if (!person) {
         return NextResponse.json(
           { error: "Person yang ditautkan tidak ditemukan" },
@@ -101,24 +117,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const created = await db.user.create({
-      data: {
-        email: data.email,
-        name: data.name,
-        password: data.password,
-        photo: data.photo ?? null,
-        phone: data.phone ?? null,
-        roleId: data.roleId ?? null,
-        linkedPersonId: data.linkedPersonId ?? null,
-      },
-      include: {
-        role: { select: { name: true, color: true, isSystem: true } },
-        linkedPerson: { select: { fullName: true } },
-      },
-    });
+    const id = newId();
+    const ts = now();
+    sqlite
+      .prepare(
+        `INSERT INTO user (id, email, name, password, photo, phone, role_id, linked_person_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        data.email,
+        data.name,
+        data.password,
+        data.photo ?? null,
+        data.phone ?? null,
+        data.roleId ?? null,
+        data.linkedPersonId ?? null,
+        ts,
+        ts,
+      );
 
+    const created = getUser(id)!;
     return NextResponse.json(
-      { data: serializeUser(created) },
+      {
+        data: serializeUser(
+          created,
+          getRole(created.role_id),
+          getLinkedPerson(created.linked_person_id),
+        ),
+      },
       { status: 201 },
     );
   } catch (e) {

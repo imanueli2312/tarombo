@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { buildExportDocument } from "@/lib/tarombo/export-html";
 import { renderImage, renderPdf } from "@/lib/tarombo/playwright-service";
 import {

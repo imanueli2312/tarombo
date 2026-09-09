@@ -1,31 +1,58 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 
 /** GET /api/stats — ringkasan statistik untuk dashboard. */
 export async function GET() {
   try {
-    const totalPersons = await db.person.count();
-    const alive = await db.person.count({ where: { deathDate: null } });
-    const deceased = await db.person.count({ where: { deathDate: { not: null } } });
-    const males = await db.person.count({ where: { gender: "MALE" } });
-    const females = await db.person.count({ where: { gender: "FEMALE" } });
-    const totalPartnerships = await db.partnership.count();
-    const activePartnerships = await db.partnership.count({
-      where: { status: "ACTIVE" },
-    });
-    const widowed = await db.partnership.count({
-      where: { status: "WIDOWED" },
-    });
-    const divorced = await db.partnership.count({
-      where: { status: "DIVORCED" },
-    });
+    const totalPersons = (
+      sqlite.prepare("SELECT COUNT(*) AS c FROM person").get() as { c: number }
+    ).c;
+    const alive = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM person WHERE death_date IS NULL")
+        .get() as { c: number }
+    ).c;
+    const deceased = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM person WHERE death_date IS NOT NULL")
+        .get() as { c: number }
+    ).c;
+    const males = (
+      sqlite.prepare("SELECT COUNT(*) AS c FROM person WHERE gender = 'MALE'").get() as {
+        c: number;
+      }
+    ).c;
+    const females = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM person WHERE gender = 'FEMALE'")
+        .get() as { c: number }
+    ).c;
+    const totalPartnerships = (
+      sqlite.prepare("SELECT COUNT(*) AS c FROM partnership").get() as { c: number }
+    ).c;
+    const activePartnerships = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM partnership WHERE status = 'ACTIVE'")
+        .get() as { c: number }
+    ).c;
+    const widowed = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM partnership WHERE status = 'WIDOWED'")
+        .get() as { c: number }
+    ).c;
+    const divorced = (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM partnership WHERE status = 'DIVORCED'")
+        .get() as { c: number }
+    ).c;
 
-    // Distribusi generasi
-    const generations = await db.person.groupBy({
-      by: ["generationNumber"],
-      _count: { _all: true },
-      orderBy: { generationNumber: "asc" },
-    });
+    const generations = sqlite
+      .prepare(
+        `SELECT generation_number AS g, COUNT(*) AS c
+         FROM person GROUP BY generation_number
+         ORDER BY generation_number ASC NULLS LAST`,
+      )
+      .all() as { g: number | null; c: number }[];
 
     return NextResponse.json({
       totalPersons,
@@ -37,9 +64,9 @@ export async function GET() {
       activePartnerships,
       widowed,
       divorced,
-      generations: generations.map((g) => ({
-        generation: g.generationNumber,
-        count: g._count._all,
+      generations: generations.map((row) => ({
+        generation: row.g,
+        count: row.c,
       })),
     });
   } catch (e) {

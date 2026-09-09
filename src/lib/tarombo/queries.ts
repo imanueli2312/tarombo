@@ -1,4 +1,5 @@
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
+import { v4 as uuid } from "uuid";
 import type {
   FamilyNode,
   Gender,
@@ -9,72 +10,111 @@ import type {
 } from "./types";
 
 // ============================================================================
-// Mapper: Person (Prisma) -> TreeNodePerson (serializable)
+// Tipe baris database (snake_case dari SQLite)
 // ============================================================================
 
-export function serializePerson(p: {
+export interface PersonRow {
   id: string;
-  fullName: string;
+  full_name: string;
   nickname: string | null;
-  birthPlace: string | null;
-  birthDate: Date | null;
-  deathDate: Date | null;
-  birthOrder: number | null;
+  birth_place: string | null;
+  birth_date: string | null;
+  death_date: string | null;
+  birth_order: number | null;
   gender: string;
   address: string | null;
   religion: string | null;
   phone: string | null;
   photo: string | null;
-  maritalStatus: string;
-  generationNumber: number | null;
-  burialName: string | null;
-  burialAddress: string | null;
-  burialLat: number | null;
-  burialLng: number | null;
-  fatherId: string | null;
-  motherId: string | null;
-}): TreeNodePerson {
+  marital_status: string;
+  generation_number: number | null;
+  burial_name: string | null;
+  burial_address: string | null;
+  burial_lat: number | null;
+  burial_lng: number | null;
+  father_id: string | null;
+  mother_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PartnershipRow {
+  id: string;
+  husband_id: string;
+  wife_id: string;
+  marriage_date: string | null;
+  divorce_date: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleRow {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  permissions: string;
+  is_system: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  photo: string | null;
+  phone: string | null;
+  role_id: string | null;
+  linked_person_id: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// Mapper: PersonRow -> TreeNodePerson (serializable, camelCase)
+// ============================================================================
+
+export function serializePerson(p: PersonRow): TreeNodePerson {
   return {
     id: p.id,
-    fullName: p.fullName,
+    fullName: p.full_name,
     nickname: p.nickname,
-    birthPlace: p.birthPlace,
-    birthDate: p.birthDate ? p.birthDate.toISOString() : null,
-    deathDate: p.deathDate ? p.deathDate.toISOString() : null,
-    birthOrder: p.birthOrder,
+    birthPlace: p.birth_place,
+    birthDate: p.birth_date,
+    deathDate: p.death_date,
+    birthOrder: p.birth_order,
     gender: p.gender as Gender,
     address: p.address,
     religion: p.religion,
     phone: p.phone,
     photo: p.photo,
-    maritalStatus: p.maritalStatus as MaritalStatus,
-    generationNumber: p.generationNumber,
-    burialName: p.burialName,
-    burialAddress: p.burialAddress,
-    burialLat: p.burialLat,
-    burialLng: p.burialLng,
-    fatherId: p.fatherId,
-    motherId: p.motherId,
-    alive: p.deathDate === null,
+    maritalStatus: p.marital_status as MaritalStatus,
+    generationNumber: p.generation_number,
+    burialName: p.burial_name,
+    burialAddress: p.burial_address,
+    burialLat: p.burial_lat,
+    burialLng: p.burial_lng,
+    fatherId: p.father_id,
+    motherId: p.mother_id,
+    alive: p.death_date === null,
   };
 }
 
-export function serializePartnership(pr: {
-  id: string;
-  husbandId: string;
-  wifeId: string;
-  marriageDate: Date | null;
-  divorceDate: Date | null;
-  status: string;
-}): TreePartnership {
+export function serializePartnership(pr: PartnershipRow): TreePartnership {
   return {
     id: pr.id,
-    husbandId: pr.husbandId,
-    wifeId: pr.wifeId,
+    husbandId: pr.husband_id,
+    wifeId: pr.wife_id,
     husband: null,
     wife: null,
-    marriageDate: pr.marriageDate ? pr.marriageDate.toISOString() : null,
-    divorceDate: pr.divorceDate ? pr.divorceDate.toISOString() : null,
+    marriageDate: pr.marriage_date,
+    divorceDate: pr.divorce_date,
     status: pr.status as PartnershipStatus,
   };
 }
@@ -83,28 +123,21 @@ export function serializePartnership(pr: {
 // Logika bisnis: pasangan aktif maksimal 1
 // ============================================================================
 
-/**
- * Cari partnership AKTIF untuk seorang Person.
- * Mengembalikan null bila tidak ada pasangan aktif.
- */
-export async function findActivePartnership(personId: string) {
-  return db.partnership.findFirst({
-    where: {
-      status: "ACTIVE",
-      OR: [{ husbandId: personId }, { wifeId: personId }],
-    },
-  });
+export function findActivePartnership(personId: string): PartnershipRow | undefined {
+  return sqlite
+    .prepare(
+      `SELECT * FROM partnership
+       WHERE status = 'ACTIVE' AND (husband_id = ? OR wife_id = ?)
+       LIMIT 1`,
+    )
+    .get(personId, personId) as PartnershipRow | undefined;
 }
 
-/**
- * Validasi: satu orang (laki-laki / perempuan) maksimal 1 pasangan aktif.
- * Melempar Error bila melanggar.
- */
-export async function assertNoActivePartner(
+export function assertNoActivePartner(
   personId: string,
   excludePartnershipId?: string,
-): Promise<void> {
-  const existing = await findActivePartnership(personId);
+): void {
+  const existing = findActivePartnership(personId);
   if (existing && existing.id !== excludePartnershipId) {
     throw new Error(
       "Orang ini sudah memiliki pasangan aktif. Satu orang hanya boleh memiliki maksimal 1 pasangan aktif.",
@@ -112,9 +145,6 @@ export async function assertNoActivePartner(
   }
 }
 
-/**
- * Sinkronkan maritalStatus Person berdasarkan partnership-nya.
- */
 export function deriveMaritalStatus(
   partnerships: { status: string }[],
   hasDeath: boolean,
@@ -132,51 +162,48 @@ export function deriveMaritalStatus(
 // Logika bisnis: auto-set tanggal cerai saat pasangan meninggal
 // ============================================================================
 
-/**
- * Saat seorang Person meninggal (deathDate diset), partnership AKTIF-nya
- * otomatis ditandai WIDOWED dengan divorceDate = tanggal kematian.
- * Status marital partner yang masih hidup juga diupdate menjadi WIDOWED.
- */
-export async function handleDeathSideEffects(personId: string): Promise<void> {
-  const person = await db.person.findUnique({ where: { id: personId } });
-  if (!person || !person.deathDate) return;
+export function handleDeathSideEffects(personId: string): void {
+  const person = sqlite
+    .prepare("SELECT * FROM person WHERE id = ?")
+    .get(personId) as PersonRow | undefined;
+  if (!person || !person.death_date) return;
 
-  // Cari semua partnership AKTIF orang ini
-  const activePartnerships = await db.partnership.findMany({
-    where: {
-      status: "ACTIVE",
-      OR: [{ husbandId: personId }, { wifeId: personId }],
-    },
-  });
+  const activePartnerships = sqlite
+    .prepare(
+      `SELECT * FROM partnership
+       WHERE status = 'ACTIVE' AND (husband_id = ? OR wife_id = ?)`,
+    )
+    .all(personId, personId) as PartnershipRow[];
 
+  const now = new Date().toISOString();
   for (const partnership of activePartnerships) {
-    const isHusbandDead = partnership.husbandId === personId;
-    const survivorId = isHusbandDead ? partnership.wifeId : partnership.husbandId;
+    const isHusbandDead = partnership.husband_id === personId;
+    const survivorId = isHusbandDead
+      ? partnership.wife_id
+      : partnership.husband_id;
 
-    // Set tanggal cerai = tanggal kematian, status WIDOWED
-    await db.partnership.update({
-      where: { id: partnership.id },
-      data: {
-        divorceDate: person.deathDate,
-        status: "WIDOWED",
-      },
-    });
+    sqlite
+      .prepare(
+        `UPDATE partnership SET divorce_date = ?, status = 'WIDOWED', updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(person.death_date, now, partnership.id);
 
-    // Update maritalStatus pasangan yang masih hidup
     if (survivorId) {
-      await db.person.update({
-        where: { id: survivorId },
-        data: { maritalStatus: "WIDOWED" },
-      });
+      sqlite
+        .prepare(
+          `UPDATE person SET marital_status = 'WIDOWED', updated_at = ? WHERE id = ?`,
+        )
+        .run(now, survivorId);
     }
   }
 
-  // Update maritalStatus orang yang meninggal menjadi WIDOWED (jika sebelumnya menikah)
   if (activePartnerships.length > 0) {
-    await db.person.update({
-      where: { id: personId },
-      data: { maritalStatus: "WIDOWED" },
-    });
+    sqlite
+      .prepare(
+        `UPDATE person SET marital_status = 'WIDOWED', updated_at = ? WHERE id = ?`,
+      )
+      .run(now, personId);
   }
 }
 
@@ -184,64 +211,62 @@ export async function handleDeathSideEffects(personId: string): Promise<void> {
 // Membangun pohon silsilah (FamilyNode) — rekursif
 // ============================================================================
 
-/**
- * Bangun pohon tarombo dari satu Person sebagai root.
- * Setiap node: Person + pasangan (jika ada) + anak-anak (rekursif).
- * Dilindungi dari loop dengan set visited.
- */
-export async function buildFamilyTree(rootPersonId: string): Promise<FamilyNode | null> {
-  const root = await db.person.findUnique({ where: { id: rootPersonId } });
+export function buildFamilyTree(rootPersonId: string): FamilyNode | null {
+  const root = sqlite
+    .prepare("SELECT * FROM person WHERE id = ?")
+    .get(rootPersonId) as PersonRow | undefined;
   if (!root) return null;
 
   const visited = new Set<string>();
   return buildNode(root.id, visited);
 }
 
-async function buildNode(
-  personId: string,
-  visited: Set<string>,
-): Promise<FamilyNode | null> {
-  if (visited.has(personId)) {
-    // Loop terdeteksi — kembalikan null untuk menghindari rekursi tak terhingga
-    return null;
-  }
+function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
+  if (visited.has(personId)) return null;
   visited.add(personId);
 
-  const person = await db.person.findUnique({ where: { id: personId } });
+  const person = sqlite
+    .prepare("SELECT * FROM person WHERE id = ?")
+    .get(personId) as PersonRow | undefined;
   if (!person) return null;
 
   // Cari partnership (prioritaskan AKTIF)
-  const partnerships = await db.partnership.findMany({
-    where: { OR: [{ husbandId: personId }, { wifeId: personId }] },
-    orderBy: [{ status: "asc" }, { marriageDate: "asc" }],
-  });
+  const partnerships = sqlite
+    .prepare(
+      `SELECT * FROM partnership
+       WHERE husband_id = ? OR wife_id = ?
+       ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'WIDOWED' THEN 1 ELSE 2 END,
+                marriage_date ASC NULLS LAST`,
+    )
+    .all(personId, personId) as PartnershipRow[];
 
-  let spouse = null;
-  let partnership = null;
+  let spouse: PersonRow | null = null;
+  let partnership: PartnershipRow | null = null;
 
   if (partnerships.length > 0) {
     partnership = partnerships[0];
     const spouseId =
-      partnership.husbandId === personId ? partnership.wifeId : partnership.husbandId;
-    const spouseRecord = await db.person.findUnique({ where: { id: spouseId } });
-    if (spouseRecord) spouse = spouseRecord;
+      partnership.husband_id === personId
+        ? partnership.wife_id
+        : partnership.husband_id;
+    spouse =
+      (sqlite
+        .prepare("SELECT * FROM person WHERE id = ?")
+        .get(spouseId) as PersonRow | undefined) ?? null;
   }
 
-  // Anak-anak: Person yang fatherId atau motherId = personId
-  // (dan pasangan, jika ada, untuk memastikan anak dari pasangan ini)
-  const childrenWhere =
-    person.gender === "MALE"
-      ? { fatherId: personId }
-      : { motherId: personId };
-
-  const childRecords = await db.person.findMany({
-    where: childrenWhere,
-    orderBy: [{ birthOrder: "asc" }, { birthDate: "asc" }],
-  });
+  // Anak-anak
+  const childrenCol = person.gender === "MALE" ? "father_id" : "mother_id";
+  const childRecords = sqlite
+    .prepare(
+      `SELECT * FROM person WHERE ${childrenCol} = ?
+       ORDER BY birth_order ASC NULLS LAST, birth_date ASC NULLS LAST`,
+    )
+    .all(personId) as PersonRow[];
 
   const children: FamilyNode[] = [];
   for (const child of childRecords) {
-    const node = await buildNode(child.id, visited);
+    const node = buildNode(child.id, visited);
     if (node) children.push(node);
   }
 
@@ -252,10 +277,10 @@ async function buildNode(
       ? {
           ...serializePartnership(partnership),
           husband: serializePerson(
-            partnership.husbandId === personId ? person : (spouse as never),
+            partnership.husband_id === personId ? person : (spouse as PersonRow),
           ),
           wife: serializePerson(
-            partnership.wifeId === personId ? person : (spouse as never),
+            partnership.wife_id === personId ? person : (spouse as PersonRow),
           ),
         }
       : null,
@@ -263,56 +288,66 @@ async function buildNode(
   };
 }
 
-/**
- * Temukan root leluhur tertinggi (Person tanpa ayah & ibu).
- *
- * Aturan agar tidak ada duplikasi pohon:
- *  - Pasangan yang "menikah masuk" (menikah dengan orang yang PUNYA orang tua)
- *    TIDAK dianggap root — mereka tampil sebagai pasangan di pohon partnernya.
- *  - Pasangan pendiri (keduanya tanpa orang tua) hanya menghasilkan SATU root
- *    (pihak laki-laki dipilih sebagai root; perempuan disubsumsi).
- *  - Orang tanpa ortu & tanpa pasangan → root mandiri.
- */
-export async function findRootAncestors() {
-  const candidates = await db.person.findMany({
-    where: {
-      AND: [{ fatherId: null }, { motherId: null }],
-    },
-    include: {
-      partnershipsAsHusband: { include: { wife: true } },
-      partnershipsAsWife: { include: { husband: true } },
-    },
-    orderBy: [{ generationNumber: "asc" }, { birthDate: "asc" }],
-  });
+// ============================================================================
+// Root ancestors — tanpa duplikasi
+// ============================================================================
 
-  const roots: typeof candidates = [];
+export function findRootAncestors(): PersonRow[] {
+  const candidates = sqlite
+    .prepare(
+      `SELECT * FROM person
+       WHERE father_id IS NULL AND mother_id IS NULL
+       ORDER BY generation_number ASC NULLS LAST, birth_date ASC NULLS LAST`,
+    )
+    .all() as PersonRow[];
+
+  // helper: ambil partner sebuah person
+  const getPartners = (personId: string): PersonRow[] => {
+    const rows = sqlite
+      .prepare(
+        `SELECT p2.* FROM partnership p
+         JOIN person p2 ON (p2.id = CASE WHEN p.husband_id = ? THEN p.wife_id ELSE p.husband_id END)
+         WHERE p.husband_id = ? OR p.wife_id = ?`,
+      )
+      .all(personId, personId, personId) as PersonRow[];
+    return rows;
+  };
+
+  const roots: PersonRow[] = [];
   for (const c of candidates) {
-    const partners = [
-      ...c.partnershipsAsHusband.map((p) => p.wife),
-      ...c.partnershipsAsWife.map((p) => p.husband),
-    ];
-
+    const partners = getPartners(c.id);
     const hasPartnerWithParents = partners.some(
-      (p) => p.fatherId !== null || p.motherId !== null,
+      (p) => p.father_id !== null || p.mother_id !== null,
     );
     const hasPartnerWithoutParents = partners.some(
-      (p) => p.fatherId === null && p.motherId === null,
+      (p) => p.father_id === null && p.mother_id === null,
     );
 
-    // Menikah-masuk: punya partner dgn ortu, tapi tidak punya partner tanpa ortu
     if (hasPartnerWithParents && !hasPartnerWithoutParents) continue;
 
-    // Pasangan pendiri: perempuan yang punya suami tanpa ortu → subsumsi
     if (c.gender === "FEMALE") {
       const hasMalePartnerNoParents = partners.some(
-        (p) => p.gender === "MALE" && p.fatherId === null && p.motherId === null,
+        (p) =>
+          p.gender === "MALE" &&
+          p.father_id === null &&
+          p.mother_id === null,
       );
       if (hasMalePartnerNoParents) continue;
     }
 
     roots.push(c);
   }
+  return roots;
+}
 
-  // strip relasi agar konsisten dengan return type Person[]
-  return roots.map(({ partnershipsAsHusband, partnershipsAsWife, ...rest }) => rest);
+// ============================================================================
+// Helper: generate ID baru
+// ============================================================================
+
+export function newId(): string {
+  return uuid();
+}
+
+export function now(): string {
+  return new Date().toISOString();
 }

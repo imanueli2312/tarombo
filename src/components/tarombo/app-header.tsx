@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Users,
   UserPlus,
   Sparkles,
   MoreVertical,
@@ -20,6 +19,7 @@ import {
   Lock,
 } from "lucide-react";
 import { UserMenuButton } from "./user-management-sheet";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useActiveUser } from "@/lib/tarombo/use-permissions";
 
 interface Props {
@@ -55,9 +55,12 @@ export function AppHeader({
       <div className="relative mx-auto flex max-w-[1600px] items-center gap-2 sm:gap-3 px-4 py-2.5 sm:px-6">
         {/* Logo + judul */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm shrink-0">
-            <Users className="size-5" />
-          </div>
+          { }
+          <img
+            src="/tarombo-bg02.png"
+            alt="Tarombo"
+            className="size-9 rounded-lg object-contain shadow-sm shrink-0 bg-card/80 p-0.5"
+          />
           <div className="min-w-0">
             <h1 className="text-base font-bold leading-tight tracking-tight text-foreground sm:text-lg">
               Tarombo
@@ -109,6 +112,7 @@ export function AppHeader({
           )}
 
           {/* User menu (akun pengguna — terpisah dari Person) */}
+          <ThemeToggle />
           <UserMenuButton
             onOpenManage={onManageUsers}
             onOpenManageRoles={onManageRoles}

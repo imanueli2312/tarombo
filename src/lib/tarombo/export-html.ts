@@ -1,9 +1,12 @@
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildFamilyTree,
   findRootAncestors,
   serializePerson,
 } from "./queries";
+import type { PersonRow } from "./queries";
 import {
   formatDate,
   formatDateShort,
@@ -13,6 +16,20 @@ import {
   type FamilyNode,
   type TreeNodePerson,
 } from "./types";
+
+// Cache base64 watermark (dibaca sekali)
+let watermarkDataUrl: string | null = null;
+function getWatermarkDataUrl(): string {
+  if (watermarkDataUrl) return watermarkDataUrl;
+  try {
+    const imgPath = join(process.cwd(), "public", "tarombo-bg02.png");
+    const buf = readFileSync(imgPath);
+    watermarkDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+    return watermarkDataUrl;
+  } catch {
+    return "";
+  }
+}
 
 // ============================================================================
 // Render pohon tarombo sebagai dokumen HTML mandiri (untuk export PDF/image)
@@ -333,6 +350,22 @@ const EXPORT_CSS = `
     border-top: 1px solid #e2d5c4;
     font-size: 10.5px; color: #9a8a7d; text-align: center;
   }
+
+  /* Watermark logo — di tengah, ukuran proporsional, di belakang konten */
+  .watermark {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 45%;
+    max-width: 700px;
+    min-width: 280px;
+    height: auto;
+    opacity: 0.10;
+    pointer-events: none;
+    z-index: 0;
+    object-fit: contain;
+  }
+  .root-section, .doc-header, .legend, .doc-footer { position: relative; z-index: 1; }
 `;
 
 /**
@@ -346,14 +379,17 @@ export async function buildExportDocument(opts: {
   let roots: TreeNodePerson[] = [];
 
   if (opts.rootId) {
-    const tree = await buildFamilyTree(opts.rootId);
+    const tree = buildFamilyTree(opts.rootId);
     if (tree) trees.push(tree);
-    const p = await db.person.findUnique({ where: { id: opts.rootId } });
+    const p = sqlite
+      .prepare("SELECT * FROM person WHERE id = ?")
+      .get(opts.rootId) as PersonRow | undefined;
     roots = p ? [serializePerson(p)] : [];
   } else {
-    roots = await findRootAncestors();
-    for (const r of roots) {
-      const tree = await buildFamilyTree(r.id);
+    const rootRows = findRootAncestors();
+    roots = rootRows.map(serializePerson);
+    for (const r of rootRows) {
+      const tree = buildFamilyTree(r.id);
       if (tree) trees.push(tree);
     }
   }
@@ -401,6 +437,11 @@ export async function buildExportDocument(opts: {
     })
     .join("");
 
+  const watermarkUrl = getWatermarkDataUrl();
+  const watermarkHtml = watermarkUrl
+    ? `<img src="${watermarkUrl}" class="watermark" alt="Tarombo watermark" />`
+    : "";
+
   const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -409,6 +450,7 @@ export async function buildExportDocument(opts: {
 <style>${EXPORT_CSS}</style>
 </head>
 <body>
+${watermarkHtml}
 ${renderHeader(meta)}
 ${sectionsHtml}
 <footer class="doc-footer">

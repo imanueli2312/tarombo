@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import { personSchema } from "@/lib/tarombo/types";
 import {
-  assertNoActivePartner,
-  deriveMaritalStatus,
   handleDeathSideEffects,
+  newId,
+  now,
   serializePerson,
+  type PersonRow,
 } from "@/lib/tarombo/queries";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
-/**
- * GET /api/persons — butuh permission person:view
- * Query params:
- *  - q        : cari berdasarkan nama / nama panggilan
- *  - gender   : MALE | FEMALE
- *  - alive    : "true" hanya yang masih hidup
- *  - root     : "true" hanya leluhur (tanpa ayah/ibu)
- */
+/** GET /api/persons — butuh permission person:view */
 export async function GET(req: NextRequest) {
   try {
     await requirePermission("person:view");
@@ -26,47 +20,35 @@ export async function GET(req: NextRequest) {
     const alive = searchParams.get("alive");
     const root = searchParams.get("root");
 
-    const where: { AND: Record<string, unknown>[] } = { AND: [] };
-
+    let sql = "SELECT * FROM person WHERE 1=1";
+    const params: (string | number)[] = [];
     if (q) {
-      where.AND.push({
-        OR: [
-          { fullName: { contains: q } },
-          { nickname: { contains: q } },
-        ],
-      });
+      sql += " AND (full_name LIKE ? OR nickname LIKE ?)";
+      params.push(`%${q}%`, `%${q}%`);
     }
     if (gender === "MALE" || gender === "FEMALE") {
-      where.AND.push({ gender });
+      sql += " AND gender = ?";
+      params.push(gender);
     }
     if (alive === "true") {
-      where.AND.push({ deathDate: null });
+      sql += " AND death_date IS NULL";
     }
     if (root === "true") {
-      where.AND.push({ fatherId: null });
-      where.AND.push({ motherId: null });
+      sql += " AND father_id IS NULL AND mother_id IS NULL";
     }
+    sql += " ORDER BY generation_number ASC NULLS LAST, birth_date ASC NULLS LAST";
 
-    const persons = await db.person.findMany({
-      where,
-      orderBy: [{ generationNumber: "asc" }, { birthDate: "asc" }],
-    });
-
-    return NextResponse.json({ data: persons.map(serializePerson) });
+    const rows = sqlite.prepare(sql).all(...params) as PersonRow[];
+    return NextResponse.json({ data: rows.map(serializePerson) });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
     }
-    return NextResponse.json(
-      { error: (e as Error).message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/**
- * POST /api/persons — buat orang baru. Butuh permission person:create.
- */
+/** POST /api/persons — butuh permission person:create */
 export async function POST(req: NextRequest) {
   try {
     await requirePermission("person:create");
@@ -80,9 +62,11 @@ export async function POST(req: NextRequest) {
     }
     const data = parsed.data;
 
-    // Validasi: ayah harus laki-laki, ibu harus perempuan
+    // Validasi ayah/ibu
     if (data.fatherId) {
-      const father = await db.person.findUnique({ where: { id: data.fatherId } });
+      const father = sqlite
+        .prepare("SELECT * FROM person WHERE id = ?")
+        .get(data.fatherId) as PersonRow | undefined;
       if (!father)
         return NextResponse.json({ error: "Ayah tidak ditemukan" }, { status: 400 });
       if (father.gender !== "MALE")
@@ -92,7 +76,9 @@ export async function POST(req: NextRequest) {
         );
     }
     if (data.motherId) {
-      const mother = await db.person.findUnique({ where: { id: data.motherId } });
+      const mother = sqlite
+        .prepare("SELECT * FROM person WHERE id = ?")
+        .get(data.motherId) as PersonRow | undefined;
       if (!mother)
         return NextResponse.json({ error: "Ibu tidak ditemukan" }, { status: 400 });
       if (mother.gender !== "FEMALE")
@@ -102,14 +88,53 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const created = await db.person.create({ data });
+    const id = newId();
+    const ts = now();
+    sqlite
+      .prepare(
+        `INSERT INTO person (id, full_name, nickname, birth_place, birth_date, death_date,
+           birth_order, gender, address, religion, phone, photo, marital_status,
+           generation_number, burial_name, burial_address, burial_lat, burial_lng,
+           father_id, mother_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        data.fullName,
+        data.nickname ?? null,
+        data.birthPlace ?? null,
+        data.birthDate ? new Date(data.birthDate as string).toISOString() : null,
+        data.deathDate ? new Date(data.deathDate as string).toISOString() : null,
+        data.birthOrder ?? null,
+        data.gender,
+        data.address ?? null,
+        data.religion ?? null,
+        data.phone ?? null,
+        data.photo ?? null,
+        data.maritalStatus,
+        data.generationNumber ?? null,
+        data.burialName ?? null,
+        data.burialAddress ?? null,
+        data.burialLat ?? null,
+        data.burialLng ?? null,
+        data.fatherId ?? null,
+        data.motherId ?? null,
+        ts,
+        ts,
+      );
 
-    // Efek samping kematian (auto-cerai pasangan aktif)
-    if (created.deathDate) {
-      await handleDeathSideEffects(created.id);
+    const created = sqlite
+      .prepare("SELECT * FROM person WHERE id = ?")
+      .get(id) as PersonRow;
+
+    if (created.death_date) {
+      handleDeathSideEffects(created.id);
     }
 
-    return NextResponse.json({ data: serializePerson(created) }, { status: 201 });
+    return NextResponse.json(
+      { data: serializePerson(created) },
+      { status: 201 },
+    );
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });

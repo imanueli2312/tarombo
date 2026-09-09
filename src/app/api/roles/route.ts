@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import {
   PERMISSIONS,
   parsePermissions,
@@ -9,22 +9,16 @@ import type { RolePublic } from "@/lib/tarombo/types";
 import { z } from "zod";
 import {
   PermissionDeniedError,
-  requirePermission,
   getActiveUserWithPermissions,
+  requirePermission,
 } from "@/lib/tarombo/auth";
+import {
+  newId,
+  now,
+  type RoleRow,
+} from "@/lib/tarombo/queries";
 
-function serializeRole(r: {
-  id: string;
-  name: string;
-  description: string | null;
-  color: string;
-  icon: string | null;
-  permissions: string;
-  isSystem: boolean;
-  sortOrder: number;
-  createdAt: Date;
-  _count?: { users: number };
-}): RolePublic {
+function serializeRole(r: RoleRow): RolePublic {
   return {
     id: r.id,
     name: r.name,
@@ -32,41 +26,45 @@ function serializeRole(r: {
     color: r.color,
     icon: r.icon,
     permissions: parsePermissions(r.permissions),
-    isSystem: r.isSystem,
-    sortOrder: r.sortOrder,
-    userCount: r._count?.users ?? 0,
-    createdAt: r.createdAt.toISOString(),
+    isSystem: r.is_system === 1,
+    sortOrder: r.sort_order,
+    userCount: (
+      sqlite
+        .prepare("SELECT COUNT(*) AS c FROM user WHERE role_id = ?")
+        .get(r.id) as { c: number }
+    ).c,
+    createdAt: r.created_at,
   };
 }
 
 const roleSchema = z.object({
   name: z.string().min(1, "Nama role wajib diisi").max(60),
   description: z.string().nullable().optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Warna harus hex #rrggbb").default("#7a1f1f"),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Warna harus hex #rrggbb")
+    .default("#7a1f1f"),
   icon: z.string().nullable().optional(),
   permissions: z.array(z.string()).default([]),
   isSystem: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
 });
 
-/** GET /api/roles — butuh permission user:view (lihat) agar UI bisa render dropdown role. */
+/** GET /api/roles */
 export async function GET() {
   try {
-    // Lihat daftar role hanya butuh user:view (agar bisa pilih role saat edit user)
     try {
       await requirePermission("user:view");
     } catch {
-      // fallback: admin tetap bisa lihat untuk kelola role
       const me = await getActiveUserWithPermissions();
       if (!me || !me.permissions.includes("role:manage")) {
         throw new PermissionDeniedError("user:view");
       }
     }
 
-    const roles = await db.role.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      include: { _count: { select: { users: true } } },
-    });
+    const roles = sqlite
+      .prepare("SELECT * FROM role ORDER BY sort_order ASC, name ASC")
+      .all() as RoleRow[];
     return NextResponse.json({
       data: roles.map(serializeRole),
       catalog: PERMISSIONS,
@@ -79,11 +77,10 @@ export async function GET() {
   }
 }
 
-/** POST /api/roles — butuh permission role:manage */
+/** POST /api/roles — butuh role:manage */
 export async function POST(req: NextRequest) {
   try {
     await requirePermission("role:manage");
-
     const body = await req.json();
     const parsed = roleSchema.safeParse(body);
     if (!parsed.success) {
@@ -94,7 +91,6 @@ export async function POST(req: NextRequest) {
     }
     const data = parsed.data;
 
-    // validasi: semua permission harus ada di katalog
     const invalid = data.permissions.filter(
       (p) => !PERMISSIONS.some((perm) => perm.key === p),
     );
@@ -105,8 +101,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // cek nama unik
-    const exists = await db.role.findUnique({ where: { name: data.name } });
+    const exists = sqlite
+      .prepare("SELECT id FROM role WHERE name = ?")
+      .get(data.name) as { id: string } | undefined;
     if (exists) {
       return NextResponse.json(
         { error: "Nama role sudah dipakai" },
@@ -114,19 +111,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const created = await db.role.create({
-      data: {
-        name: data.name,
-        description: data.description ?? null,
-        color: data.color,
-        icon: data.icon ?? null,
-        permissions: serializePermissions(data.permissions),
-        isSystem: false, // role buatan user tidak pernah system
-        sortOrder: data.sortOrder ?? 0,
-      },
-      include: { _count: { select: { users: true } } },
-    });
+    const id = newId();
+    const ts = now();
+    sqlite
+      .prepare(
+        `INSERT INTO role (id, name, description, color, icon, permissions, is_system, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        data.name,
+        data.description ?? null,
+        data.color,
+        data.icon ?? null,
+        serializePermissions(data.permissions),
+        data.sortOrder ?? 0,
+        ts,
+        ts,
+      );
 
+    const created = sqlite
+      .prepare("SELECT * FROM role WHERE id = ?")
+      .get(id) as RoleRow;
     return NextResponse.json(
       { data: serializeRole(created) },
       { status: 201 },

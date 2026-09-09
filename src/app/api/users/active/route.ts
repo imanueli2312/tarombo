@@ -1,32 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { getActiveUserWithPermissions } from "@/lib/tarombo/auth";
+import { sqlite } from "@/lib/db";
+import {
+  getActiveUserWithPermissions,
+} from "@/lib/tarombo/auth";
 import type { ActiveUserPublic } from "@/lib/tarombo/types";
+import { now, type RoleRow, type UserRow } from "@/lib/tarombo/queries";
+import { parsePermissions } from "@/lib/tarombo/permissions";
 
 const ACTIVE_COOKIE = "tarombo_active_user";
 
-function serialize(u: NonNullable<Awaited<ReturnType<typeof getActiveUserWithPermissions>>>): ActiveUserPublic {
-  return {
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    photo: u.photo,
-    phone: u.phone,
-    linkedPersonId: u.linkedPersonId,
-    linkedPersonName: u.linkedPersonName,
-    lastLoginAt: u.lastLoginAt,
-    roleId: u.roleId,
-    roleName: u.roleName,
-    roleColor: u.roleColor,
-    roleIsSystem: u.roleIsSystem,
-    permissions: u.permissions,
-  };
-}
-
-/** GET /api/users/active — info user aktif + permissions (publik, tidak perlu permission) */
+/** GET /api/users/active */
 export async function GET() {
   try {
-    const totalCount = await db.user.count();
+    const totalCount = (
+      sqlite.prepare("SELECT COUNT(*) AS c FROM user").get() as { c: number }
+    ).c;
     if (totalCount === 0) {
       return NextResponse.json({ data: null, hasUsers: false });
     }
@@ -35,13 +23,13 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ data: null, hasUsers: true });
     }
-    return NextResponse.json({ data: serialize(user), hasUsers: true });
+    return NextResponse.json({ data: user, hasUsers: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-/** POST /api/users/active — set user aktif (body: { userId }). Publik (login). */
+/** POST /api/users/active — set user aktif */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -49,30 +37,26 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId wajib diisi" }, { status: 400 });
     }
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      include: { role: true, linkedPerson: { select: { fullName: true } } },
-    });
-    if (!user) {
+    const u = sqlite
+      .prepare("SELECT * FROM user WHERE id = ?")
+      .get(userId) as UserRow | undefined;
+    if (!u) {
       return NextResponse.json(
         { error: "Pengguna tidak ditemukan" },
         { status: 404 },
       );
     }
 
-    await db.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    sqlite
+      .prepare("UPDATE user SET last_login_at = ?, updated_at = ? WHERE id = ?")
+      .run(now(), now(), u.id);
 
     const full = await getActiveUserWithPermissions();
-    const res = NextResponse.json({
-      data: full ? serialize(full) : null,
-    });
-    res.cookies.set(ACTIVE_COOKIE, user.id, {
+    const res = NextResponse.json({ data: full });
+    res.cookies.set(ACTIVE_COOKIE, u.id, {
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30, // 30 hari
+      maxAge: 60 * 60 * 24 * 30,
       path: "/",
     });
     return res;
@@ -81,9 +65,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** DELETE /api/users/active — logout / clear active user */
+/** DELETE /api/users/active */
 export async function DELETE() {
   const res = NextResponse.json({ success: true });
   res.cookies.delete(ACTIVE_COOKIE);
   return res;
 }
+
+// avoid unused import warning
+void parsePermissions;
+void RoleRow;
+void ActiveUserPublic;

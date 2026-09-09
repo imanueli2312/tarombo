@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
-import { db } from "@/lib/db";
+import { sqlite } from "@/lib/db";
 import { parsePermissions } from "./permissions";
+import type { PersonRow, RoleRow, UserRow } from "./queries";
 
 // ============================================================================
-// Helper autentikasi & otorisasi (RBAC) server-side
+// Helper autentikasi & otorisasi (RBAC) server-side — tanpa Prisma
 // ============================================================================
 
 const ACTIVE_COOKIE = "tarombo_active_user";
@@ -33,32 +34,25 @@ export interface ActiveUserWithPermissions {
   permissions: string[];
 }
 
-function serializeActiveUser(u: {
-  id: string;
-  email: string;
-  name: string;
-  photo: string | null;
-  phone: string | null;
-  linkedPersonId: string | null;
-  linkedPerson: { fullName: string } | null;
-  lastLoginAt: Date | null;
-  roleId: string | null;
-  role: { name: string; color: string; isSystem: boolean; permissions: string } | null;
-}): ActiveUserWithPermissions {
+function serializeActiveUser(
+  u: UserRow,
+  role: RoleRow | null,
+  linkedPerson: { full_name: string } | null,
+): ActiveUserWithPermissions {
   return {
     id: u.id,
     email: u.email,
     name: u.name,
     photo: u.photo,
     phone: u.phone,
-    linkedPersonId: u.linkedPersonId,
-    linkedPersonName: u.linkedPerson?.fullName ?? null,
-    lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
-    roleId: u.roleId,
-    roleName: u.role?.name ?? null,
-    roleColor: u.role?.color ?? null,
-    roleIsSystem: u.role?.isSystem ?? false,
-    permissions: u.role ? parsePermissions(u.role.permissions) : [],
+    linkedPersonId: u.linked_person_id,
+    linkedPersonName: linkedPerson?.full_name ?? null,
+    lastLoginAt: u.last_login_at,
+    roleId: u.role_id,
+    roleName: role?.name ?? null,
+    roleColor: role?.color ?? null,
+    roleIsSystem: role ? role.is_system === 1 : false,
+    permissions: role ? parsePermissions(role.permissions) : [],
   };
 }
 
@@ -66,55 +60,56 @@ function serializeActiveUser(u: {
  * Ambil user aktif lengkap dengan permissions-nya.
  * - Baca cookie `tarombo_active_user`.
  * - Bila tidak ada / invalid → fallback ke user pertama dengan role Administrator.
- * - Bila tidak ada user sama sekali → null.
  */
 export async function getActiveUserWithPermissions(): Promise<ActiveUserWithPermissions | null> {
   const cookieStore = await cookies();
   const cookieUserId = cookieStore.get(ACTIVE_COOKIE)?.value;
 
-  let user = null;
+  let user: UserRow | undefined;
   if (cookieUserId) {
-    user = await db.user.findUnique({
-      where: { id: cookieUserId },
-      include: {
-        role: true,
-        linkedPerson: { select: { fullName: true } },
-      },
-    });
+    user = sqlite
+      .prepare("SELECT * FROM user WHERE id = ?")
+      .get(cookieUserId) as UserRow | undefined;
   }
 
   if (!user) {
     // fallback: user dengan role Administrator
-    const adminRole = await db.role.findFirst({
-      where: { name: "Administrator", isSystem: true },
-    });
+    const adminRole = sqlite
+      .prepare("SELECT * FROM role WHERE name = 'Administrator' AND is_system = 1")
+      .get() as RoleRow | undefined;
     if (adminRole) {
-      user = await db.user.findFirst({
-        where: { roleId: adminRole.id },
-        include: {
-          role: true,
-          linkedPerson: { select: { fullName: true } },
-        },
-      });
+      user = sqlite
+        .prepare("SELECT * FROM user WHERE role_id = ? LIMIT 1")
+        .get(adminRole.id) as UserRow | undefined;
     }
   }
 
   if (!user) {
     // fallback terakhir: user pertama yang punya role
-    user = await db.user.findFirst({
-      where: { roleId: { not: null } },
-      include: {
-        role: true,
-        linkedPerson: { select: { fullName: true } },
-      },
-    });
+    user = sqlite
+      .prepare("SELECT * FROM user WHERE role_id IS NOT NULL LIMIT 1")
+      .get() as UserRow | undefined;
   }
 
   if (!user) return null;
-  return serializeActiveUser(user);
+
+  const role = user.role_id
+    ? (sqlite.prepare("SELECT * FROM role WHERE id = ?").get(user.role_id) as
+        | RoleRow
+        | undefined) ?? null
+    : null;
+
+  const linkedPerson = user.linked_person_id
+    ? (sqlite
+        .prepare("SELECT full_name FROM person WHERE id = ?")
+        .get(user.linked_person_id) as
+        | { full_name: string }
+        | undefined) ?? null
+    : null;
+
+  return serializeActiveUser(user, role, linkedPerson);
 }
 
-/** Cek apakah user aktif memiliki permission tertentu. */
 export async function hasPermission(
   permission: string,
 ): Promise<{ allowed: boolean; user: ActiveUserWithPermissions | null }> {
@@ -123,10 +118,6 @@ export async function hasPermission(
   return { allowed: user.permissions.includes(permission), user };
 }
 
-/**
- * Pastikan user aktif memiliki permission. Bila tidak → lempar
- * PermissionDeniedError yang harus ditangkap di route handler.
- */
 export async function requirePermission(
   permission: string,
 ): Promise<ActiveUserWithPermissions> {
@@ -137,7 +128,6 @@ export async function requirePermission(
   return user;
 }
 
-/** Cek multiple permission sekaligus (semua harus terpenuhi). */
 export async function requireAllPermissions(
   ...permissions: string[]
 ): Promise<ActiveUserWithPermissions> {
