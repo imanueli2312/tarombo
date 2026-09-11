@@ -4,6 +4,18 @@ Aplikasi full-stack manajemen pohon silsilah keluarga (Tarombo) dengan visualisa
 
 ![Tarombo](public/tarombo-bg02.png)
 
+## 📚 Dokumentasi
+
+| Dokumen | Deskripsi |
+|---------|-----------|
+| **[README.md](README.md)** | Dokumen utama (ini) — fitur, instalasi, penggunaan |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Arsitektur sistem, alur data, keputusan desain |
+| **[API.md](API.md)** | Referensi API lengkap (21 endpoints) dengan contoh |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Panduan deployment produksi (PM2, Docker, Nginx) |
+| **[SECURITY.md](SECURITY.md)** | Kebijakan keamanan & pelaporan vulnerability |
+| **[CONTRIBUTING.md](CONTRIBUTING.md)** | Panduan kontribusi untuk developer |
+| **[CHANGELOG.md](CHANGELOG.md)** | Riwayat versi & perubahan |
+
 ## 📋 Daftar Isi
 
 - [Fitur Utama](#-fitur-utama)
