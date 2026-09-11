@@ -577,6 +577,22 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
     },
   });
 
+  // Handler logout langsung — tidak bergantung pada lifecycle dropdown.
+  // Pakai onSelect + preventDefault agar dropdown tidak auto-close sebelum
+  // fetch selesai, lalu invalidate queries untuk refresh UI.
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/users/active", { method: "DELETE" });
+      if (!res.ok) throw new Error("Gagal logout");
+      await qc.invalidateQueries({ queryKey: ["active-user"] });
+      await qc.invalidateQueries({ queryKey: ["users"] });
+      await qc.invalidateQueries({ queryKey: ["users-public"] });
+      toast.success("Anda keluar — kembali sebagai Tamu (Viewer).");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   const onLoggedIn = async () => {
     await qc.invalidateQueries({ queryKey: ["active-user"] });
     await qc.invalidateQueries({ queryKey: ["users"] });
@@ -597,7 +613,7 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
         canViewUsers={canViewUsers}
         onLogin={openLogin}
         onSwitch={(u) => switchMut.mutate({ id: u.id, name: u.name })}
-        onLogout={() => logoutMut.mutate()}
+        onLogout={handleLogout}
         onOpenManage={onOpenManage}
         onOpenManageRoles={onOpenManageRoles}
       />
@@ -803,7 +819,7 @@ function GuestOrUserMenu({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => logoutMut.mutate()}
+          onSelect={() => onLogout()}
           className="text-destructive focus:text-destructive"
         >
           <LogOut className="size-3.5 mr-2" />
