@@ -181,7 +181,10 @@ export type UserRole = (typeof USER_ROLE)[number];
 export const userSchema = z.object({
   email: z.string().email("Email tidak valid"),
   name: z.string().min(1, "Nama pengguna wajib diisi"),
-  password: z.string().min(1, "Password wajib diisi"),
+  password: z
+    .string()
+    .min(6, "Password minimal 6 karakter")
+    .max(100, "Password maksimal 100 karakter"),
   photo: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   roleId: z.string().nullable().optional(),

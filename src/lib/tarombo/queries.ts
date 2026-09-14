@@ -273,17 +273,7 @@ function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
   return {
     person: serializePerson(person),
     spouse: spouse ? serializePerson(spouse) : null,
-    partnership: partnership
-      ? {
-          ...serializePartnership(partnership),
-          husband: serializePerson(
-            partnership.husband_id === personId ? person : (spouse as PersonRow),
-          ),
-          wife: serializePerson(
-            partnership.wife_id === personId ? person : (spouse as PersonRow),
-          ),
-        }
-      : null,
+    partnership: partnership ? serializePartnership(partnership) : null,
     children,
   };
 }

@@ -16,6 +16,7 @@ import { RoleManagementSheet } from "@/components/tarombo/role-management-sheet"
 import { ExportDialog } from "@/components/tarombo/export-dialog";
 import { BackupDialog } from "@/components/tarombo/backup-dialog";
 import { ActivityLogSheet } from "@/components/tarombo/activity-log-sheet";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { TrashSheet } from "@/components/tarombo/trash-sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,7 @@ export default function Home() {
   );
 
   return (
+    <ErrorBoundary>
     <div className="flex h-screen flex-col overflow-hidden">
       <AppHeader
         totalPersons={allPersons.length}
@@ -414,5 +416,6 @@ export default function Home() {
 
       <TrashSheet open={trashOpen} onOpenChange={setTrashOpen} />
     </div>
+    </ErrorBoundary>
   );
 }

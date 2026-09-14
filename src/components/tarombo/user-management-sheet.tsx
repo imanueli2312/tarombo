@@ -566,17 +566,6 @@ export function UserMenuButton({ onOpenManage, onOpenManageRoles }: MenuProps) {
     },
   });
 
-  const logoutMut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/users/active", { method: "DELETE" });
-      if (!res.ok) throw new Error("Gagal logout");
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["active-user"] });
-      toast.success("Anda keluar — kembali sebagai Tamu (Viewer).");
-    },
-  });
-
   // Handler logout langsung — tidak bergantung pada lifecycle dropdown.
   // Pakai onSelect + preventDefault agar dropdown tidak auto-close sebelum
   // fetch selesai, lalu invalidate queries untuk refresh UI.

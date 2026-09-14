@@ -12,6 +12,25 @@ import {
 
 const ACTIVE_COOKIE = "tarombo_active_user";
 
+// Simple in-memory rate limiting for login attempts
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_LOGIN_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+  const now2 = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now2 > entry.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now2 + LOGIN_WINDOW_MS });
+    return { allowed: true };
+  }
+  if (entry.count >= MAX_LOGIN_ATTEMPTS) {
+    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - now2) / 1000) };
+  }
+  entry.count++;
+  return { allowed: true };
+}
+
 /** GET /api/users/active */
 export async function GET() {
   try {
@@ -34,6 +53,16 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = checkRateLimit(ip);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: `Terlalu banyak percobaan login. Coba lagi dalam ${rl.retryAfter} detik.` },
+        { status: 429 },
+      );
+    }
+
     const body = await req.json();
     const userId: string | undefined = body.userId;
     const password: string | undefined = body.password;
@@ -106,6 +135,7 @@ export async function POST(req: NextRequest) {
     res.cookies.set(ACTIVE_COOKIE, u.id, {
       httpOnly: true,
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
     });
