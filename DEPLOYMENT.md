@@ -69,7 +69,7 @@ npm run dev
 
 Akses: http://localhost:3000
 
-> **Catatan Windows**: Edit `package.json`, ubah `"dev": "next dev -p 3000"` (hapus `| tee dev.log`)
+> **Catatan**: Script `dev` sudah cross-platform (tanpa `tee`), langsung jalankan `npm run dev` di Windows maupun Linux/macOS.
 
 ---
 

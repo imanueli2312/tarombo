@@ -151,8 +151,8 @@ export function PersonFormSheet({
       const payload: PersonInput = {
         ...form,
         fullName: form.fullName.trim(),
-        birthDate: form.birthDate ? new Date(form.birthDate as string) : null,
-        deathDate: form.deathDate ? new Date(form.deathDate as string) : null,
+        birthDate: form.birthDate || null,
+        deathDate: form.deathDate || null,
         birthOrder:
           form.birthOrder === null || form.birthOrder === undefined || (form.birthOrder as unknown) === ""
             ? null

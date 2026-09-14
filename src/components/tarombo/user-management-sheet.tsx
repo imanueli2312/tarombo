@@ -491,7 +491,7 @@ export function UserManagementSheet({ open, onOpenChange }: Props) {
         description="Akun pengguna akan dihapus permanen. Data Person yang ditautkan tetap aman di pohon tarombo."
         confirmText="Hapus"
         destructive
-        onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
+        onConfirm={() => { if (deleteTarget) deleteMut.mutate(deleteTarget); }}
       />
 
       <LoginDialog

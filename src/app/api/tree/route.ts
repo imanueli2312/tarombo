@@ -4,6 +4,7 @@ import {
   findRootAncestors,
   serializePerson,
 } from "@/lib/tarombo/queries";
+import type { FamilyNode } from "@/lib/tarombo/types";
 import { PermissionDeniedError, requirePermission } from "@/lib/tarombo/auth";
 
 /** GET /api/tree — butuh permission person:view */
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: [], roots: [] });
     }
 
-    const trees = [];
+    const trees: FamilyNode[] = [];
     for (const root of roots) {
       const tree = buildFamilyTree(root.id);
       if (tree) trees.push(tree);

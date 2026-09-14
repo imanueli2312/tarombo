@@ -101,10 +101,10 @@ export function PartnershipFormDialog({
       await createPartnership({
         husbandId,
         wifeId,
-        marriageDate: marriageDate ? new Date(marriageDate) : null,
+        marriageDate: marriageDate || null,
         divorceDate:
           status !== "ACTIVE" && divorceDate
-            ? new Date(divorceDate)
+            ? divorceDate
             : null,
         status,
       });

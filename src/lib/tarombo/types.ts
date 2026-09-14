@@ -17,7 +17,7 @@ export type PartnershipStatus = (typeof PARTNERSHIP_STATUS)[number];
 // Validators (Zod)
 // ============================================================================
 
-/** ISO date string helper — menerima "YYYY-MM-DD" atau DateTime. */
+/** ISO date string helper — menerima "YYYY-MM-DD" atau DateTime, return ISO string. */
 const dateField = z
   .union([z.string(), z.date()])
   .nullable()
@@ -25,7 +25,7 @@ const dateField = z
   .transform((v) => {
     if (v === undefined || v === null || v === "") return null;
     const d = typeof v === "string" ? new Date(v) : v;
-    return isNaN(d.getTime()) ? null : d;
+    return isNaN(d.getTime()) ? null : d.toISOString();
   });
 
 export const personSchema = z.object({

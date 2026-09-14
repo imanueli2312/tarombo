@@ -366,7 +366,7 @@ export default function Home() {
         description="Orang ini akan dihapus permanen dari silsilah. Anak-anak yang berelasi dengannya akan kehilangan rujukan ayah/ibu (menjadi tanpa orang tua). Tindakan ini tidak dapat dibatalkan."
         confirmText="Hapus"
         destructive
-        onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
+        onConfirm={() => { if (deleteTarget) deleteMut.mutate(deleteTarget); }}
       />
 
       <ConfirmDialog

@@ -114,15 +114,7 @@ npm run dev
 
 Buka http://localhost:3000 → klik menu **⋮** → **"Muat Data Contoh"** untuk mengisi data keluarga contoh.
 
-### Konfigurasi Windows
-
-Script `dev` default pakai `tee` (Unix-only). Edit `package.json`:
-
-```json
-"dev": "next dev -p 3000",
-```
-
-Lalu jalankan `npm run dev`.
+> **Catatan**: Script `dev` sudah cross-platform (tanpa `tee`), langsung jalankan `npm run dev` di Windows maupun Linux/macOS.
 
 ---
 
@@ -496,12 +488,6 @@ npm run db:init
 
 # Re-seed data
 # (via UI: menu ⋮ → "Muat Data Contoh")
-```
-
-### Windows: `tee` not recognized
-Edit `package.json`, ubah:
-```json
-"dev": "next dev -p 3000",
 ```
 
 ### Export PDF/PNG error (Playwright)
