@@ -40,6 +40,9 @@ export interface ActivityLogEntry {
 }
 
 export function logActivity(entry: ActivityLogEntry): void {
+  // Auto-cleanup: hapus activity log > 90 hari (sekali per request, lazy)
+  cleanupOldActivityLogs();
+
   sqlite
     .prepare(
       `INSERT INTO activity_log (id, user_id, user_name, action, entity_type, entity_id, entity_name, details, created_at)
@@ -229,4 +232,25 @@ export function findDuplicatePerson(opts: {
     params.push(opts.excludeId);
   }
   return sqlite.prepare(sql).get(...params) as PersonRow | undefined;
+}
+
+// ============================================================================
+// Auto-cleanup activity log (lazy, sekali per ~1 jam)
+// ============================================================================
+
+let lastCleanup = 0;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 jam
+
+/** Hapus activity log yang lebih dari 90 hari. Lazy: hanya jalan 1x per jam. */
+export function cleanupOldActivityLogs(): void {
+  const now2 = Date.now();
+  if (now2 - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = now2;
+  try {
+    sqlite
+      .prepare("DELETE FROM activity_log WHERE created_at < datetime('now', '-90 days')")
+      .run();
+  } catch {
+    // ignore — non-critical
+  }
 }

@@ -16,7 +16,9 @@ import {
   ValidationError,
 } from "@/lib/tarombo/security";
 
-/** GET /api/persons — butuh permission person:view */
+/** GET /api/persons — butuh permission person:view
+ *  Query params: q, gender, alive, root, page (default 1), limit (default 100, max 500)
+ */
 export async function GET(req: NextRequest) {
   try {
     await requirePermission("person:view");
@@ -25,27 +27,43 @@ export async function GET(req: NextRequest) {
     const gender = searchParams.get("gender");
     const alive = searchParams.get("alive");
     const root = searchParams.get("root");
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") ?? "100")));
+    const offset = (page - 1) * limit;
 
     let sql = "SELECT * FROM person WHERE deleted_at IS NULL";
+    let countSql = "SELECT COUNT(*) AS total FROM person WHERE deleted_at IS NULL";
     const params: (string | number)[] = [];
+    const countParams: (string | number)[] = [];
     if (q) {
       sql += " AND (full_name LIKE ? OR nickname LIKE ?)";
+      countSql += " AND (full_name LIKE ? OR nickname LIKE ?)";
       params.push(`%${q}%`, `%${q}%`);
+      countParams.push(`%${q}%`, `%${q}%`);
     }
     if (gender === "MALE" || gender === "FEMALE") {
       sql += " AND gender = ?";
+      countSql += " AND gender = ?";
       params.push(gender);
+      countParams.push(gender);
     }
     if (alive === "true") {
       sql += " AND death_date IS NULL";
+      countSql += " AND death_date IS NULL";
     }
     if (root === "true") {
       sql += " AND father_id IS NULL AND mother_id IS NULL";
+      countSql += " AND father_id IS NULL AND mother_id IS NULL";
     }
-    sql += " ORDER BY generation_number ASC NULLS LAST, birth_date ASC NULLS LAST";
+    sql += " ORDER BY generation_number ASC NULLS LAST, birth_date ASC NULLS LAST LIMIT ? OFFSET ?";
+    params.push(limit, offset);
 
     const rows = sqlite.prepare(sql).all(...params) as PersonRow[];
-    return NextResponse.json({ data: rows.map(serializePerson) });
+    const total = (sqlite.prepare(countSql).get(...countParams) as { total: number }).total;
+    return NextResponse.json({
+      data: rows.map(serializePerson),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (e) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
