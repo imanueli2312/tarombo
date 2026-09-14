@@ -1,6 +1,8 @@
 "use client";
 
-import * as d3 from "d3";
+import { hierarchy, tree, type HierarchyPointLink, type HierarchyPointNode } from "d3-hierarchy";
+import { select, type Selection } from "d3-selection";
+import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,8 +28,8 @@ const NODE_WIDTH = 170;
 const NODE_HEIGHT = 92;
 const SPOUSE_OFFSET = 200; // center-to-center distance between person & spouse
 const TREE_GAP = 80; // horizontal gap between multiple root trees
-const NODE_GAP_X = 420; // d3.tree nodeSize x (sibling separation)
-const NODE_GAP_Y = 180; // d3.tree nodeSize y (depth separation)
+const NODE_GAP_X = 420; // tree nodeSize x (sibling separation)
+const NODE_GAP_Y = 180; // tree nodeSize y (depth separation)
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 1.6;
 const INITIAL_SCALE = 0.85;
@@ -47,7 +49,7 @@ interface Point {
 }
 
 interface LayoutTree {
-  root: d3.HierarchyPointNode<FamilyNode>;
+  root: HierarchyPointNode<FamilyNode>;
   minX: number;
   maxX: number;
   maxY: number;
@@ -105,7 +107,7 @@ function truncate(text: string, max: number): string {
 }
 
 /** Horizontal center of the couple (used as the source x for parent→child links). */
-function coupleSourceX(node: d3.HierarchyPointNode<FamilyNode>): number {
+function coupleSourceX(node: HierarchyPointNode<FamilyNode>): number {
   return node.data.spouse ? node.x + SPOUSE_OFFSET / 2 : node.x;
 }
 
@@ -162,11 +164,11 @@ function partnershipPillColor(
 function makeInitialTransform(
   contentWidth: number,
   viewportWidth: number,
-): d3.ZoomTransform {
+): ZoomTransform {
   const cx = contentWidth / 2;
   const tx = viewportWidth / 2 - INITIAL_SCALE * cx;
   const ty = 36;
-  return d3.zoomIdentity.translate(tx, ty).scale(INITIAL_SCALE);
+  return zoomIdentity.translate(tx, ty).scale(INITIAL_SCALE);
 }
 
 /** True when the currently focused DOM element is a form control (so we don't hijack arrows). */
@@ -190,9 +192,9 @@ interface DrawCardOptions {
 }
 
 function drawCard(
-  parent: d3.Selection<
+  parent: Selection<
     SVGGElement,
-    d3.HierarchyPointNode<FamilyNode>,
+    HierarchyPointNode<FamilyNode>,
     SVGGElement | null,
     unknown
   >,
@@ -200,7 +202,7 @@ function drawCard(
   xCenter: number,
   colors: CardColors,
   selectedId: string | null | undefined,
-  defs: d3.Selection<SVGDefsElement, unknown, null, undefined>,
+  defs: Selection<SVGDefsElement, unknown, null, undefined>,
   isSpouse: boolean,
   onSelectRef: React.MutableRefObject<((id: string) => void) | undefined>,
   options: DrawCardOptions,
@@ -495,7 +497,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const minimapRef = useRef<SVGSVGElement>(null);
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const onSelectRef = useRef(onSelect);
   const onToggleRef = useRef<(id: string) => void>(() => {});
   const initRef = useRef(false);
@@ -509,8 +511,8 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     selectedId ?? null,
   );
   // Feature 2: live transform for minimap viewport rectangle
-  const [transform, setTransform] = useState<d3.ZoomTransform>(
-    d3.zoomIdentity,
+  const [transform, setTransform] = useState<ZoomTransform>(
+    zoomIdentity,
   );
 
   // Keep latest onSelect reference without triggering tree re-render
@@ -560,16 +562,15 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
   }, []);
 
   // Build D3 layout per tree (memoized on trees + collapsedIds).
-  // Collapsed nodes return [] as their children so d3.tree won't traverse them.
+  // Collapsed nodes return [] as their children so tree won't traverse them.
   const layout = useMemo<LayoutTree[]>(() => {
     return trees.map((rootData) => {
-      const h = d3.hierarchy<FamilyNode>(
+      const h = hierarchy<FamilyNode>(
         rootData,
         (d: FamilyNode) =>
           collapsedIds.has(d.person.id) ? [] : d.children,
       );
-      const treeLayout = d3
-        .tree<FamilyNode>()
+      const treeLayout = tree<FamilyNode>()
         .nodeSize([NODE_GAP_X, NODE_GAP_Y]);
       const root = treeLayout(h);
       let minX = Infinity;
@@ -704,18 +705,17 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
   // Setup D3 zoom behavior (only once on mount)
   useEffect(() => {
     if (!svgRef.current) return;
-    const svg = d3.select(svgRef.current);
-    const zoom = d3
-      .zoom<SVGSVGElement, unknown>()
+    const svg = select(svgRef.current);
+    const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([MIN_SCALE, MAX_SCALE])
       .on("zoom", (event) => {
-        const g = d3.select(gRef.current);
+        const g = select(gRef.current);
         g.attr("transform", event.transform.toString());
         setScale(event.transform.k);
         setTransform(event.transform);
       });
-    svg.call(zoom);
-    zoomRef.current = zoom;
+    svg.call(zoomBehavior);
+    zoomRef.current = zoomBehavior;
     return () => {
       svg.on(".zoom", null);
     };
@@ -728,14 +728,14 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     if (contentSize.width === 0 || dims.w === 0) return;
     initRef.current = true;
     const initial = makeInitialTransform(contentSize.width, dims.w);
-    d3.select(svgRef.current).call(zoomRef.current.transform, initial);
+    select(svgRef.current).call(zoomRef.current.transform, initial);
     setTransform(initial);
   }, [contentSize.width, dims.w]);
 
   // Render the tree (links + nodes) into <g ref={gRef}>
   useEffect(() => {
     if (!gRef.current) return;
-    const g = d3.select(gRef.current);
+    const g = select(gRef.current);
     g.selectAll("*").remove();
     const colors = getColors(isDark);
     const defs = g.append<SVGDefsElement>("defs");
@@ -752,7 +752,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
       treeG
         .append<SVGGElement>("g")
         .attr("class", "links")
-        .selectAll<SVGPathElement, d3.HierarchyPointLink<FamilyNode>>("path")
+        .selectAll<SVGPathElement, HierarchyPointLink<FamilyNode>>("path")
         .data(links)
         .join("path")
         .attr("d", (d) => {
@@ -772,14 +772,14 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
       const nodeG = treeG
         .append<SVGGElement>("g")
         .attr("class", "nodes")
-        .selectAll<SVGGElement, d3.HierarchyPointNode<FamilyNode>>("g.node")
+        .selectAll<SVGGElement, HierarchyPointNode<FamilyNode>>("g.node")
         .data(nodes)
         .join("g")
         .attr("class", "node")
         .attr("transform", (d) => `translate(${d.x}, ${d.y})`);
 
       nodeG.each(function (d) {
-        const grp = d3.select<SVGGElement, d3.HierarchyPointNode<FamilyNode>>(
+        const grp = select<SVGGElement, HierarchyPointNode<FamilyNode>>(
           this,
         );
         const person = d.data.person;
@@ -887,7 +887,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
 
   const zoomIn = () => {
     if (!svgRef.current || !zoomRef.current) return;
-    d3.select(svgRef.current)
+    select(svgRef.current)
       .transition()
       .duration(180)
       .call(zoomRef.current.scaleBy, 1.2);
@@ -895,7 +895,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
 
   const zoomOut = () => {
     if (!svgRef.current || !zoomRef.current) return;
-    d3.select(svgRef.current)
+    select(svgRef.current)
       .transition()
       .duration(180)
       .call(zoomRef.current.scaleBy, 1 / 1.2);
@@ -903,7 +903,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
 
   const reset = () => {
     if (!svgRef.current || !zoomRef.current) return;
-    d3.select(svgRef.current)
+    select(svgRef.current)
       .transition()
       .duration(220)
       .call(
@@ -914,7 +914,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
 
   const pan = (dx: number, dy: number) => {
     if (!svgRef.current || !zoomRef.current) return;
-    d3.select(svgRef.current)
+    select(svgRef.current)
       .transition()
       .duration(180)
       .call(zoomRef.current.translateBy, dx, dy);
@@ -928,8 +928,8 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     const k = transform.k;
     const tx = dims.w / 2 - pos.x * k;
     const ty = dims.h / 2 - pos.y * k - NODE_HEIGHT / 2;
-    const newTransform = d3.zoomIdentity.translate(tx, ty).scale(k);
-    d3.select(svgRef.current)
+    const newTransform = zoomIdentity.translate(tx, ty).scale(k);
+    select(svgRef.current)
       .transition()
       .duration(280)
       .call(zoomRef.current.transform, newTransform);
@@ -1034,8 +1034,8 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
     const k = transform.k;
     const tx = dims.w / 2 - cx * k;
     const ty = dims.h / 2 - cy * k;
-    const newTransform = d3.zoomIdentity.translate(tx, ty).scale(k);
-    d3.select(svgRef.current)
+    const newTransform = zoomIdentity.translate(tx, ty).scale(k);
+    select(svgRef.current)
       .transition()
       .duration(200)
       .call(zoomRef.current.transform, newTransform);
@@ -1064,7 +1064,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
   return (
     <div className="relative h-full w-full overflow-hidden">
       {/* Zoom controls (top-right vertical) */}
-      <div className="no-print absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+      <div className="no-print absolute top-3 right-3 z-20 flex flex-col gap-1.5 sm:gap-1.5 max-xs:scale-90 max-xs:origin-top-right">
         <Button
           size="icon"
           variant="secondary"
@@ -1095,7 +1095,7 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
       </div>
 
       {/* Pan controls (bottom-right 3x3 grid) */}
-      <div className="no-print absolute bottom-3 right-3 z-20 grid grid-cols-3 gap-1">
+      <div className="no-print absolute bottom-3 right-3 z-20 grid grid-cols-3 gap-1 max-xs:hidden">
         <span />
         <Button
           size="icon"
@@ -1153,9 +1153,13 @@ export function FamilyTree({ trees, selectedId, onSelect }: Props) {
         height={dims.h}
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        role="tree"
+        aria-label="Pohon silsilah keluarga Tarombo. Gunakan tombol panah untuk navigasi, Enter untuk memilih."
         className="block touch-none select-none outline-none"
         style={{ background: "transparent" }}
       >
+        <title>Pohon Tarombo — {trees.length} leluhur</title>
+        <desc>Visualisasi pohon silsilah keluarga. Gunakan keyboard arrow keys untuk navigasi antar node.</desc>
         <g ref={gRef} />
       </svg>
 

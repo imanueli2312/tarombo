@@ -5,9 +5,12 @@ import {
   requirePermission,
 } from "@/lib/tarombo/auth";
 import { logActivity } from "@/lib/tarombo/security";
+import { unlinkSync } from "node:fs";
+import { join } from "node:path";
 
 /** DELETE /api/trash/[id]/permanent — hapus permanen (hard delete).
  *  Body: { type: "person" | "partnership" }
+ *  Untuk person: hapus file foto di public/uploads/ bila ada.
  */
 export async function DELETE(
   req: NextRequest,
@@ -20,14 +23,30 @@ export async function DELETE(
     const type: string = body.type ?? "person";
 
     if (type === "person") {
+      // Ambil photo sebelum hapus, untuk cleanup file
+      const person = sqlite
+        .prepare("SELECT photo FROM person WHERE id = ? AND deleted_at IS NOT NULL")
+        .get(id) as { photo: string | null } | undefined;
+
       sqlite.prepare("DELETE FROM person WHERE id = ? AND deleted_at IS NOT NULL").run(id);
+
+      // Cleanup orphan photo file
+      if (person?.photo?.startsWith("/uploads/")) {
+        try {
+          const filepath = join(process.cwd(), "public", person.photo);
+          unlinkSync(filepath);
+        } catch {
+          // File sudah tidak ada — ignore
+        }
+      }
+
       logActivity({
         userId: me.id,
         userName: me.name,
         action: "delete",
         entityType: "person",
         entityId: id,
-        details: { permanent: true },
+        details: { permanent: true, photoCleaned: !!person?.photo },
       });
     } else if (type === "partnership") {
       sqlite.prepare("DELETE FROM partnership WHERE id = ? AND deleted_at IS NOT NULL").run(id);

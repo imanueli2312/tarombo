@@ -23,8 +23,9 @@ export const maxDuration = 180; // 3 menit (export bisa lambat untuk pohon besar
  *  - subtreeFrom: ID orang — export hanya subtree dari orang ini ke bawah
  */
 export async function GET(req: NextRequest) {
+  let me: { id: string; name: string } | null = null;
   try {
-    const me = await requirePermission("export:view");
+    me = await requirePermission("export:view");
     const { searchParams } = new URL(req.url);
     const format = (searchParams.get("format") ?? "pdf").toLowerCase();
     const scope = (searchParams.get("scope") ?? "all").toLowerCase();
@@ -122,7 +123,19 @@ export async function GET(req: NextRequest) {
     if (e instanceof PermissionDeniedError) {
       return NextResponse.json({ error: e.message }, { status: 403 });
     }
-    console.error("[export] error:", e);
+    // Log ke activity log (bukan console) untuk audit trail
+    try {
+      const { logActivity } = await import("@/lib/tarombo/security");
+      logActivity({
+        userId: me?.id,
+        userName: me?.name,
+        action: "export",
+        entityType: "data",
+        details: { error: (e as Error).message.slice(0, 200) },
+      });
+    } catch {
+      // ignore logging error
+    }
     return NextResponse.json(
       { error: (e as Error).message },
       { status: 500 },

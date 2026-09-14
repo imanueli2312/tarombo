@@ -176,106 +176,150 @@ export function handleDeathSideEffects(personId: string): void {
     .all(personId, personId) as PartnershipRow[];
 
   const now = new Date().toISOString();
-  for (const partnership of activePartnerships) {
-    const isHusbandDead = partnership.husband_id === personId;
-    const survivorId = isHusbandDead
-      ? partnership.wife_id
-      : partnership.husband_id;
 
-    sqlite
-      .prepare(
-        `UPDATE partnership SET divorce_date = ?, status = 'WIDOWED', updated_at = ?
-         WHERE id = ?`,
-      )
-      .run(person.death_date, now, partnership.id);
+  // Transaction: semua update atomic — bila salah satu gagal, rollback semua
+  const tx = sqlite.transaction(() => {
+    for (const partnership of activePartnerships) {
+      const isHusbandDead = partnership.husband_id === personId;
+      const survivorId = isHusbandDead
+        ? partnership.wife_id
+        : partnership.husband_id;
 
-    if (survivorId) {
+      sqlite
+        .prepare(
+          `UPDATE partnership SET divorce_date = ?, status = 'WIDOWED', updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(person.death_date, now, partnership.id);
+
+      if (survivorId) {
+        sqlite
+          .prepare(
+            `UPDATE person SET marital_status = 'WIDOWED', updated_at = ? WHERE id = ?`,
+          )
+          .run(now, survivorId);
+      }
+    }
+
+    if (activePartnerships.length > 0) {
       sqlite
         .prepare(
           `UPDATE person SET marital_status = 'WIDOWED', updated_at = ? WHERE id = ?`,
         )
-        .run(now, survivorId);
+        .run(now, personId);
     }
-  }
-
-  if (activePartnerships.length > 0) {
-    sqlite
-      .prepare(
-        `UPDATE person SET marital_status = 'WIDOWED', updated_at = ? WHERE id = ?`,
-      )
-      .run(now, personId);
-  }
+  });
+  tx();
 }
 
 // ============================================================================
-// Membangun pohon silsilah (FamilyNode) — rekursif
+// Membangun pohon silsilah (FamilyNode) — batch load (no N+1)
 // ============================================================================
 
+/**
+ * Bangun pohon tarombo dari satu Person sebagai root.
+ * Optimized: batch load semua person + partnership dalam 2 query,
+ * lalu build tree in-memory. Eliminasi N+1 queries.
+ */
 export function buildFamilyTree(rootPersonId: string): FamilyNode | null {
   const root = sqlite
     .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
     .get(rootPersonId) as PersonRow | undefined;
   if (!root) return null;
 
+  // Batch load SEMUA person & partnership sekali saja
+  const allPersons = sqlite
+    .prepare("SELECT * FROM person WHERE deleted_at IS NULL")
+    .all() as PersonRow[];
+  const allPartnerships = sqlite
+    .prepare("SELECT * FROM partnership WHERE deleted_at IS NULL")
+    .all() as PartnershipRow[];
+
+  // Build lookup maps
+  const personMap = new Map<string, PersonRow>();
+  for (const p of allPersons) personMap.set(p.id, p);
+
+  // Map: personId → partnerships involving them
+  const partnershipMap = new Map<string, PartnershipRow[]>();
+  for (const p of allPartnerships) {
+    for (const id of [p.husband_id, p.wife_id]) {
+      if (!partnershipMap.has(id)) partnershipMap.set(id, []);
+      partnershipMap.get(id)!.push(p);
+    }
+  }
+  // Sort partnerships per person (ACTIVE first, then by marriage_date)
+  for (const arr of partnershipMap.values()) {
+    arr.sort((a, b) => {
+      const order = (s: string) => (s === "ACTIVE" ? 0 : s === "WIDOWED" ? 1 : 2);
+      const d = order(a.status) - order(b.status);
+      if (d !== 0) return d;
+      const da = a.marriage_date ?? "";
+      const db = b.marriage_date ?? "";
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+  }
+
+  // Map: parentId → children (father_id or mother_id)
+  const childrenMap = new Map<string, PersonRow[]>();
+  for (const p of allPersons) {
+    const parentId = p.gender === "MALE" ? p.father_id : p.mother_id;
+    if (parentId) {
+      if (!childrenMap.has(parentId)) childrenMap.set(parentId, []);
+      childrenMap.get(parentId)!.push(p);
+    }
+  }
+  // Sort children by birth_order, birth_date
+  for (const arr of childrenMap.values()) {
+    arr.sort((a, b) => {
+      const oa = a.birth_order ?? 9999;
+      const ob = b.birth_order ?? 9999;
+      if (oa !== ob) return oa - ob;
+      const da = a.birth_date ?? "";
+      const db = b.birth_date ?? "";
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+  }
+
   const visited = new Set<string>();
-  return buildNode(root.id, visited);
-}
 
-function buildNode(personId: string, visited: Set<string>): FamilyNode | null {
-  if (visited.has(personId)) return null;
-  visited.add(personId);
+  function buildNode(personId: string): FamilyNode | null {
+    if (visited.has(personId)) return null;
+    visited.add(personId);
 
-  const person = sqlite
-    .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
-    .get(personId) as PersonRow | undefined;
-  if (!person) return null;
+    const person = personMap.get(personId);
+    if (!person) return null;
 
-  // Cari partnership (prioritaskan AKTIF)
-  const partnerships = sqlite
-    .prepare(
-      `SELECT * FROM partnership
-       WHERE deleted_at IS NULL AND (husband_id = ? OR wife_id = ?)
-       ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'WIDOWED' THEN 1 ELSE 2 END,
-                marriage_date ASC NULLS LAST`,
-    )
-    .all(personId, personId) as PartnershipRow[];
+    // Cari partnership (sudah sorted: ACTIVE first)
+    const partnerships = partnershipMap.get(personId) ?? [];
+    let spouse: PersonRow | null = null;
+    let partnership: PartnershipRow | null = null;
 
-  let spouse: PersonRow | null = null;
-  let partnership: PartnershipRow | null = null;
+    if (partnerships.length > 0) {
+      partnership = partnerships[0];
+      const spouseId =
+        partnership.husband_id === personId
+          ? partnership.wife_id
+          : partnership.husband_id;
+      spouse = personMap.get(spouseId) ?? null;
+    }
 
-  if (partnerships.length > 0) {
-    partnership = partnerships[0];
-    const spouseId =
-      partnership.husband_id === personId
-        ? partnership.wife_id
-        : partnership.husband_id;
-    spouse =
-      (sqlite
-        .prepare("SELECT * FROM person WHERE id = ? AND deleted_at IS NULL")
-        .get(spouseId) as PersonRow | undefined) ?? null;
+    // Anak-anak (sudah sorted)
+    const childRecords = childrenMap.get(personId) ?? [];
+    const children: FamilyNode[] = [];
+    for (const child of childRecords) {
+      const node = buildNode(child.id);
+      if (node) children.push(node);
+    }
+
+    return {
+      person: serializePerson(person),
+      spouse: spouse ? serializePerson(spouse) : null,
+      partnership: partnership ? serializePartnership(partnership) : null,
+      children,
+    };
   }
 
-  // Anak-anak
-  const childrenCol = person.gender === "MALE" ? "father_id" : "mother_id";
-  const childRecords = sqlite
-    .prepare(
-      `SELECT * FROM person WHERE ${childrenCol} = ? AND deleted_at IS NULL
-       ORDER BY birth_order ASC NULLS LAST, birth_date ASC NULLS LAST`,
-    )
-    .all(personId) as PersonRow[];
-
-  const children: FamilyNode[] = [];
-  for (const child of childRecords) {
-    const node = buildNode(child.id, visited);
-    if (node) children.push(node);
-  }
-
-  return {
-    person: serializePerson(person),
-    spouse: spouse ? serializePerson(spouse) : null,
-    partnership: partnership ? serializePartnership(partnership) : null,
-    children,
-  };
+  return buildNode(root.id);
 }
 
 // ============================================================================
