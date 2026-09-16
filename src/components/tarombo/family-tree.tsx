@@ -2,6 +2,7 @@
 
 import { hierarchy, tree, type HierarchyPointLink, type HierarchyPointNode } from "d3-hierarchy";
 import { select, type Selection } from "d3-selection";
+import "d3-transition";  // extends d3-selection with .transition()
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { sqlite } from "@/lib/db";
 import { parsePermissions, GUEST_PERMISSIONS } from "./permissions";
-import type { PersonRow, RoleRow, UserRow } from "./queries";
+import type { RoleRow, UserRow } from "./queries";
 
 // ============================================================================
 // Helper autentikasi & otorisasi (RBAC) server-side — tanpa Prisma
